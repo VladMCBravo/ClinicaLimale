@@ -1,15 +1,13 @@
 // src/components/laudos/LaudosPreviewModalV2.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-    Dialog, DialogTitle, DialogContent, DialogActions, 
-    Button, Tabs, Tab, Box, Typography, IconButton, Tooltip 
+    Dialog, AppBar, Toolbar, Typography, Button, IconButton, 
+    Box, Tooltip, Divider
 } from '@mui/material';
 import { 
-    FaSave, FaTimes, FaCamera, FaTrash, 
-    FaCloudDownloadAlt, FaLaptop 
+    FaSave, FaTimes, FaCamera, FaTrash, FaCloudDownloadAlt, 
+    FaLaptop, FaPrint, FaShareSquare, FaImage
 } from 'react-icons/fa';
-
-// O motor do novo laudo visual
 import { Editor } from '@tinymce/tinymce-react';
 
 const LaudosPreviewModalV2 = ({ 
@@ -18,24 +16,20 @@ const LaudosPreviewModalV2 = ({
     htmlInicial, 
     imagensIniciais, 
     onFinalizar,
-    onAbrirNuvem
+    onAbrirNuvem,
+    onSalvarRascunho
 }) => {
     const editorRef = useRef(null);
     const [imagens, setImagens] = useState([]);
-    const [tabIndex, setTabIndex] = useState(0);
     const [dataExameModal, setDataExameModal] = useState(new Date().toISOString().split('T')[0]);
-
-    // Usaremos um estado interno leve para lidar com o cancelamento se necessário
-    const [conteudoAtual, setConteudoAtual] = useState('');
+    const [mostrarFotos, setMostrarFotos] = useState(true);
 
     useEffect(() => {
         if (open) {
-            setConteudoAtual(htmlInicial || '');
             setImagens(imagensIniciais || []);
-            setTabIndex(0);
             setDataExameModal(new Date().toISOString().split('T')[0]); 
         }
-    }, [open, htmlInicial, imagensIniciais]);
+    }, [open, imagensIniciais]);
 
     const handleImageUpload = (e) => {
         const files = Array.from(e.target.files);
@@ -47,151 +41,166 @@ const LaudosPreviewModalV2 = ({
             reader.onload = () => resolve(reader.result);
         }));
 
-        Promise.all(promises).then(base64List => {
-            setImagens(prev => [...prev, ...base64List]);
-        });
+        Promise.all(promises).then(base64List => setImagens(prev => [...prev, ...base64List]));
     };
 
-    const removeImage = (index) => {
-        setImagens(prev => prev.filter((_, i) => i !== index));
+    const removeImage = (index) => setImagens(prev => prev.filter((_, i) => i !== index));
+
+    const extrairHTML = () => editorRef.current ? editorRef.current.getContent() : htmlInicial;
+
+    const acaoSalvarRascunho = () => {
+        onSalvarRascunho(extrairHTML());
+        onClose();
     };
 
-    const handleSalvarEFinalizar = () => {
-        // Extrai o conteúdo final, rico e formatado (o HTML "puro")
-        const htmlFinal = editorRef.current ? editorRef.current.getContent() : conteudoAtual;
-        onFinalizar(htmlFinal, imagens, dataExameModal);
+    const acaoImprimirApenas = () => {
+        if (editorRef.current) {
+            const iframe = editorRef.current.getWin();
+            iframe.focus();
+            iframe.print();
+        }
+    };
+
+    const acaoFinalizar = () => {
+        onFinalizar(extrairHTML(), imagens, dataExameModal);
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-            {/* CABEÇALHO */}
-            <DialogTitle style={{ background: '#1C2E4A', color: 'white', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6">Revisão e Finalização (Editor Visual)</Typography>
-                <FaTimes onClick={onClose} style={{ cursor: 'pointer' }} />
-            </DialogTitle>
-
-            {/* ABAS */}
-            <Box style={{ borderBottom: '1px solid #ddd', background: '#f5f5f5' }}>
-                <Tabs value={tabIndex} onChange={(e, v) => setTabIndex(v)} indicatorColor="primary" textColor="primary">
-                    <Tab label="1. Revisão do Documento" />
-                    <Tab label={`2. Anexar Fotos (${imagens.length})`} />
-                </Tabs>
-            </Box>
+        <Dialog open={open} onClose={acaoSalvarRascunho} fullScreen>
             
-            {/* Altura maior no modal V2 para acomodar o visual A4 confortavelmente */}
-            <DialogContent style={{ padding: 0, height: '70vh', background: '#eceff1' }}>
+            {/* 1. BARRA SUPERIOR (ESTILO WORD) */}
+            <AppBar sx={{ position: 'relative', background: '#1C2E4A', boxShadow: 'none' }}>
+                <Toolbar variant="dense" sx={{ minHeight: '48px', px: 2 }}>
+                    <Typography sx={{ ml: 2, flex: 1, fontWeight: 'bold', fontSize: '14px' }} variant="h6" component="div">
+                        Revisão Final e Assinatura Eletrônica
+                    </Typography>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(255,255,255,0.1)', px: 2, py: 0.5, borderRadius: 1, mr: 3 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#fff' }}>Data do Exame:</Typography>
+                        <input 
+                            type="date" value={dataExameModal} onChange={(e) => setDataExameModal(e.target.value)}
+                            style={{ padding: '2px 6px', borderRadius: '4px', border: 'none', fontSize: '12px', outline: 'none' }}
+                        />
+                    </Box>
+
+                    <IconButton edge="end" color="inherit" onClick={acaoSalvarRascunho}>
+                        <FaTimes size={18} />
+                    </IconButton>
+                </Toolbar>
+            </AppBar>
+
+            {/* 2. RIBBON DE AÇÕES CLARAS */}
+            <Box sx={{ display: 'flex', alignItems: 'center', p: 1.5, background: '#f8f9fa', borderBottom: '1px solid #ced4da', gap: 2 }}>
                 
-                {/* ABA 1: O NOVO EDITOR WYSIWYG */}
-                {tabIndex === 0 && (
-                     <Box sx={{ 
-                         height: '100%', 
-                         display: 'flex', 
-                         justifyContent: 'center', // Centraliza a "folha" horizontalmente
-                         padding: '20px', 
-                         overflowY: 'auto'
-                     }}>
-                        <Box sx={{ 
-                            width: '100%',
-                            maxWidth: '794px', // Simula a largura A4
-                            background: '#fff',
-                            boxShadow: '0px 4px 15px rgba(0,0,0,0.1)',
-                            border: '1px solid #cfd8dc'
-                        }}>
-                             <Editor
-                                apiKey="sua-chave-api-tinymce-opcional-se-tiver" // Funciona sem chave (dá um warning), ou coloque uma se criar conta grátis
-                                onInit={(evt, editor) => editorRef.current = editor}
-                                initialValue={conteudoAtual}
-                                init={{
-                                  height: '100%',
-                                  menubar: false, // Deixa bem limpo, como o Quill
-                                  plugins: [
+                <Tooltip title="Salva o progresso e volta para a tela anterior">
+                    <Button onClick={acaoSalvarRascunho} sx={{ color: '#495057', textTransform: 'none', fontWeight: 600 }}>
+                        <FaSave size={16} style={{ marginRight: 6 }} /> Salvar e Voltar
+                    </Button>
+                </Tooltip>
+
+                <Divider orientation="vertical" flexItem />
+
+                <Tooltip title="Imprime o texto sem gerar PDF no sistema">
+                    <Button onClick={acaoImprimirApenas} sx={{ color: '#007FFF', textTransform: 'none', fontWeight: 600 }}>
+                        <FaPrint size={16} style={{ marginRight: 6 }} /> Imprimir Rascunho
+                    </Button>
+                </Tooltip>
+
+                <Divider orientation="vertical" flexItem />
+
+                <Tooltip title="Abre ou fecha a barra de anexos">
+                    <Button onClick={() => setMostrarFotos(!mostrarFotos)} sx={{ color: '#E65100', textTransform: 'none', fontWeight: 600 }}>
+                        <FaImage size={16} style={{ marginRight: 6 }} /> {mostrarFotos ? 'Ocultar Fotos' : 'Ver Fotos'}
+                    </Button>
+                </Tooltip>
+
+                <Box sx={{ flexGrow: 1 }} /> 
+
+                <Tooltip title="Aplica assinatura digital e cria credenciais do paciente">
+                    <Button 
+                        onClick={acaoFinalizar} variant="contained" 
+                        sx={{ background: '#2E7D32', '&:hover': { background: '#1B5E20' }, textTransform: 'none', fontWeight: 'bold', px: 3, py: 1, borderRadius: '30px', boxShadow: '0 4px 10px rgba(46,125,50,0.3)' }}
+                    >
+                        <FaShareSquare size={16} style={{ marginRight: 8 }} /> 
+                        Finalizar e Gerar Acesso
+                    </Button>
+                </Tooltip>
+            </Box>
+
+            {/* 3. ÁREA DE TRABALHO: EDITOR + FOTOS */}
+            <Box sx={{ display: 'flex', height: 'calc(100vh - 110px)', background: '#e9ecef', overflow: 'hidden' }}>
+                
+                <Box sx={{ flex: 1, overflowY: 'auto', p: 4, display: 'flex', justifyContent: 'center' }}>
+                    <Box sx={{ width: '100%', maxWidth: '850px', background: '#fff', boxShadow: '0 5px 15px rgba(0,0,0,0.2)', border: '1px solid #ccc', display: 'flex', flexDirection: 'column' }}>
+                        <Editor
+                            apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
+                            onInit={(evt, editor) => editorRef.current = editor}
+                            initialValue={htmlInicial}
+                            init={{
+                                height: '100%',
+                                menubar: 'edit view insert format table',
+                                plugins: [
                                     'advlist', 'autolink', 'lists', 'link', 'image', 'charmap',
                                     'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                                    'insertdatetime', 'media', 'table', 'preview', 'wordcount'
-                                  ],
-                                  toolbar: 'undo redo | blocks | ' +
-                                    'bold italic forecolor | alignleft aligncenter ' +
-                                    'alignright alignjustify | bullist numlist outdent indent | ' +
-                                    'table | removeformat',
-                                  
-                                  // Mágica CSS do Editor para parecer papel:
-                                  content_style: `
-                                    body { font-family:Helvetica,Arial,sans-serif; font-size:14px; padding: 40px; margin: 0; color: #333;}
+                                    'insertdatetime', 'media', 'table', 'wordcount',
+                                    'powerpaste', 'advtable', 'formatpainter', 'tinymcespellchecker', 'exportpdf' // <--- PLUGINS PREMIUM AQUI!
+                                ],
+                                toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | formatpainter | advtablerownumbering table | bullist numlist | spellcheckdialog | exportpdf',
+                                toolbar_sticky: true,
+                                powerpaste_word_import: 'clean',
+                                powerpaste_html_import: 'clean',
+                                spellchecker_language: 'pt_BR',
+                                content_style: `
+                                    body { font-family: Helvetica, Arial, sans-serif; font-size: 14px; padding: 40px; margin: 0; color: #333; line-height: 1.5; }
                                     table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
-                                    td, th { border: 1px solid #ccc; padding: 8px; text-align: left;}
+                                    td, th { border: 1px dotted #ccc; padding: 8px; text-align: left; }
+                                    h4 { margin-top: 20px; margin-bottom: 10px; color: #1C2E4A; border-bottom: 1px solid #ccc; padding-bottom: 4px; font-size: 16px; }
                                     p { margin-top: 0; margin-bottom: 8px; }
-                                  `
-                                }}
-                             />
-                        </Box>
-                     </Box>
-                )}
+                                `
+                            }}
+                        />
+                    </Box>
+                </Box>
 
-                {/* ABA 2: FOTOS (Mantida igual a original, pois está perfeita) */}
-                {tabIndex === 1 && (
-                    <div style={{ padding: '20px', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', background: '#fff' }}>
-                        <Box style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '15px', background: '#f0f4f8', borderRadius: '8px', border: '1px solid #e0e6ed' }}>
-                            <Box>
-                                <Typography variant="subtitle2" style={{ fontWeight: 'bold', color: '#1C2E4A' }}>Adicionar Imagens</Typography>
-                                <Typography variant="caption" color="textSecondary">Escolha a origem das fotos do exame.</Typography>
-                            </Box>
-                            <Box display="flex" gap={2}>
-                                <label htmlFor="modal-img-upload-v2">
+                {mostrarFotos && (
+                    <Box sx={{ width: '350px', background: '#fff', borderLeft: '1px solid #ced4da', display: 'flex', flexDirection: 'column' }}>
+                        <Box sx={{ p: 2, background: '#f0f4f8', borderBottom: '1px solid #e0e6ed' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1C2E4A', mb: 1 }}>
+                                Anexos ({imagens.length})
+                            </Typography>
+                            <Box display="flex" flexDirection="column" gap={1}>
+                                <label htmlFor="modal-img-upload-v2" style={{ width: '100%' }}>
                                     <input type="file" id="modal-img-upload-v2" multiple accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
-                                    <Button component="span" variant="outlined" style={{ background: 'white', color: '#555', borderColor: '#bbb', textTransform: 'none', fontWeight: '600' }}>
+                                    <Button component="span" variant="outlined" fullWidth sx={{ background: 'white', color: '#555', borderColor: '#bbb', textTransform: 'none', justifyContent: 'flex-start' }}>
                                         <FaLaptop style={{ marginRight: 8, color: '#FF9800' }} /> Do Computador
                                     </Button>
                                 </label>
-                                <Button onClick={onAbrirNuvem} variant="contained" style={{ background: '#007FFF', color: '#fff', textTransform: 'none', fontWeight: '600' }}>
-                                    <FaCloudDownloadAlt style={{ marginRight: 8, fontSize: '1.1em' }} /> Buscar da Nuvem
+                                <Button onClick={onAbrirNuvem} variant="contained" fullWidth sx={{ background: '#007FFF', textTransform: 'none', justifyContent: 'flex-start' }}>
+                                    <FaCloudDownloadAlt style={{ marginRight: 8 }} /> Da Nuvem
                                 </Button>
                             </Box>
                         </Box>
-
-                        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gridAutoRows: '120px', gap: '15px', overflowY: 'auto', padding: '15px', border: '2px dashed #e0e0e0', borderRadius: '8px', background: '#fafafa' }}>
+                        <Box sx={{ flex: 1, overflowY: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2, background: '#fafafa' }}>
                             {imagens.length === 0 && (
-                                <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#aaa', height: '100%' }}>
-                                    <FaCamera size={40} style={{ marginBottom: 10, opacity: 0.3 }} />
-                                    <Typography variant="body2">Nenhuma foto selecionada.</Typography>
-                                </div>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#aaa', height: '100%', opacity: 0.6 }}>
+                                    <FaCamera size={40} style={{ mb: 1 }} />
+                                    <Typography variant="body2">Nenhuma foto anexada.</Typography>
+                                </Box>
                             )}
                             {imagens.map((img, idx) => (
-                                <div key={idx} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', background: '#fff', border: '1px solid #eee' }}>
+                                <Box key={idx} sx={{ position: 'relative', borderRadius: '4px', overflow: 'hidden', border: '1px solid #ddd', height: '180px' }}>
                                     <img src={img} alt={`foto-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    <div style={{ position: 'absolute', top: 5, right: 5 }}>
-                                        <Tooltip title="Remover foto">
-                                            <IconButton size="small" onClick={() => removeImage(idx)} style={{ background: 'white', padding: 4, boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
-                                                <FaTrash size={12} color="#f44336" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </div>
-                                    <div style={{ position: 'absolute', bottom: 5, left: 5, background: 'rgba(0,0,0,0.6)', color: 'white', padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' }}>
-                                        #{idx + 1}
-                                    </div>
-                                </div>
+                                    <Tooltip title="Remover">
+                                        <IconButton size="small" onClick={() => removeImage(idx)} sx={{ position: 'absolute', top: 5, right: 5, background: 'white', '&:hover':{background: '#ffebee'} }}>
+                                            <FaTrash size={14} color="#d32f2f" />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Box>
                             ))}
-                        </div>
-                    </div>
+                        </Box>
+                    </Box>
                 )}
-            </DialogContent>
-
-            <DialogActions style={{ padding: '20px 24px', background: '#f5f5f5', justifyContent: 'space-between', borderTop: '1px solid #ddd' }}>
-                <Box style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Typography variant="caption" style={{ fontWeight: 'bold', color: '#555' }}>Data do Exame:</Typography>
-                    <input 
-                        type="date"
-                        value={dataExameModal}
-                        onChange={(e) => setDataExameModal(e.target.value)}
-                        style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccc', fontFamily: 'inherit', fontSize: '13px', cursor: 'pointer', outline: 'none', color: '#333' }}
-                    />
-                </Box>
-                <Box>
-                    <Button onClick={onClose} style={{ color: '#666', marginRight: '15px' }}>Voltar</Button>
-                    <Button onClick={handleSalvarEFinalizar} variant="contained" size="large" style={{ background: '#2E7D32', color: 'white', fontWeight: 'bold', padding: '10px 40px', borderRadius: '30px', boxShadow: '0 4px 10px rgba(46, 125, 50, 0.3)' }}>
-                        <FaSave style={{ marginRight: 10 }} /> SALVAR E FINALIZAR
-                    </Button>
-                </Box>
-            </DialogActions>
+            </Box>
         </Dialog>
     );
 };
