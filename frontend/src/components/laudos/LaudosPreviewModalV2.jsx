@@ -11,13 +11,8 @@ import {
 import { Editor } from '@tinymce/tinymce-react';
 
 const LaudosPreviewModalV2 = ({ 
-    open, 
-    onClose, 
-    htmlInicial, 
-    imagensIniciais, 
-    onFinalizar,
-    onAbrirNuvem,
-    onSalvarRascunho
+    open, onClose, htmlInicial, imagensIniciais, 
+    onFinalizar, onAbrirNuvem, onSalvarRascunho
 }) => {
     const editorRef = useRef(null);
     const [imagens, setImagens] = useState([]);
@@ -34,25 +29,18 @@ const LaudosPreviewModalV2 = ({
     const handleImageUpload = (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
-        
         const promises = files.map(file => new Promise((resolve) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = () => resolve(reader.result);
         }));
-
         Promise.all(promises).then(base64List => setImagens(prev => [...prev, ...base64List]));
     };
 
     const removeImage = (index) => setImagens(prev => prev.filter((_, i) => i !== index));
-
     const extrairHTML = () => editorRef.current ? editorRef.current.getContent() : htmlInicial;
 
-    const acaoSalvarRascunho = () => {
-        onSalvarRascunho(extrairHTML());
-        onClose();
-    };
-
+    const acaoSalvarRascunho = () => { onSalvarRascunho(extrairHTML()); onClose(); };
     const acaoImprimirApenas = () => {
         if (editorRef.current) {
             const iframe = editorRef.current.getWin();
@@ -60,18 +48,14 @@ const LaudosPreviewModalV2 = ({
             iframe.print();
         }
     };
-
-    const acaoFinalizar = () => {
-        onFinalizar(extrairHTML(), imagens, dataExameModal);
-    };
+    const acaoFinalizar = () => onFinalizar(extrairHTML(), imagens, dataExameModal);
 
     return (
         <Dialog open={open} onClose={acaoSalvarRascunho} fullScreen>
             
-            {/* 1. BARRA SUPERIOR (ESTILO WORD) */}
             <AppBar sx={{ position: 'relative', background: '#1C2E4A', boxShadow: 'none' }}>
                 <Toolbar variant="dense" sx={{ minHeight: '48px', px: 2 }}>
-                    <Typography sx={{ ml: 2, flex: 1, fontWeight: 'bold', fontSize: '14px' }} variant="h6" component="div">
+                    <Typography sx={{ ml: 2, flex: 1, fontWeight: 'bold', fontSize: '14px' }} variant="h6">
                         Revisão Final e Assinatura Eletrônica
                     </Typography>
                     
@@ -82,84 +66,68 @@ const LaudosPreviewModalV2 = ({
                             style={{ padding: '2px 6px', borderRadius: '4px', border: 'none', fontSize: '12px', outline: 'none' }}
                         />
                     </Box>
-
-                    <IconButton edge="end" color="inherit" onClick={acaoSalvarRascunho}>
-                        <FaTimes size={18} />
-                    </IconButton>
+                    <IconButton edge="end" color="inherit" onClick={acaoSalvarRascunho}><FaTimes size={18} /></IconButton>
                 </Toolbar>
             </AppBar>
 
-            {/* 2. RIBBON DE AÇÕES CLARAS */}
             <Box sx={{ display: 'flex', alignItems: 'center', p: 1.5, background: '#f8f9fa', borderBottom: '1px solid #ced4da', gap: 2 }}>
-                
-                <Tooltip title="Salva o progresso e volta para a tela anterior">
-                    <Button onClick={acaoSalvarRascunho} sx={{ color: '#495057', textTransform: 'none', fontWeight: 600 }}>
-                        <FaSave size={16} style={{ marginRight: 6 }} /> Salvar e Voltar
-                    </Button>
-                </Tooltip>
-
+                <Button onClick={acaoSalvarRascunho} sx={{ color: '#495057', textTransform: 'none', fontWeight: 600 }}>
+                    <FaSave size={16} style={{ marginRight: 6 }} /> Salvar e Voltar
+                </Button>
                 <Divider orientation="vertical" flexItem />
-
-                <Tooltip title="Imprime o texto sem gerar PDF no sistema">
-                    <Button onClick={acaoImprimirApenas} sx={{ color: '#007FFF', textTransform: 'none', fontWeight: 600 }}>
-                        <FaPrint size={16} style={{ marginRight: 6 }} /> Imprimir Rascunho
-                    </Button>
-                </Tooltip>
-
+                <Button onClick={acaoImprimirApenas} sx={{ color: '#007FFF', textTransform: 'none', fontWeight: 600 }}>
+                    <FaPrint size={16} style={{ marginRight: 6 }} /> Imprimir Rascunho
+                </Button>
                 <Divider orientation="vertical" flexItem />
-
-                <Tooltip title="Abre ou fecha a barra de anexos">
-                    <Button onClick={() => setMostrarFotos(!mostrarFotos)} sx={{ color: '#E65100', textTransform: 'none', fontWeight: 600 }}>
-                        <FaImage size={16} style={{ marginRight: 6 }} /> {mostrarFotos ? 'Ocultar Fotos' : 'Ver Fotos'}
-                    </Button>
-                </Tooltip>
-
+                <Button onClick={() => setMostrarFotos(!mostrarFotos)} sx={{ color: '#E65100', textTransform: 'none', fontWeight: 600 }}>
+                    <FaImage size={16} style={{ marginRight: 6 }} /> {mostrarFotos ? 'Ocultar Fotos' : 'Ver Fotos'}
+                </Button>
                 <Box sx={{ flexGrow: 1 }} /> 
-
-                <Tooltip title="Aplica assinatura digital e cria credenciais do paciente">
-                    <Button 
-                        onClick={acaoFinalizar} variant="contained" 
-                        sx={{ background: '#2E7D32', '&:hover': { background: '#1B5E20' }, textTransform: 'none', fontWeight: 'bold', px: 3, py: 1, borderRadius: '30px', boxShadow: '0 4px 10px rgba(46,125,50,0.3)' }}
-                    >
-                        <FaShareSquare size={16} style={{ marginRight: 8 }} /> 
-                        Finalizar e Gerar Acesso
-                    </Button>
-                </Tooltip>
+                <Button onClick={acaoFinalizar} variant="contained" sx={{ background: '#2E7D32', textTransform: 'none', fontWeight: 'bold', px: 3, py: 1, borderRadius: '30px' }}>
+                    <FaShareSquare size={16} style={{ marginRight: 8 }} /> Finalizar e Gerar Acesso
+                </Button>
             </Box>
 
-            {/* 3. ÁREA DE TRABALHO: EDITOR + FOTOS */}
-            <Box sx={{ display: 'flex', height: 'calc(100vh - 110px)', background: '#e9ecef', overflow: 'hidden' }}>
+            {/* ÁREA DE TRABALHO: EDITOR 100% FLUIDO */}
+            <Box sx={{ display: 'flex', height: 'calc(100vh - 110px)', background: '#fff', overflow: 'hidden' }}>
                 
-                <Box sx={{ flex: 1, overflowY: 'auto', p: 4, display: 'flex', justifyContent: 'center' }}>
-                    <Box sx={{ width: '100%', maxWidth: '850px', background: '#fff', boxShadow: '0 5px 15px rgba(0,0,0,0.2)', border: '1px solid #ccc', display: 'flex', flexDirection: 'column' }}>
-                        <Editor
-                            apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
-                            onInit={(evt, editor) => editorRef.current = editor}
-                            initialValue={htmlInicial}
-                            init={{
-                                height: '100%',
-                                menubar: 'edit view insert format table',
-                                plugins: [
-                                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap',
-                                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                                    'insertdatetime', 'media', 'table', 'wordcount',
-                                    'powerpaste', 'advtable', 'formatpainter', 'tinymcespellchecker', 'exportpdf' // <--- PLUGINS PREMIUM AQUI!
-                                ],
-                                toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | formatpainter | advtablerownumbering table | bullist numlist | spellcheckdialog | exportpdf',
-                                toolbar_sticky: true,
-                                powerpaste_word_import: 'clean',
-                                powerpaste_html_import: 'clean',
-                                spellchecker_language: 'pt_BR',
-                                content_style: `
-                                    body { font-family: Helvetica, Arial, sans-serif; font-size: 14px; padding: 40px; margin: 0; color: #333; line-height: 1.5; }
-                                    table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
-                                    td, th { border: 1px dotted #ccc; padding: 8px; text-align: left; }
-                                    h4 { margin-top: 20px; margin-bottom: 10px; color: #1C2E4A; border-bottom: 1px solid #ccc; padding-bottom: 4px; font-size: 16px; }
-                                    p { margin-top: 0; margin-bottom: 8px; }
-                                `
-                            }}
-                        />
-                    </Box>
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <Editor
+                        apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
+                        onInit={(evt, editor) => editorRef.current = editor}
+                        initialValue={htmlInicial}
+                        init={{
+                            height: '100%',
+                            width: '100%',
+                            resize: false,
+                            menubar: 'edit view insert format table',
+                            plugins: [
+                                // Free plugins baseline
+                                'accordion', 'advlist', 'anchor', 'autolink', 'autoresize', 'autosave',
+                                'charmap', 'code', 'codesample', 'directionality', 'emoticons', 'fullscreen',
+                                'help', 'image', 'importcss', 'insertdatetime', 'link', 'lists', 'media',
+                                'nonbreaking', 'pagebreak', 'preview', 'quickbars', 'save', 'searchreplace',
+                                'table', 'visualblocks', 'visualchars', 'wordcount',
+                                // Premium plugins — selecionados para o setor Clínico/Saúde
+                                'a11ychecker',       // Ensures medical reports meet accessibility standards
+                                'revisionhistory',   // Audit trail of every change for clinical compliance
+                                'tinymcespellchecker', // Medical spell checking for accurate terminology
+                                'exportpdf',         // Generate clean PDF reports for patients and records
+                                'advtable'           // Advanced grids for complex fetal biometry data
+                            ],
+                            toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | advtablerownumbering table | bullist numlist | spellcheckdialog a11ycheck | exportpdf',
+                            toolbar_sticky: true,
+                            spellchecker_language: 'pt_BR',
+                            revisionhistory_fetch: () => Promise.resolve([]), // Callback obrigatório para o histórico
+                            content_style: `
+                                body { font-family: Helvetica, Arial, sans-serif; font-size: 14px; padding: 30px; margin: 0; color: #333; line-height: 1.5; }
+                                table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
+                                td, th { border: 1px dotted #ccc; padding: 8px; text-align: left; }
+                                h4 { margin-top: 20px; margin-bottom: 10px; color: #1C2E4A; border-bottom: 1px solid #ccc; padding-bottom: 4px; font-size: 16px; }
+                                p { margin-top: 0; margin-bottom: 8px; }
+                            `
+                        }}
+                    />
                 </Box>
 
                 {mostrarFotos && (
