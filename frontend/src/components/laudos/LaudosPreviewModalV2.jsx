@@ -120,7 +120,28 @@ const LaudosPreviewModalV2 = ({
                             spellchecker_language: 'pt_BR',
                             revisionhistory_fetch: () => Promise.resolve([]), // Callback obrigatório para o histórico
                             content_style: `
-                                body { font-family: Helvetica, Arial, sans-serif; font-size: 14px; padding: 30px; margin: 0; color: #333; line-height: 1.5; }
+                                body { 
+                                    font-family: Helvetica, Arial, sans-serif; 
+                                    font-size: 14px; 
+                                    color: #333; 
+                                    line-height: 1.5;
+                                    
+                                    /* 1. O TRUQUE DA MÁSCARA DE FUNDO */
+                                    background-image: url('/receituario-fundo.png'); 
+                                    background-size: 100% 100%; /* Estica para caber na folha A4 virtual */
+                                    background-repeat: no-repeat;
+                                    background-position: center top;
+
+                                    /* 2. AS MARGENS DO SEU GERADOR DE PDF (xhtml2pdf) */
+                                    /* Isso impede que o médico digite em cima do cabeçalho ou da assinatura */
+                                    padding-top: 6.0cm !important; 
+                                    padding-bottom: 4.0cm !important; 
+                                    padding-left: 1.5cm !important;
+                                    padding-right: 1.5cm !important;
+                                    margin: 0; 
+                                }
+                                
+                                /* Configuração das Tabelas V2 */
                                 table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
                                 td, th { border: 1px dotted #ccc; padding: 8px; text-align: left; }
                                 h4 { margin-top: 20px; margin-bottom: 10px; color: #1C2E4A; border-bottom: 1px solid #ccc; padding-bottom: 4px; font-size: 16px; }
