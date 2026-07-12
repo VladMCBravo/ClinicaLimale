@@ -120,28 +120,42 @@ const LaudosPreviewModalV2 = ({
                             spellchecker_language: 'pt_BR',
                             revisionhistory_fetch: () => Promise.resolve([]), // Callback obrigatório para o histórico
                             content_style: `
+                                /* 1. O fundo do editor (A "mesa" cinza) */
+                                html { 
+                                    background: #e9ecef; 
+                                }
+                                
+                                /* 2. A folha de papel A4 */
                                 body { 
                                     font-family: Helvetica, Arial, sans-serif; 
                                     font-size: 14px; 
                                     color: #333; 
                                     line-height: 1.5;
                                     
-                                    /* 1. O TRUQUE DA MÁSCARA DE FUNDO */
+                                    /* Visual do Papel Timbrado */
+                                    background-color: #ffffff;
                                     background-image: url('/Receituario_v2.jpg'); 
-                                    background-size: 100% 100%; /* Estica para caber na folha A4 virtual */
+                                    background-size: 100% 100%; /* Agora funciona perfeito pois a folha tem proporção travada */
                                     background-repeat: no-repeat;
                                     background-position: center top;
+                                    
+                                    /* Trava no tamanho EXATO de uma folha A4 */
+                                    width: 210mm !important;
+                                    min-height: 297mm !important;
+                                    box-sizing: border-box;
+                                    
+                                    /* Centraliza a folha na tela e coloca uma sombra de papel real */
+                                    margin: 20px auto !important; 
+                                    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
 
-                                    /* 2. AS MARGENS DO SEU GERADOR DE PDF (xhtml2pdf) */
-                                    /* Isso impede que o médico digite em cima do cabeçalho ou da assinatura */
+                                    /* Áreas de bloqueio (Cabeçalho e Rodapé baseados no gerador de PDF) */
                                     padding-top: 6.0cm !important; 
                                     padding-bottom: 4.0cm !important; 
                                     padding-left: 1.5cm !important;
                                     padding-right: 1.5cm !important;
-                                    margin: 0; 
                                 }
                                 
-                                /* Configuração das Tabelas V2 */
+                                /* 3. Formatação das Tabelas e Títulos */
                                 table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
                                 td, th { border: 1px dotted #ccc; padding: 8px; text-align: left; }
                                 h4 { margin-top: 20px; margin-bottom: 10px; color: #1C2E4A; border-bottom: 1px solid #ccc; padding-bottom: 4px; font-size: 16px; }
