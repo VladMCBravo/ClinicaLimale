@@ -127,7 +127,7 @@ const LaudosPreviewModalV2 = ({
                                     line-height: 1.5;
                                     
                                     /* 1. O TRUQUE DA MÁSCARA DE FUNDO */
-                                    background-image: url('/static/Receituario_V2.jpg'); 
+                                    background-image: url('/Receituario_V2.jpg'); 
                                     background-size: 100% 100%; /* Estica para caber na folha A4 virtual */
                                     background-repeat: no-repeat;
                                     background-position: center top;
