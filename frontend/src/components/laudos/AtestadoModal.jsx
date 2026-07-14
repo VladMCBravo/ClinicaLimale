@@ -57,11 +57,11 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
         // 3. Geração do texto final com a gramática correta
         let texto = '';
         if (tipo === 'Comparecimento') {
-            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, ${docInfo}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
+            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
         } else if (tipo === 'Afastamento') {
-            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, ${docInfo}, foi ${submetido} a atendimento médico nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
+            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, foi ${submetido} a atendimento médico nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
         } else {
-            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, ${docInfo}, encontra-se ${apto} para a realização de suas atividades a partir desta data (${dataBR}).`;
+            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, encontra-se ${apto} para a realização de suas atividades a partir desta data (${dataBR}).`;
         }
         
         setObservacoes(texto);
