@@ -378,7 +378,7 @@ class WorklistDataView(APIView):
     Fornece os dados do dia para o script local (gerar_worklist.py)
     criar a lista de pacientes no ultrassom (DICOM Worklist).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         hoje = timezone.now().date()
