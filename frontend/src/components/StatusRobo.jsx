@@ -12,54 +12,60 @@ import apiClient from '../api/axiosConfig';
 export default function StatusRobo() {
     const [roboHistory, setRoboHistory] = useState([]);
     const [roboStatus, setRoboStatus] = useState('carregando'); // 'online', 'offline', 'ocioso'
+    const [roboErrorMsg, setRoboErrorMsg] = useState(''); // <--- NOVO ESTADO
     const [anchorElRobo, setAnchorElRobo] = useState(null);
 
     useEffect(() => {
-        const fetchDados = async () => {
-            try {
-                const [resExames, resHeartbeat] = await Promise.all([
-                    apiClient.get('/exames/recentes/'),
-                    apiClient.get('/exames/heartbeat/') 
-                ]);
+    const fetchDados = async () => {
+        try {
+            const [resExames, resHeartbeat] = await Promise.all([
+                apiClient.get('/exames/recentes/'),
+                apiClient.get('/exames/heartbeat/') 
+            ]);
 
-                setRoboHistory(resExames.data);
+            setRoboHistory(resExames.data);
 
-                if (resHeartbeat.data.online === false) {
-                    setRoboStatus('offline');
-                } else {
-                    setRoboStatus(resExames.data.length > 0 ? 'online' : 'ocioso');
-                }
-            } catch (e) {
-                setRoboStatus('offline'); 
+            if (resHeartbeat.data.online === false) {
+                setRoboStatus('offline');
+                setRoboErrorMsg(resHeartbeat.data.erro || ''); // <--- SALVA O ERRO DO BACKEND
+            } else {
+                setRoboStatus(resExames.data.length > 0 ? 'online' : 'ocioso');
+                setRoboErrorMsg('');
             }
-        };
-
-        fetchDados();
-        const interval = setInterval(fetchDados, 15000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const getStatusConfig = (item) => {
-        if (item.status === 'ERRO') {
-            return {
-                color: '#d32f2f',
-                icon: FaTimesCircle,
-                tooltip: `Falha na importação: ${item.erro_msg || 'Erro desconhecido'}`,
-            };
-        } else if (item.paciente === 'Desconhecido' || item.status === 'PENDENTE') {
-            return {
-                color: '#ed6c02',
-                icon: FaExclamationTriangle,
-                tooltip: 'Paciente não identificado. Vincule no painel.',
-            };
-        } else {
-            return {
-                color: '#4CAF50',
-                icon: FaCheckCircle,
-                tooltip: 'Importado com sucesso.',
-            };
+        } catch (e) {
+            setRoboStatus('offline'); 
+            setRoboErrorMsg('Falha na conexão com a API do servidor.');
         }
     };
+
+    fetchDados();
+    const interval = setInterval(fetchDados, 15000);
+    return () => clearInterval(interval);
+}, []);
+
+    const getStatusConfig = (item) => {
+    if (item.status === 'ERRO') {
+        const partes = item.nome_pasta.split('| ERRO:');
+        const erroLimpo = partes.length > 1 ? partes[1].trim() : item.nome_pasta;
+        return {
+            color: '#d32f2f',
+            icon: FaTimesCircle,
+            tooltip: `Falha na importação: ${erroLimpo}`,
+        };
+    } else if (item.paciente === 'Desconhecido' || item.status === 'PENDENTE') {
+        return {
+            color: '#ed6c02',
+            icon: FaExclamationTriangle,
+            tooltip: 'Paciente não identificado. Vincule no painel.',
+        };
+    } else {
+        return {
+            color: '#4CAF50',
+            icon: FaCheckCircle,
+            tooltip: 'Importado com sucesso.',
+        };
+    }
+};
 
     const formatarDataBR = (dataString) => {
     if (!dataString) return '';
@@ -149,6 +155,14 @@ export default function StatusRobo() {
                     {roboStatus === 'offline' && (
                         <Alert severity="error" icon={<FaTools />} sx={{ mb: 2, '& .MuiAlert-message': { width: '100%' } }}>
                             <AlertTitle sx={{ fontWeight: 'bold' }}>Como Resolver?</AlertTitle>
+
+                            {/* EXIBIÇÃO DINÂMICA DO LOG DE ERRO */}
+                            {roboErrorMsg && (
+                                <Typography variant="body2" sx={{ mb: 1.5, color: '#d32f2f', background: 'rgba(211, 47, 47, 0.1)', p: 1, borderRadius: 1, fontWeight: 'bold', border: '1px solid rgba(211, 47, 47, 0.3)' }}>
+                                    Causa provável: {roboErrorMsg}
+                                </Typography>
+                            )}
+
                             <Typography variant="body2" sx={{ mb: 1 }}>
                                 O computador da sala de exames parou de enviar sinal de vida. Verifique:
                             </Typography>
