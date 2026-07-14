@@ -409,44 +409,54 @@ class WorklistDataView(APIView):
 class HeartbeatView(APIView):
     """
     Controla o status "Online/Offline" do Robô da Clínica.
-    POST: O script local bate aqui a cada 3 minutos para avisar que está vivo.
-    GET: O React bate aqui para checar se o robô respondeu nos últimos 5 minutos.
+    POST: O script local bate aqui para avisar que está vivo.
+    GET: O React bate aqui para checar se o robô respondeu nos últimos minutos.
     """
-    permission_classes = [AllowAny] # Permite o script bater sem token complexo
+    permission_classes = [AllowAny]
 
     def post(self, request):
-        # Salva a data/hora atual no cache do Django
-        cache.set('robo_ultimo_heartbeat', timezone.now(), timeout=None)
+        # Salva o timestamp do sinal de vida com tempo limite de 6 minutos
+        cache.set('robo_ultimo_heartbeat', timezone.now(), timeout=360)
+        # Se o robô voltou a mandar sinal de vida, limpamos o último erro registrado
+        cache.delete('robo_ultimo_erro')
         return Response({'status': 'vivo'}, status=status.HTTP_200_OK)
 
     def get(self, request):
         ultimo_ping = cache.get('robo_ultimo_heartbeat')
+        ultimo_erro = cache.get('robo_ultimo_erro')
         
-        # Se nunca bateu ou o servidor reiniciou
         if not ultimo_ping:
-            return Response({'online': False})
+            return Response({
+                'online': False, 
+                'erro': ultimo_erro or 'Sem atividade registrada nas últimas horas.'
+            })
         
-        # Calcula a diferença de tempo (Limite de tolerância: 5 minutos / 300 segundos)
+        # Como o script local roda a cada 1 minuto, se ele ficar mais de 3 minutos (180s) sem bater, está offline
         diferenca_segundos = (timezone.now() - ultimo_ping).total_seconds()
         
-        if diferenca_segundos > 300:
-            return Response({'online': False})
+        if diferenca_segundos > 180:
+            return Response({
+                'online': False, 
+                'erro': ultimo_erro or 'Tempo limite de resposta do robô excedido (Timeout).'
+            })
             
         return Response({'online': True})
 
 
 class ReportErrorView(APIView):
     """
-    Recebe alertas de erro do script local quando uma pasta não consegue subir.
+    Recebe alertas de erro do script local quando algo dá errado na sincronização.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
         nome_pasta = request.data.get('nome_pasta_original', 'Pasta Desconhecida')
-        # Limita o tamanho da mensagem para não quebrar o banco
         erro_msg = request.data.get('erro_msg', 'Erro desconhecido')[:200] 
 
-        # Salva um registro no banco com status ERRO para o React mostrar
+        # 1. Guarda no cache para o React ler no topo do alerta vermelho instantaneamente
+        cache.set('robo_ultimo_erro', f"{nome_pasta}: {erro_msg}", timeout=1800) # Expira em 30 min
+
+        # 2. Salva o registro no banco de dados para o histórico do painel
         Exame.objects.create(
             nome_paciente_pasta=f"{nome_pasta} | ERRO: {erro_msg}",
             data_exame=timezone.now().date(),
