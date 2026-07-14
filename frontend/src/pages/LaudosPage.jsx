@@ -815,21 +815,23 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                         </IconButton>
                      </Tooltip>
                      <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto', mx: 0.5 }} />
-                    <Button size="small" onClick={handleImprimirTermo} sx={{ color: '#546E7A', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Termo</Button>
+                    <Button size="small" onClick={handleImprimirTermo} sx={{ color: '#546E7A', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>
+                        Termo
+                    </Button>
                     <Button 
                         size="small" 
                         onClick={() => {
                             if (!paciente || !medicoNome) {
-                                alert("Selecione um Paciente e identifique o Médico antes de gerar o atestado.");
+                                alert("Selecione um Paciente e identifique o Médico antes de gerar o documento.");
                                 return;
                             }
                             setModalAtestadoOpen(true);
                         }} 
                         sx={{ color: '#00897B', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}
                     >
-                        Atestado
+                        Atestado / Declaração
                     </Button>
-                    <Button size="small" onClick={() => setModalDeclaracaoOpen(true)} sx={{ color: '#7E57C2', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Declaração</Button>
+                    {/* O antigo botão "Declaração" foi deletado daqui */}
                     <Button 
                         variant="contained" 
                         size="small" 
