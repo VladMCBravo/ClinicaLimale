@@ -14,7 +14,7 @@
     }
 </style>
 
-<!-- 1. BLOCO DO CABEÇALHO (O Base_PDF o suga para a posição perfeita) -->
+<!-- 1. BLOCO DO CABEÇALHO -->
 <div id="header_content">
     <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-size: 10pt; color: #1C2E4A; line-height: 1.6;">
         <tr>
@@ -23,7 +23,12 @@
         <tr>
             <td>
                 <strong>NASC.:</strong> &nbsp;{{ paciente.data_nascimento|date:"d/m/Y"|default:"__/__/____" }} &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <strong>IDADE:</strong> &nbsp;{{ idade_formatada }} &nbsp;&nbsp;|&nbsp;&nbsp; 
+                <strong>IDADE:</strong> &nbsp;{{ idade_formatada }}
+            </td>
+        </tr>
+        <!-- NOVA LINHA: O Sexo agora tem um espaço só para ele -->
+        <tr>
+            <td>
                 <strong>SEXO:</strong> &nbsp;{% if paciente.genero == 'M' %}MASCULINO{% elif paciente.genero == 'F' %}FEMININO{% else %}NÃO INFORMADO{% endif %}
             </td>
         </tr>
@@ -33,13 +38,14 @@
     </table>
 </div>
 
-<!-- 2. TÍTULO DO DOCUMENTO (Já nasce 6cm abaixo do topo graças ao Base_PDF) -->
+<!-- 2. TÍTULO DO DOCUMENTO -->
+<br><br><br>
 <div style="text-align: center; color: #1C2E4A; font-size: 14pt; font-weight: bold; text-transform: uppercase;">
     {{ atestado.get_tipo_atestado_display }}
 </div>
 <br>
 
-<!-- 3. CORPO DO TEXTO (Recuado em 50px graças a tag p gerada pelo linebreaks) -->
+<!-- 3. CORPO DO TEXTO -->
 <div class="texto-atestado">
     {{ atestado.observacoes|linebreaks }}
 </div>
@@ -52,7 +58,8 @@
 </div>
 {% endif %}
 
-<!-- 5. BLOCO DA ASSINATURA (O Base_PDF o suga para o rodapé automaticamente) -->
+<!-- 5. BLOCO DA ASSINATURA -->
+<!-- REMOVIDO o margin-top daqui. A caixa do base_pdf vai segurar ele no lugar perfeitamente. -->
 <div id="assinatura_digital">
     {% if tem_assinatura_digital %}
         <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 0;">
