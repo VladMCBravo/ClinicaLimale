@@ -9,6 +9,7 @@ import json, re
 import os
 import unicodedata
 from django.utils.text import slugify
+from django.utils import timezone
 from datetime import datetime, timedelta
 from crm.models import Ciclo
 
@@ -133,7 +134,7 @@ class Atestado(models.Model):
     ]
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='atestados')
     medico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
-    data_emissao = models.DateTimeField(auto_now_add=True)
+    data_emissao = models.DateTimeField(default=timezone.now)
     tipo_atestado = models.CharField(max_length=20, choices=TIPO_CHOICES)
     # NOVOS CAMPOS PARA O CID
     cid = models.CharField(max_length=100, blank=True, null=True, verbose_name="Código CID-10")
