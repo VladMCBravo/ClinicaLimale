@@ -22,7 +22,7 @@ urlpatterns = [
     
     # --- OUTRAS ROTAS (Sem alteração) ---
     path('prescricoes/', views.PrescricaoListCreateAPIView.as_view(), name='listar-criar-prescricoes'),
-    path('atestados/', views.AtestadoListCreateAPIView.as_view(), name='listar-criar-atestados'),
+    path('pacientes/<int:paciente_id>/atestados/', views.AtestadoListCreateAPIView.as_view(), name='listar-criar-atestados'),
     # ROTAS PARA OS MODELOS DE PRESCRIÇÃO
     path('modelos-prescricao/', views.ModeloPrescricaoListCreateView.as_view(), name='modelos-prescricao'),
     path('modelos-prescricao/<int:pk>/', views.ModeloPrescricaoDetailView.as_view(), name='modelo-prescricao-detail'),
