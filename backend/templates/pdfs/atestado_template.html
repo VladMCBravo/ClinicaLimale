@@ -3,31 +3,50 @@
 {% block title %}Documento Médico{% endblock %}
 
 {% block content %}
+<style>
+    /* Estilização para garantir o recuo da primeira linha em todos os parágrafos */
+    .texto-atestado p {
+        text-indent: 50px;      /* Recuo da primeira linha (parágrafo) */
+        text-align: justify;    /* Texto alinhado dos dois lados */
+        font-size: 12pt;        /* Tamanho padrão oficial (12) */
+        line-height: 1.6;       /* Espaçamento agradável entre as linhas */
+        color: #333;
+        margin-bottom: 15px;    /* Dá um respiro caso haja mais de um parágrafo */
+    }
+</style>
 
-<!-- 1. BLOCO DO CABEÇALHO (Fica no topo, mapeado pelo base_pdf) -->
+<!-- 1. BLOCO DO CABEÇALHO -->
 <div id="header_content">
-    <div class="header-text">
+    <!-- O padding-top: 25px desce o texto para ficar alinhado ao meio do seu Logo -->
+    <div class="header-text" style="padding-top: 25px;">
         <div><strong>PACIENTE:</strong> &nbsp;{{ paciente.nome_completo|upper }}</div>
         <div>
             <strong>NASC.:</strong> &nbsp;{{ paciente.data_nascimento|date:"d/m/Y"|default:"__/__/____" }} &nbsp;&nbsp;|&nbsp;&nbsp; 
             <strong>IDADE:</strong> &nbsp;{{ idade_formatada }}
         </div>
         <div>
-            <!-- PUXA A DATA DO BANCO DE DADOS (Permite datas retroativas) -->
+            <!-- A data retroativa (se escolhida) é respeitada aqui -->
             <strong>DATA DO DOCUMENTO:</strong> &nbsp;{{ atestado.data_emissao|date:"d/m/Y" }}
         </div>
         <div class="header-linha"></div>
     </div>
 </div>
 
-<!-- 2. TÍTULO DO DOCUMENTO (Com margem para não colar na linha) -->
-<div style="margin-top: 40px; text-align: center; color: #1C2E4A; font-size: 14pt; font-weight: bold; text-transform: uppercase;">
+<!-- ESPAÇADOR INVISÍVEL: Impede o título de colar na linha dourada do cabeçalho -->
+<div style="height: 40px;"></div>
+
+<!-- 2. TÍTULO DO DOCUMENTO -->
+<div style="text-align: center; color: #1C2E4A; font-size: 14pt; font-weight: bold; text-transform: uppercase;">
     {{ atestado.get_tipo_atestado_display }}
 </div>
 
-<!-- 3. CORPO DO TEXTO (Fonte 12, justificado, puxando APENAS o texto do frontend) -->
-<div style="margin-top: 40px; font-size: 12pt; text-align: justify; line-height: 1.6; color: #333;">
-    {{ atestado.observacoes|linebreaksbr }}
+<!-- ESPAÇADOR INVISÍVEL entre o título e o texto -->
+<div style="height: 30px;"></div>
+
+<!-- 3. CORPO DO TEXTO -->
+<!-- O filtro '|linebreaks' transforma o texto em tags <p> e ativa o recuo configurado acima -->
+<div class="texto-atestado">
+    {{ atestado.observacoes|linebreaks }}
 </div>
 
 <!-- 4. CID (Se autorizado) -->
@@ -38,7 +57,7 @@
 </div>
 {% endif %}
 
-<!-- 5. BLOCO DA ASSINATURA (Movido para o final do documento) -->
+<!-- 5. BLOCO DA ASSINATURA -->
 <div id="assinatura_digital" style="margin-top: 80px;">
     {% if tem_assinatura_digital %}
         <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 0;">
