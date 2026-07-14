@@ -26,10 +26,10 @@
                 <strong>IDADE:</strong> &nbsp;{{ idade_formatada }}
             </td>
         </tr>
-        <!-- NOVA LINHA: O Sexo agora tem um espaço só para ele -->
         <tr>
             <td>
-                <strong>SEXO:</strong> &nbsp;{% if paciente.genero == 'M' %}MASCULINO{% elif paciente.genero == 'F' %}FEMININO{% else %}NÃO INFORMADO{% endif %}
+                <!-- A MÁGICA: Agora entende tanto a letra quanto a palavra inteira -->
+                <strong>SEXO:</strong> &nbsp;{% if paciente.genero == 'M' or paciente.genero == 'Masculino' or paciente.genero == 'MASCULINO' %}MASCULINO{% elif paciente.genero == 'F' or paciente.genero == 'Feminino' or paciente.genero == 'FEMININO' %}FEMININO{% elif paciente.genero %}{{ paciente.genero|upper }}{% else %}NÃO INFORMADO{% endif %}
             </td>
         </tr>
         <tr>
