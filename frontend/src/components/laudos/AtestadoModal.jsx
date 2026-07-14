@@ -56,7 +56,8 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                 console.error("Falha ao buscar PDF, verificando rota alternativa...", pdfErr);
                 // Caso sua rota de PDF esteja estruturada diferente
                 const pdfResAlt = await apiClient.get(`/prontuario/atestados/${atestadoId}/pdf/`, { responseType: 'blob' });
-                const fileURLAlt = URL.createObjectURL(new Blob([pdfResAltAlt.data], { type: 'application/pdf' }));
+                // CORRIGIDO AQUI: De pdfResAltAlt para pdfResAlt
+                const fileURLAlt = URL.createObjectURL(new Blob([pdfResAlt.data], { type: 'application/pdf' }));
                 window.open(fileURLAlt, '_blank');
             }
 

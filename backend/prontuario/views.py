@@ -170,12 +170,18 @@ class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
 class AtestadoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AtestadoSerializer
     permission_classes = [CanViewProntuario]
-    # (código interno da view restaurado)
+
     def get_queryset(self):
-        paciente_id = self.kwargs.get('paciente_id')
+        # Tenta pegar o ID da URL (Novo) ou dos parâmetros de busca (Antigo)
+        paciente_id = self.kwargs.get('paciente_id') or self.request.query_params.get('paciente')
         return Atestado.objects.filter(paciente__id=paciente_id).order_by('-data_emissao')
+
     def perform_create(self, serializer):
-        paciente = Paciente.objects.get(id=self.kwargs.get('paciente_id'))
+        # Tenta pegar o ID da URL (Novo) ou do corpo da requisição (Antigo)
+        paciente_id = self.kwargs.get('paciente_id') or self.request.data.get('paciente')
+        
+        # Busca o paciente e salva
+        paciente = Paciente.objects.get(id=paciente_id)
         serializer.save(medico=self.request.user, paciente=paciente)
 
 # --- ★★★ CORREÇÃO DO ERRO 500 ESTÁ AQUI ★★★ ---

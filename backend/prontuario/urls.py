@@ -22,7 +22,10 @@ urlpatterns = [
     
     # --- OUTRAS ROTAS (Sem alteração) ---
     path('prescricoes/', views.PrescricaoListCreateAPIView.as_view(), name='listar-criar-prescricoes'),
-    path('pacientes/<int:paciente_id>/atestados/', views.AtestadoListCreateAPIView.as_view(), name='listar-criar-atestados'),
+    # MANTENHA A ROTA ORIGINAL (Para não quebrar o Atendimento Médico)
+    path('atestados/', views.AtestadoListCreateAPIView.as_view(), name='listar-criar-atestados'),
+    # ADICIONE A NOVA ROTA LOGO ABAIXO (Para o Modal Unificado usar)
+    path('pacientes/<int:paciente_id>/atestados/', views.AtestadoListCreateAPIView.as_view(), name='atestados-do-paciente'),
     # ROTAS PARA OS MODELOS DE PRESCRIÇÃO
     path('modelos-prescricao/', views.ModeloPrescricaoListCreateView.as_view(), name='modelos-prescricao'),
     path('modelos-prescricao/<int:pk>/', views.ModeloPrescricaoDetailView.as_view(), name='modelo-prescricao-detail'),
