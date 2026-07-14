@@ -1,3 +1,4 @@
+import os
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -375,21 +376,32 @@ class UltimosExamesEnviadosView(APIView):
 # --- NOVA VIEW: ALIMENTAÇÃO DO DICOM WORKLIST ---
 class WorklistDataView(APIView):
     """
-    Fornece os dados do dia para o script local (gerar_worklist.py)
-    criar a lista de pacientes no ultrassom (DICOM Worklist).
+    Fornece os dados do dia para o script local.
+    Protegido manualmente por uma Chave de Segurança Customizada.
     """
     permission_classes = [AllowAny]
+    authentication_classes = [] 
 
     def get(self, request):
+        token_enviado = request.headers.get('X-Api-Key')
+        
+        # Puxa a senha do ambiente (Variável de Ambiente do Render)
+        CHAVE_SECRETA_LIMALE = os.getenv('ROBO_WORKLIST_TOKEN')
+
+        if not CHAVE_SECRETA_LIMALE or token_enviado != CHAVE_SECRETA_LIMALE:
+            return Response(
+                {"erro": "Chave de segurança inválida ou ausente."}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # 4. Se a chave estiver correta, processa e envia os pacientes do dia
         hoje = timezone.now().date()
-        # Filtramos agendamentos de hoje (ajuste o filtro de status/especialidade se necessário)
         agendamentos = Agendamento.objects.filter(
             data_hora_inicio__date=hoje
         ).select_related('paciente', 'especialidade', 'medico')
 
         dados = []
         for agn in agendamentos:
-            # Validação para não quebrar caso não exista médico vinculado
             medico_nome = agn.medico.get_full_name() if agn.medico else ""
             
             dados.append({
