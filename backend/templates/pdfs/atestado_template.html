@@ -14,10 +14,9 @@
     }
 </style>
 
-<!-- 1. BLOCO DO CABEÇALHO -->
+<!-- 1. BLOCO DO CABEÇALHO (O Base_PDF o suga para a posição perfeita) -->
 <div id="header_content">
-    <!-- A tag TABLE domina o xhtml2pdf e não permite que os textos fiquem distantes -->
-    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-size: 10pt; color: #1C2E4A; line-height: 1.4; padding-top: 20px;">
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="font-size: 10pt; color: #1C2E4A; line-height: 1.6;">
         <tr>
             <td><strong>PACIENTE:</strong> &nbsp;{{ paciente.nome_completo|upper }}</td>
         </tr>
@@ -34,15 +33,13 @@
     </table>
 </div>
 
-<!-- 2. TÍTULO DO DOCUMENTO -->
-<!-- MÁGICA: As tags <br> garantem que o título desça o suficiente, escapando da linha -->
-<br><br><br>
+<!-- 2. TÍTULO DO DOCUMENTO (Já nasce 6cm abaixo do topo graças ao Base_PDF) -->
 <div style="text-align: center; color: #1C2E4A; font-size: 14pt; font-weight: bold; text-transform: uppercase;">
     {{ atestado.get_tipo_atestado_display }}
 </div>
 <br>
 
-<!-- 3. CORPO DO TEXTO -->
+<!-- 3. CORPO DO TEXTO (Recuado em 50px graças a tag p gerada pelo linebreaks) -->
 <div class="texto-atestado">
     {{ atestado.observacoes|linebreaks }}
 </div>
@@ -55,8 +52,8 @@
 </div>
 {% endif %}
 
-<!-- 5. BLOCO DA ASSINATURA -->
-<div id="assinatura_digital" style="margin-top: 80px;">
+<!-- 5. BLOCO DA ASSINATURA (O Base_PDF o suga para o rodapé automaticamente) -->
+<div id="assinatura_digital">
     {% if tem_assinatura_digital %}
         <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 0;">
             <tr>
