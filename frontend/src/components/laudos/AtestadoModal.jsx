@@ -8,7 +8,7 @@ import apiClient from '../../api/axiosConfig';
 export default function AtestadoModal({ open, onClose, paciente, medicoNome, medicoCrm, usaAssinaturaDigital }) {
     const hojeISO = new Date().toISOString().split('T')[0];
     
-    const [dataAtestado, setDataAtestado] = useState(hojeISO); // NOVO: Controle da Data
+    const [dataAtestado, setDataAtestado] = useState(hojeISO);
     const [tipo, setTipo] = useState('Comparecimento');
     const [observacoes, setObservacoes] = useState('');
     const [cid, setCid] = useState('');
@@ -18,7 +18,7 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
     const [horaFim, setHoraFim] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // Gera o texto automático baseado na data escolhida
+    // Gera o texto automático baseado na data escolhida e no sexo do paciente
     useEffect(() => {
         if (!paciente) return;
         
@@ -26,16 +26,44 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
         const [ano, mes, dia] = dataAtestado.split('-');
         const dataBR = `${dia}/${mes}/${ano}`;
         
-        let texto = '';
-        const docInfo = paciente.cpf ? `portador(a) do CPF nº ${paciente.cpf}` : `cadastrado(a) sob o ID ${paciente.id}`;
+        // 1. Identificação dinâmica de gênero com base no cadastro do paciente
+        const genero = (paciente.genero || paciente.sexo || '').toUpperCase();
+        
+        let artigo = 'o(a)';
+        let portador = 'portador(a)';
+        let cadastrado = 'cadastrado(a)';
+        let submetido = 'submetido(a)';
+        let apto = 'apto(a)';
 
-        if (tipo === 'Comparecimento') {
-            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
-        } else if (tipo === 'Afastamento') {
-            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, foi submetido(a) a atendimento médico nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
-        } else {
-            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, encontra-se apto(a) para a realização de suas atividades a partir desta data (${dataBR}).`;
+        if (genero === 'M' || genero === 'MASCULINO') {
+            artigo = 'o';
+            portador = 'portador';
+            cadastrado = 'cadastrado';
+            submetido = 'submetido';
+            apto = 'apto';
+        } else if (genero === 'F' || genero === 'FEMININO') {
+            artigo = 'a';
+            portador = 'portadora';
+            cadastrado = 'cadastrada';
+            submetido = 'submetida';
+            apto = 'apta';
         }
+
+        // 2. Montagem do documento de identificação
+        const docInfo = paciente.cpf 
+            ? `${portador} do CPF nº ${paciente.cpf}` 
+            : `${cadastrado} sob o ID ${paciente.id}`;
+
+        // 3. Geração do texto final com a gramática correta
+        let texto = '';
+        if (tipo === 'Comparecimento') {
+            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, ${docInfo}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
+        } else if (tipo === 'Afastamento') {
+            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, ${docInfo}, foi ${submetido} a atendimento médico nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
+        } else {
+            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, ${docInfo}, encontra-se ${apto} para a realização de suas atividades a partir desta data (${dataBR}).`;
+        }
+        
         setObservacoes(texto);
     }, [tipo, dias, horaInicio, horaFim, paciente, dataAtestado]);
 
