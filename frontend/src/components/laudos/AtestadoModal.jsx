@@ -6,6 +6,9 @@ import {
 import apiClient from '../../api/axiosConfig';
 
 export default function AtestadoModal({ open, onClose, paciente, medicoNome, medicoCrm, usaAssinaturaDigital }) {
+    const hojeISO = new Date().toISOString().split('T')[0];
+    
+    const [dataAtestado, setDataAtestado] = useState(hojeISO); // NOVO: Controle da Data
     const [tipo, setTipo] = useState('Comparecimento');
     const [observacoes, setObservacoes] = useState('');
     const [cid, setCid] = useState('');
@@ -15,22 +18,26 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
     const [horaFim, setHoraFim] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // Gera o texto automático com base no tipo selecionado
+    // Gera o texto automático baseado na data escolhida
     useEffect(() => {
         if (!paciente) return;
-        const hoje = new Date().toLocaleDateString('pt-BR');
+        
+        // Formata a data (YYYY-MM-DD para DD/MM/YYYY) de forma segura contra fuso-horário
+        const [ano, mes, dia] = dataAtestado.split('-');
+        const dataBR = `${dia}/${mes}/${ano}`;
+        
         let texto = '';
         const docInfo = paciente.cpf ? `portador(a) do CPF nº ${paciente.cpf}` : `cadastrado(a) sob o ID ${paciente.id}`;
 
         if (tipo === 'Comparecimento') {
-            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, compareceu a esta clínica médica nesta data (${hoje}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
+            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
         } else if (tipo === 'Afastamento') {
-            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, foi submetido(a) a atendimento médico nesta data (${hoje}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
+            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, foi submetido(a) a atendimento médico nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
         } else {
-            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, encontra-se apto(a) para a realização de suas atividades.`;
+            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, encontra-se apto(a) para a realização de suas atividades a partir desta data (${dataBR}).`;
         }
         setObservacoes(texto);
-    }, [tipo, dias, horaInicio, horaFim, paciente]);
+    }, [tipo, dias, horaInicio, horaFim, paciente, dataAtestado]);
 
     const handleSalvar = async () => {
         setLoading(true);
@@ -39,24 +46,20 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                 tipo_atestado: tipo,
                 observacoes: observacoes,
                 cid: cid,
-                paciente_autorizou_cid: autorizouCid
+                paciente_autorizou_cid: autorizouCid,
+                // Envia a data retroativa (colocando meio-dia para evitar fuso)
+                data_emissao: `${dataAtestado}T12:00:00Z` 
             };
 
-            // 1. Salva Oficialmente no Prontuário do Backend (Auditoria e Vínculo)
             const res = await apiClient.post(`/prontuario/pacientes/${paciente.id}/atestados/`, payload);
             const atestadoId = res.data.id;
 
-            // 2. Busca o PDF Oficial (com Máscara da Clínica e Assinatura Digital)
             try {
-                // Tenta a rota de PDF (usada na aba de Relatórios)
                 const pdfRes = await apiClient.get(`/pdf/atestado/${atestadoId}/`, { responseType: 'blob' });
                 const fileURL = URL.createObjectURL(new Blob([pdfRes.data], { type: 'application/pdf' }));
                 window.open(fileURL, '_blank');
             } catch (pdfErr) {
-                console.error("Falha ao buscar PDF, verificando rota alternativa...", pdfErr);
-                // Caso sua rota de PDF esteja estruturada diferente
                 const pdfResAlt = await apiClient.get(`/prontuario/atestados/${atestadoId}/pdf/`, { responseType: 'blob' });
-                // CORRIGIDO AQUI: De pdfResAltAlt para pdfResAlt
                 const fileURLAlt = URL.createObjectURL(new Blob([pdfResAlt.data], { type: 'application/pdf' }));
                 window.open(fileURLAlt, '_blank');
             }
@@ -77,19 +80,33 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
             </DialogTitle>
             <DialogContent sx={{ mt: 2 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-
-                    <TextField
-                        select
-                        label="Tipo de Documento"
-                        value={tipo}
-                        onChange={(e) => setTipo(e.target.value)}
-                        fullWidth
-                        size="small"
-                    >
-                        <MenuItem value="Afastamento">Atestado de Afastamento</MenuItem>
-                        <MenuItem value="Comparecimento">Declaração de Comparecimento</MenuItem>
-                        <MenuItem value="Aptidao">Atestado de Aptidão Física</MenuItem>
-                    </TextField>
+                    
+                    <Grid container spacing={2}>
+                        <Grid item xs={7}>
+                            <TextField
+                                select
+                                label="Tipo de Documento"
+                                value={tipo}
+                                onChange={(e) => setTipo(e.target.value)}
+                                fullWidth
+                                size="small"
+                            >
+                                <MenuItem value="Afastamento">Atestado de Afastamento</MenuItem>
+                                <MenuItem value="Comparecimento">Declaração de Comparecimento</MenuItem>
+                                <MenuItem value="Aptidao">Atestado de Aptidão Física</MenuItem>
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={5}>
+                            <TextField 
+                                label="Data do Documento" 
+                                type="date" 
+                                value={dataAtestado} 
+                                onChange={(e) => setDataAtestado(e.target.value)} 
+                                fullWidth 
+                                size="small" 
+                            />
+                        </Grid>
+                    </Grid>
 
                     {tipo === 'Comparecimento' && (
                         <Grid container spacing={2}>
