@@ -23,11 +23,11 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
         const docInfo = paciente.cpf ? `portador(a) do CPF nº ${paciente.cpf}` : `cadastrado(a) sob o ID ${paciente.id}`;
 
         if (tipo === 'Comparecimento') {
-            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, ${docInfo}, compareceu a esta clínica médica nesta data (${hoje}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
+            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, compareceu a esta clínica médica nesta data (${hoje}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
         } else if (tipo === 'Afastamento') {
-            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, ${docInfo}, foi submetido(a) a atendimento médico nesta data (${hoje}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
+            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, foi submetido(a) a atendimento médico nesta data (${hoje}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
         } else {
-            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, ${docInfo}, encontra-se apto(a) para a realização de suas atividades.`;
+            texto = `Atesto para os devidos fins que o(a) paciente ${paciente.nome_completo}, encontra-se apto(a) para a realização de suas atividades.`;
         }
         setObservacoes(texto);
     }, [tipo, dias, horaInicio, horaFim, paciente]);

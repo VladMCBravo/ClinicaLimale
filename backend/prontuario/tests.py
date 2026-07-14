@@ -358,3 +358,72 @@ class TestResgateLaudoAPI:
         
         assert bool(laudo_rascunho.arquivo_pdf) is True, "O arquivo PDF não foi anexado ao laudo!"
         assert laudo_rascunho.status == 'FINALIZADO', "O status do laudo não mudou para FINALIZADO!"
+
+# ==========================================
+# TESTES DE ATESTADOS E DECLARAÇÕES (UNIFICADOS)
+# ==========================================
+
+from prontuario.models import Atestado
+
+@pytest.mark.django_db
+class TestAtestadoAPIViews:
+
+    def test_criar_atestado_com_rota_antiga_legado(self, client, medico_titular, paciente_padrao):
+        """
+        Garante que o frontend antigo (Atendimento Médico) ainda consiga 
+        salvar atestados passando o ID do paciente dentro do JSON (body).
+        """
+        client.force_authenticate(user=medico_titular)
+        
+        # Simulando a chamada para a rota antiga
+        url = reverse('listar-criar-atestados') # Ajuste para o nome exato da sua rota antiga no urls.py se precisar
+        
+        payload = {
+            'paciente': paciente_padrao.id, # <-- ID no payload (Legado)
+            'tipo_atestado': 'Afastamento',
+            'observacoes': 'Atesto 3 dias de repouso.',
+        }
+        
+        response = client.post(url, payload)
+        
+        assert response.status_code == status.HTTP_201_CREATED, "A rota legada de atestados falhou!"
+        assert Atestado.objects.filter(paciente=paciente_padrao).count() == 1
+
+    def test_criar_atestado_com_nova_rota_unificada(self, client, medico_titular, paciente_padrao):
+        """
+        Garante que o novo AtestadoModal consiga salvar atestados 
+        passando o ID do paciente diretamente na URL.
+        """
+        client.force_authenticate(user=medico_titular)
+        
+        # Simulando a chamada para a nova rota
+        url = reverse('atestados-do-paciente', kwargs={'paciente_id': paciente_padrao.id})
+        
+        payload = {
+            'tipo_atestado': 'Comparecimento',
+            'observacoes': 'Compareceu das 14h às 15h.',
+            # Note que não passamos o ID do paciente aqui, o backend deve pegar da URL!
+        }
+        
+        response = client.post(url, payload)
+        
+        assert response.status_code == status.HTTP_201_CREATED, "A nova rota unificada de atestados falhou!"
+        assert Atestado.objects.filter(paciente=paciente_padrao).last().tipo_atestado == 'Comparecimento'
+
+    def test_atestado_herdando_cid_corretamente(self, client, medico_titular, paciente_padrao):
+        """Verifica se o CID opcional está sendo salvo no banco de dados para auditoria."""
+        client.force_authenticate(user=medico_titular)
+        url = reverse('atestados-do-paciente', kwargs={'paciente_id': paciente_padrao.id})
+        
+        payload = {
+            'tipo_atestado': 'Afastamento',
+            'observacoes': 'Repouso absoluto.',
+            'cid': 'J01.9',
+            'paciente_autorizou_cid': True
+        }
+        
+        client.post(url, payload)
+        atestado = Atestado.objects.get(paciente=paciente_padrao)
+        
+        assert atestado.cid == 'J01.9'
+        assert atestado.paciente_autorizou_cid is True
