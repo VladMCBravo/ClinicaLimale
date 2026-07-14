@@ -82,7 +82,6 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         LIMITE_GLOBAL_CONSULTAS = 3
         LIMITE_GLOBAL_PROCEDIMENTOS = 1
         
-        # O PULO DO GATO: Se 'data' não tiver o campo, buscamos da instância do banco
         instance = self.instance
 
         tipo_agendamento = data.get('tipo_agendamento') or (getattr(instance, 'tipo_agendamento', None))
@@ -94,47 +93,44 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         if not inicio or not fim:
             return data
 
-        # 1. Pegamos o usuário logado de dentro do contexto do DRF
         request = self.context.get('request')
         usuario_logado = request.user if request else None
 
-        # --- TRAVA ATUALIZADA: BLOQUEIO DE VIAGEM NO TEMPO ---
+        # =========================================================
+        # TRAVA ATUALIZADA: LIMITE DE PASSADO (De 2h para 48h)
+        # =========================================================
         agora = timezone.now()
-        limite_tolerancia_passado = agora - timedelta(hours=2)
+        limite_tolerancia_passado = agora - timedelta(hours=48)
         
         if inicio < limite_tolerancia_passado:
-            # Se NÃO for admin (ou não estiver logado), bloqueia.
-            # Se FOR admin, ele ignora esse 'if' interno e passa direto permitindo qualquer data!
-            if not usuario_logado or usuario_logado.cargo != 'admin':
-                raise serializers.ValidationError({"data_hora_inicio": "Não é permitido criar agendamentos com mais de 2 horas no passado."})
-        # -----------------------------------------------------
+            # Se NÃO for admin, exibe a instrução inteligente. Se FOR admin, passa direto.
+            if not usuario_logado or getattr(usuario_logado, 'cargo', '') != 'admin':
+                raise serializers.ValidationError({
+                    "data_hora_inicio": "⚠️ Limite de Data Retroativa excedido (48 horas).\n👉 O que fazer: Corrija a data selecionada ou, se for um registro antigo necessário, solicite a um usuário Administrador para realizar este lançamento."
+                })
 
         # --- A MÁGICA DOS MILISSEGUNDOS (Tolerância de 1 segundo) ---
         inicio_tolerancia = inicio + timedelta(seconds=1)
         fim_tolerancia = fim - timedelta(seconds=1)
 
-        # --- A MÁGICA DO ENCAIXE E DO PASSE LIVRE ADMIN ---
         is_encaixe_req = self.initial_data.get('is_encaixe', False)
         is_encaixe = str(is_encaixe_req).lower() in ['true', '1', 't']
 
-        # SE O USUÁRIO FOR ADMIN, GANHA PASSE LIVRE AUTOMÁTICO (Age como encaixe)
         if usuario_logado and getattr(usuario_logado, 'cargo', '') == 'admin':
             is_encaixe = True
-        # ----------------------------------------------------
 
         # 2. Validação Básica de Campos
         if tipo_agendamento == 'Consulta':
             medico = data.get('medico', getattr(instance, 'medico', None))
             if not medico: 
-                raise serializers.ValidationError({"medico": "Selecione um médico."})
+                raise serializers.ValidationError({"medico": "⚠️ Selecione um médico para poder salvar a consulta."})
             if 'procedimento' in data: 
                 data['procedimento'] = None
             
         elif tipo_agendamento == 'Procedimento':
             procedimento = data.get('procedimento', getattr(instance, 'procedimento', None))
             if not procedimento: 
-                raise serializers.ValidationError({"procedimento": "Selecione um procedimento."})
-            
+                raise serializers.ValidationError({"procedimento": "⚠️ Selecione qual o procedimento ou exame será realizado."})
             
             if 'especialidade' in data: data['especialidade'] = None
             
@@ -144,27 +140,29 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
                     data['sala'] = sala_exame
                     sala_selecionada = sala_exame
                 else:
-                    raise serializers.ValidationError({"sala": "Nenhuma sala de procedimentos encontrada."})
+                    raise serializers.ValidationError({"sala": "⚠️ O sistema não encontrou uma Sala de Exames cadastrada.\n👉 O que fazer: Vá no painel Admin e crie uma Sala marcando a opção 'É sala de exames?'."})
 
-        # 3. Validação de Conflito de Sala (Ignora se for Encaixe)
+        # 3. Validação de Conflito de Sala (Mensagem Inteligente)
         if sala_selecionada and not is_encaixe:
             conflito_sala = Agendamento.objects.filter(
                 sala=sala_selecionada,
-                data_hora_inicio__lt=fim_tolerancia, # Usa a tolerância!
-                data_hora_fim__gt=inicio_tolerancia  # Usa a tolerância!
+                data_hora_inicio__lt=fim_tolerancia, 
+                data_hora_fim__gt=inicio_tolerancia  
             ).exclude(status__in=['Cancelado', 'Não Compareceu'])
 
             if agendamento_id: 
                 conflito_sala = conflito_sala.exclude(pk=agendamento_id)
 
             if conflito_sala.exists():
-                raise serializers.ValidationError({"sala": f"A sala '{sala_selecionada.nome}' já está ocupada. Marque 'Forçar Encaixe' se desejar sobrepor."})
+                raise serializers.ValidationError({
+                    "sala": f"⚠️ Choque de Horário: A sala '{sala_selecionada.nome}' já tem um paciente neste mesmo horário.\n👉 O que fazer: Mude o horário do agendamento ou ligue a chave 'Forçar Encaixe' no formulário para sobrepor."
+                })
 
-        # 4. Validação de Limite Global (Ignora se for Encaixe)
+        # 4. Validação de Limite Global (Mensagem Inteligente)
         if not is_encaixe:
             conflitos_globais = Agendamento.objects.filter(
-                data_hora_inicio__lt=fim_tolerancia, # Usa a tolerância!
-                data_hora_fim__gt=inicio_tolerancia, # Usa a tolerância!
+                data_hora_inicio__lt=fim_tolerancia, 
+                data_hora_fim__gt=inicio_tolerancia, 
                 tipo_agendamento=tipo_agendamento
             ).exclude(status__in=['Cancelado', 'Não Compareceu'])
 
@@ -175,12 +173,12 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
 
             if tipo_agendamento == 'Consulta' and qtd_existente >= LIMITE_GLOBAL_CONSULTAS:
                 raise serializers.ValidationError({
-                    "non_field_errors": f"Limite de consultas atingido ({LIMITE_GLOBAL_CONSULTAS})."
+                    "non_field_errors": f"⚠️ Fila Cheia: O médico já possui {LIMITE_GLOBAL_CONSULTAS} consultas marcadas neste exato momento.\n👉 O que fazer: Agende para o próximo horário disponível ou ative a chave 'Forçar Encaixe' se for urgência."
                 })
         
             elif tipo_agendamento == 'Procedimento' and qtd_existente >= LIMITE_GLOBAL_PROCEDIMENTOS:
                 raise serializers.ValidationError({
-                    "non_field_errors": f"A sala de procedimentos já está ocupada ({LIMITE_GLOBAL_PROCEDIMENTOS})."
+                    "non_field_errors": f"⚠️ Fila Cheia: Já existe {LIMITE_GLOBAL_PROCEDIMENTOS} procedimento sendo realizado neste momento.\n👉 O que fazer: Selecione outro horário livre na agenda ou ative a chave 'Forçar Encaixe'."
                 })
 
         return data
