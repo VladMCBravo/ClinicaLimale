@@ -437,17 +437,21 @@ class MetaWhatsAppWebhookView(APIView):
         token = request.query_params.get('hub.verify_token')
         challenge = request.query_params.get('hub.challenge')
 
-        # ATENÇÃO: Defina uma senha segura aqui e use a MESMA senha lá no painel da Meta
-        VERIFY_TOKEN = "Limal3_S3cur3_T0k3n_2026" 
+        # 🔒 PUXANDO A SENHA DE FORMA SEGURA DO .ENV / RENDER
+        VERIFY_TOKEN = getattr(settings, 'META_WEBHOOK_VERIFY_TOKEN', None) 
+
+        # Trava de segurança: Se o token não estiver no Render, bloqueia tudo
+        if not VERIFY_TOKEN:
+            logger.error("[SEGURANÇA] Falha crítica: META_WEBHOOK_VERIFY_TOKEN não configurado no ambiente.")
+            return Response({"error": "Erro de configuração no servidor"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         if mode and token:
             if mode == 'subscribe' and token == VERIFY_TOKEN:
-                logger.info("Webhook da Meta verificado com sucesso!")
-                # O Django precisa retornar APENAS o 'challenge' como texto puro (text/plain)
+                logger.info("Webhook da Meta verificado com sucesso de forma segura!")
                 from django.http import HttpResponse
                 return HttpResponse(challenge, content_type="text/plain", status=200)
             else:
-                logger.error("Falha na verificação do Webhook da Meta: Token inválido.")
+                logger.warning(f"Tentativa de invasão ou erro no Webhook. Token recebido era inválido.")
                 return Response({"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
                 
         return Response({"error": "Bad Request"}, status=status.HTTP_400_BAD_REQUEST)
