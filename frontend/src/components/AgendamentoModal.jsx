@@ -64,6 +64,59 @@ const removerAcentos = (str) => {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };
 
+// 🛠️ TRADUTOR DE UX: Converte erros do Django em mensagens amigáveis
+const traduzirErroBackend = (errorData) => {
+    if (!errorData) return "Erro inesperado ao conectar com o servidor.";
+    if (typeof errorData === 'string') return errorData; // Se já for um texto, retorna ele mesmo
+
+    // Dicionário para traduzir o nome das variáveis do banco para humanos
+    const dicionarioCampos = {
+        paciente: "Paciente",
+        medico: "Médico",
+        especialidade: "Especialidade",
+        procedimento: "Procedimentos",
+        sala: "Sala/Consultório",
+        data_hora_inicio: "Horário de Início",
+        data_hora_fim: "Horário de Fim",
+        plano_utilizado: "Plano do Convênio",
+        non_field_errors: "Aviso",
+        detail: "Erro de Permissão"
+    };
+
+    const mensagens = [];
+
+    // Percorre cada campo que o Django apontou erro
+    for (const [campo, detalhes] of Object.entries(errorData)) {
+        const nomeCampo = dicionarioCampos[campo] || campo;
+        const msgOriginal = Array.isArray(detalhes) ? detalhes[0] : detalhes;
+        const msgString = String(msgOriginal).toLowerCase();
+
+        // 1. Mensagens Inteligentes (Como a sua trava de 48h ou conflito de sala)
+        if (String(msgOriginal).includes('⚠️')) {
+            mensagens.push(msgOriginal);
+        }
+        // 2. Erros de campos vazios ou nulos
+        else if (msgString.includes('obrigatório') || msgString.includes('required') || msgString.includes('null') || msgString.includes('em branco')) {
+            mensagens.push(`⚠️ O campo "${nomeCampo}" é obrigatório. Por favor, preencha-o antes de salvar.`);
+        }
+        // 3. Erros de ID ou Tipo Inválido (O famoso erro da PK ou texto incorreto)
+        else if (msgString.includes('pk') || msgString.includes('incorrect_type') || msgString.includes('inválida') || msgString.includes('does not exist')) {
+            mensagens.push(`⚠️ Por favor, apague e selecione uma opção válida na lista de "${nomeCampo}".`);
+        }
+        // 4. Erro de Data
+        else if (msgString.includes('date') || msgString.includes('time') || msgString.includes('formato')) {
+            mensagens.push(`⚠️ Verifique o formato preenchido no campo "${nomeCampo}".`);
+        }
+        // Fallback genérico
+        else {
+            mensagens.push(`⚠️ ${nomeCampo}: ${msgOriginal}`);
+        }
+    }
+
+    // Retorna a primeira mensagem de erro encontrada para não poluir a tela inteira
+    return mensagens.length > 0 ? mensagens[0] : "Erro ao processar a requisição no servidor.";
+};
+
 export default function AgendamentoModal({ open, onClose, onSave, editingEvent, initialData, onAbrirNovoPaciente, refreshTrigger }) {
     const { showSnackbar } = useSnackbar();
 
@@ -464,7 +517,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             onSave();
             onClose(); 
         } catch (error) {
-            const errorMsg = error.response?.data ? JSON.stringify(error.response.data).replace(/[\[\]"{}]/g, '') : "Erro ao processar no servidor.";
+            const errorMsg = traduzirErroBackend(error.response?.data);
             showSnackbar(errorMsg, 'error');
         } finally { setIsSubmitting(false); }
     };
@@ -507,8 +560,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             showSnackbar("Agendamento cancelado com sucesso.", "success");
             onSave(); 
             onClose(); 
-        } catch (error) { 
-            showSnackbar("Erro ao cancelar agendamento.", "error"); 
+        } catch (error) {
+            const errorMsg = traduzirErroBackend(error.response?.data);
+            showSnackbar(errorMsg, 'error');
         } finally { 
             setIsSubmitting(false); 
         }
