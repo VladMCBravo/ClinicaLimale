@@ -96,6 +96,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [jornadasMedico, setJornadasMedico] = useState([]);
     const [confirmarJornadaOpen, setConfirmarJornadaOpen] = useState(false);
     const [esperandoNovoPaciente, setEsperandoNovoPaciente] = useState(false);
+    
 
     useEffect(() => {
         let isMounted = true; 
@@ -359,9 +360,9 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         // UX FIX: O ADMIN IGNORA A TRAVA DO TEMPO E PODE AGENDAR NO PASSADO
         if (!isAdmin) {
             const agora = dayjs();
-            const limitePassado = agora.subtract(2, 'hour');
+            const limitePassado = agora.subtract(48, 'hour');
             if (formData.data_hora_inicio.isBefore(limitePassado)) {
-                return "Erro: Não é permitido criar agendamentos com mais de 2 horas no passado. Ajuste o horário.";
+                return "Erro: Não é permitido criar agendamentos com mais de 48 horas no passado. Ajuste o horário.";
             }
         }
 
