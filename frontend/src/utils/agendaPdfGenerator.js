@@ -26,12 +26,21 @@ export const gerarPdfAgendaDia = async (pacientes, dataFiltro, onPdfGerado) => {
         const procedimento = ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta';
         const idPaciente = ag.paciente_id || ag.paciente || '--';
 
+        // Encaixe: linha inteira em destaque âmbar + tag ao lado do nome do paciente
+        const fillColor = ag.is_encaixe ? '#FFF3E0' : undefined;
+        const pacienteTexto = ag.is_encaixe
+            ? [
+                { text: `ID: ${idPaciente} - ${ag.paciente_nome}` },
+                { text: '  [ENCAIXE]', bold: true, color: '#E65100' }
+            ]
+            : `ID: ${idPaciente} - ${ag.paciente_nome}`;
+
         bodyTable.push([
-            { text: horario, fontSize: 10, bold: true, color: '#1C2E4A', border: [false, false, false, true], margin: [0, 5] },
-            { text: `ID: ${idPaciente} - ${ag.paciente_nome}`, fontSize: 10, color: '#333', border: [false, false, false, true], margin: [0, 5] },
-            { text: tipoVisita, fontSize: 9, color: '#666', border: [false, false, false, true], margin: [0, 5] },
-            { text: procedimento, fontSize: 9, color: '#666', border: [false, false, false, true], margin: [0, 5] },
-            { text: ag.status, fontSize: 9, bold: true, color: '#555', border: [false, false, false, true], margin: [0, 5] }
+            { text: horario, fontSize: 10, bold: true, color: '#1C2E4A', border: [false, false, false, true], margin: [0, 5], fillColor },
+            { text: pacienteTexto, fontSize: 10, color: '#333', border: [false, false, false, true], margin: [0, 5], fillColor },
+            { text: tipoVisita, fontSize: 9, color: '#666', border: [false, false, false, true], margin: [0, 5], fillColor },
+            { text: procedimento, fontSize: 9, color: '#666', border: [false, false, false, true], margin: [0, 5], fillColor },
+            { text: ag.status, fontSize: 9, bold: true, color: '#555', border: [false, false, false, true], margin: [0, 5], fillColor }
         ]);
     });
 

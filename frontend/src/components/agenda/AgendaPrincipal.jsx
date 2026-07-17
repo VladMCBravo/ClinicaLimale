@@ -53,6 +53,13 @@ const StyledCalendarWrapper = styled('div')({
         outline: '1px dashed #ffab00',
         outlineOffset: '1px'
     },
+
+    // Fora do expediente do médico (modo "Médicos"): cinza neutro em vez do
+    // vermelho padrão do FullCalendar para "background events"
+    '.fc-bg-event': {
+        backgroundColor: 'rgba(120, 130, 140, 0.12)',
+        opacity: 1
+    },
     
     // Header do FullCalendar (Navegação)
     '.fc-header-toolbar': {
@@ -86,6 +93,85 @@ const MiniToggleContainer = styled(Box)({
 const SALA_COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#9c27b0', '#0288d1'];
 const getColorForSala = (id) => SALA_COLORS[parseInt(String(id).replace(/\D/g, ''), 10) % SALA_COLORS.length] || '#1976d2';
 
+// --- SOMBREAMENTO DE JORNADA (modo "Médicos") ---
+const SLOT_MIN_TIME = '08:00:00';
+const SLOT_MAX_TIME = '22:30:00';
+
+const timeStrParaMinutos = (t) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+};
+const minutosParaTimeStr = (mins) => {
+    const h = String(Math.floor(mins / 60)).padStart(2, '0');
+    const m = String(mins % 60).padStart(2, '0');
+    return `${h}:${m}:00`;
+};
+
+// Converte Date.getDay() (0=Domingo) para o índice usado pelo Django (0=Segunda...6=Domingo)
+const diaSemanaParaDjango = (data) => (data.getDay() + 6) % 7;
+
+// Para cada médico, gera "background events" cobrindo os horários em que ele NÃO
+// atende no dia exibido, com base nas jornadas cadastradas em Configurações.
+// Médicos sem nenhuma jornada cadastrada não são sombreados (não sabemos a agenda
+// deles) — em vez disso ganham um aviso no cabeçalho da coluna (ver resourceLabelContent).
+const construirEventosForaExpediente = (listaMedicos, dataExibida) => {
+    const diaSemanaDjango = diaSemanaParaDjango(dataExibida);
+    const anoMesDia = `${dataExibida.getFullYear()}-${String(dataExibida.getMonth() + 1).padStart(2, '0')}-${String(dataExibida.getDate()).padStart(2, '0')}`;
+    const slotMinMin = timeStrParaMinutos(SLOT_MIN_TIME);
+    const slotMaxMin = timeStrParaMinutos(SLOT_MAX_TIME);
+    const eventos = [];
+
+    listaMedicos.forEach(medico => {
+        const jornadas = medico.jornadas || [];
+        if (jornadas.length === 0) return; // sem jornada cadastrada: não sombreia
+
+        const resourceId = `medico_${medico.id}`;
+        const nomeMedico = `${medico.first_name} ${medico.last_name || ''}`.trim();
+
+        const janelasHoje = jornadas
+            .filter(j => j.dia_da_semana === diaSemanaDjango)
+            .map(j => [timeStrParaMinutos(j.hora_inicio), timeStrParaMinutos(j.hora_fim)])
+            .sort((a, b) => a[0] - b[0]);
+
+        if (janelasHoje.length === 0) {
+            eventos.push({
+                display: 'background',
+                resourceId,
+                start: `${anoMesDia}T${SLOT_MIN_TIME}`,
+                end: `${anoMesDia}T${SLOT_MAX_TIME}`,
+                extendedProps: { isForaExpediente: true, medicoNome: nomeMedico }
+            });
+            return;
+        }
+
+        let cursor = slotMinMin;
+        janelasHoje.forEach(([inicio, fim]) => {
+            const inicioClamp = Math.max(inicio, slotMinMin);
+            if (inicioClamp > cursor) {
+                eventos.push({
+                    display: 'background',
+                    resourceId,
+                    start: `${anoMesDia}T${minutosParaTimeStr(cursor)}`,
+                    end: `${anoMesDia}T${minutosParaTimeStr(inicioClamp)}`,
+                    extendedProps: { isForaExpediente: true, medicoNome: nomeMedico }
+                });
+            }
+            cursor = Math.max(cursor, Math.min(fim, slotMaxMin));
+        });
+        if (cursor < slotMaxMin) {
+            eventos.push({
+                display: 'background',
+                resourceId,
+                start: `${anoMesDia}T${minutosParaTimeStr(cursor)}`,
+                end: `${anoMesDia}T${SLOT_MAX_TIME}`,
+                extendedProps: { isForaExpediente: true, medicoNome: nomeMedico }
+            });
+        }
+    });
+
+    return eventos;
+};
+
 export default function AgendaPrincipal({
     medicoFiltro, 
     especialidadeFiltro, 
@@ -105,13 +191,15 @@ export default function AgendaPrincipal({
 
     // --- NOVOS ESTADOS PARA O MODO DE VISÃO ---
     const [viewMode, setViewMode] = useState('salas'); // 'salas' ou 'medicos'
-    const [medicosComJornada, setMedicosComJornada] = useState([]);
+    // Todos os médicos (não só quem já tem jornada cadastrada), cada um já vem com
+    // '.jornadas' aninhado (UserSerializer.get_jornadas) — usado tanto para montar as
+    // colunas do modo "Médicos" quanto para sombrear os horários fora de expediente.
+    const [medicos, setMedicos] = useState([]);
 
-    // Busca os médicos que têm jornada assim que a agenda carrega
     useEffect(() => {
-        apiClient.get('/usuarios/medicos-com-jornada/') // Certifique-se de que esta rota está no seu urls.py
-            .then(res => setMedicosComJornada(res.data.results || res.data || []))
-            .catch(err => console.error("Erro ao buscar médicos com jornada", err));
+        apiClient.get('/usuarios/usuarios/?cargo=medico')
+            .then(res => setMedicos(res.data.results || res.data || []))
+            .catch(err => console.error("Erro ao buscar médicos", err));
     }, []);
 
     // 1. Apague o [eventos, setEventos] e a função carregarEventos.
@@ -178,13 +266,17 @@ export default function AgendaPrincipal({
                     };
                 });
                 
-                successCallback(eventosFormatados);
+                const eventosForaExpediente = viewMode === 'medicos'
+                    ? construirEventosForaExpediente(medicos, fetchInfo.start)
+                    : [];
+
+                successCallback([...eventosFormatados, ...eventosForaExpediente]);
             })
             .catch(error => {
                 console.error("Erro ao carregar a agenda:", error);
                 failureCallback(error);
             });
-    }, [medicoFiltro, especialidadeFiltro, viewMode]); // <--- ADICIONE O viewMode AQUI
+    }, [medicoFiltro, especialidadeFiltro, viewMode, medicos]);
 
     // 3. Atualize o useEffect para forçar o recarregamento quando salvar um agendamento novo
 useEffect(() => {
@@ -292,16 +384,32 @@ useEffect(() => {
                     
                     // A SEGUNDA MÁGICA: Muda as colunas dependendo do modo
                     resources={
-                        viewMode === 'salas' 
+                        viewMode === 'salas'
                         ? salas.map(s => ({ id: `sala_${s.id}`, title: s.nome }))
-                        : medicosComJornada.map(m => ({ 
-                            id: `medico_${m.id}`, 
+                        // Todos os médicos viram coluna, tenham ou não jornada cadastrada,
+                        // senão os agendamentos deles somem (o FullCalendar descarta
+                        // silenciosamente eventos cujo resourceId não bate com nenhuma coluna).
+                        : medicos.map(m => ({
+                            id: `medico_${m.id}`,
                             title: `Dr(a). ${m.first_name}`
-                            // Nota: Para usar o "businessHours" de bloqueio visual aqui, 
-                            // o seu endpoint do backend precisará retornar o array de "jornadas_de_trabalho" aninhado.
                         }))
                     }
-                    
+                    resourceLabelContent={(arg) => {
+                        if (viewMode !== 'medicos') return arg.resource.title;
+                        const medico = medicos.find(m => `medico_${m.id}` === arg.resource.id);
+                        const semJornada = medico && (!medico.jornadas || medico.jornadas.length === 0);
+                        return (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                                <span>{arg.resource.title}</span>
+                                {semJornada && (
+                                    <Tooltip title="Jornada de trabalho não configurada em Configurações">
+                                        <span style={{ fontSize: '0.85em' }}>⚠️</span>
+                                    </Tooltip>
+                                )}
+                            </Box>
+                        );
+                    }}
+
                     dateClick={onDateClick}
                     eventClick={handleCalendarEventClick}
                     datesSet={onDatesSet}
@@ -316,6 +424,23 @@ useEffect(() => {
                     eventOverlap={true}
 
                     eventContent={(arg) => {
+                        if (arg.event.display === 'background') {
+                            const { medicoNome } = arg.event.extendedProps;
+                            return (
+                                <Box sx={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: '100%', height: '100%', overflow: 'hidden', padding: '2px'
+                                }}>
+                                    <span style={{
+                                        fontSize: '0.65rem', color: '#78909c', fontStyle: 'italic',
+                                        textAlign: 'center', lineHeight: 1.2
+                                    }}>
+                                        Dr(a). {medicoNome} — fora do expediente
+                                    </span>
+                                </Box>
+                            );
+                        }
+
                         const dados = arg.event.extendedProps;
                         const isInativo = dados.status === 'Cancelado' || dados.status === 'Não Compareceu';
                         
