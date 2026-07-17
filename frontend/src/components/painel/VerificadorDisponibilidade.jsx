@@ -32,7 +32,7 @@ export default function VerificadorDisponibilidade({ onSlotSelect }) {
 
     // Carrega médicos e especialidades ao abrir
     useEffect(() => {
-        apiClient.get('/usuarios/usuarios/?cargo=medico')
+        apiClient.get('/usuarios/usuarios/?cargo=medico&apenas_ativos=true')
             .then(res => setMedicos(res.data.results || res.data || []))
             .catch(err => console.error("Erro ao buscar médicos", err));
             

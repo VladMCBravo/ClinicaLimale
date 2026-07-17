@@ -79,7 +79,7 @@ const LaudosPageV2 = () => {
   useEffect(() => {
     const carregarMedicos = async () => {
         try {
-            const res = await apiClient.get('/usuarios/usuarios/?cargo=medico');
+            const res = await apiClient.get('/usuarios/usuarios/?cargo=medico&apenas_ativos=true');
             let listaRaw = Array.isArray(res.data) ? res.data : (res.data.results || []);
             const listaOrdenada = listaRaw.sort((a, b) => (a.first_name || a.username || "").localeCompare(b.first_name || b.username || ""));
             setTodosMedicos(listaOrdenada);

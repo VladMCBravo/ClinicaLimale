@@ -220,7 +220,7 @@ const getInitialState = (key, fallback) => {
   useEffect(() => {
     const carregarMedicos = async () => {
         try {
-            const res = await apiClient.get('/usuarios/usuarios/?cargo=medico');
+            const res = await apiClient.get('/usuarios/usuarios/?cargo=medico&apenas_ativos=true');
             let listaRaw = [];
             if (Array.isArray(res.data)) listaRaw = res.data;
             else if (res.data && Array.isArray(res.data.results)) listaRaw = res.data.results;

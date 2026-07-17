@@ -43,11 +43,19 @@ class CustomUserViewSet(viewsets.ModelViewSet):
         """
         # Adicionamos o prefetch_related para carregar as especialidades de uma vez só
         queryset = CustomUser.objects.prefetch_related('especialidades').all().order_by('first_name')
-        
+
         cargo = self.request.query_params.get('cargo')
         if cargo:
             queryset = queryset.filter(cargo=cargo)
-            
+
+        # Usado pelas telas de agendamento/clínicas (agenda, modal de agendamento,
+        # verificador de disponibilidade, laudos...) para não oferecer usuários
+        # desativados. Sem esse parâmetro o comportamento não muda, para não afetar
+        # telas de administração (ex: "Usuários") que precisam ver e reativar inativos.
+        apenas_ativos = self.request.query_params.get('apenas_ativos', '')
+        if apenas_ativos.lower() in ['true', '1']:
+            queryset = queryset.filter(is_active=True)
+
         return queryset
 
     def get_permissions(self):

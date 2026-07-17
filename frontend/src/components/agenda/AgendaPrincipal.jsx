@@ -1,9 +1,10 @@
 // src/components/agenda/AgendaPrincipal.jsx
 import React, { useRef, useCallback, useEffect, useState } from 'react';
-import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Tooltip } from '@mui/material';
+import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Tooltip, Checkbox, IconButton, Typography, Badge } from '@mui/material';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import PersonIcon from '@mui/icons-material/Person';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import apiClient from '../../api/axiosConfig'; // Para buscar os médicos com jornada
 import { styled } from '@mui/material/styles'; 
 import FullCalendar from '@fullcalendar/react';
@@ -93,6 +94,18 @@ const MiniToggleContainer = styled(Box)({
 const SALA_COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#9c27b0', '#0288d1'];
 const getColorForSala = (id) => SALA_COLORS[parseInt(String(id).replace(/\D/g, ''), 10) % SALA_COLORS.length] || '#1976d2';
 
+// Espelha CustomUser.nome_com_prefixo (backend/usuarios/models.py): usa o campo
+// 'genero' quando preenchido, senão cai no fallback de checar a última letra do
+// primeiro nome. Usado onde só temos o nome curto do médico (cabeçalho da coluna,
+// aviso de fora de expediente) — quando o back já manda o nome completo pronto
+// (medico_nome_com_prefixo), preferimos usar aquele em vez desta função.
+const prefixoTratamento = (medico) => {
+    if (medico?.genero === 'F') return 'Dra.';
+    if (medico?.genero === 'M') return 'Dr.';
+    const primeiroNome = (medico?.first_name || '').trim().split(' ')[0].toLowerCase();
+    return primeiroNome.endsWith('a') ? 'Dra.' : 'Dr.';
+};
+
 // --- SOMBREAMENTO DE JORNADA (modo "Médicos") ---
 const SLOT_MIN_TIME = '08:00:00';
 const SLOT_MAX_TIME = '22:30:00';
@@ -126,7 +139,7 @@ const construirEventosForaExpediente = (listaMedicos, dataExibida) => {
         if (jornadas.length === 0) return; // sem jornada cadastrada: não sombreia
 
         const resourceId = `medico_${medico.id}`;
-        const nomeMedico = `${medico.first_name} ${medico.last_name || ''}`.trim();
+        const nomeMedico = `${prefixoTratamento(medico)} ${medico.first_name} ${medico.last_name || ''}`.trim();
 
         const janelasHoje = jornadas
             .filter(j => j.dia_da_semana === diaSemanaDjango)
@@ -196,8 +209,16 @@ export default function AgendaPrincipal({
     // colunas do modo "Médicos" quanto para sombrear os horários fora de expediente.
     const [medicos, setMedicos] = useState([]);
 
+    // Filtro de quais colunas aparecem: null = mostrar todas (sentinela, evita ter
+    // que sincronizar com o carregamento assíncrono de salas/médicos); um array
+    // explícito é a seleção manual feita pelo usuário no menu de filtro.
+    const [salasVisiveisIds, setSalasVisiveisIds] = useState(null);
+    const [medicosVisiveisIds, setMedicosVisiveisIds] = useState(null);
+    const [filtroAnchorEl, setFiltroAnchorEl] = useState(null);
+    const filtroMenuAberto = Boolean(filtroAnchorEl);
+
     useEffect(() => {
-        apiClient.get('/usuarios/usuarios/?cargo=medico')
+        apiClient.get('/usuarios/usuarios/?cargo=medico&apenas_ativos=true')
             .then(res => setMedicos(res.data.results || res.data || []))
             .catch(err => console.error("Erro ao buscar médicos", err));
     }, []);
@@ -341,14 +362,34 @@ useEffect(() => {
              alert("Erro: Paciente não identificado.");
              return;
         }
-        navigate('/painel-medico', { 
-            state: { 
-                agendamentoId: selectedEvent.id, 
-                pacienteId: dados.paciente_id 
-            } 
+        navigate('/painel-medico', {
+            state: {
+                agendamentoId: selectedEvent.id,
+                pacienteId: dados.paciente_id
+            }
         });
         handleCloseMenu();
     };
+
+    // --- FILTRO DE SALAS/MÉDICOS EXIBIDOS ---
+    const listaFiltro = viewMode === 'salas' ? salas : medicos;
+    const idsVisiveis = viewMode === 'salas' ? salasVisiveisIds : medicosVisiveisIds;
+    const setIdsVisiveis = viewMode === 'salas' ? setSalasVisiveisIds : setMedicosVisiveisIds;
+    const qtdOcultos = idsVisiveis === null ? 0 : listaFiltro.filter(item => !idsVisiveis.includes(item.id)).length;
+
+    const alternarVisibilidade = (id) => {
+        setIdsVisiveis(prev => {
+            const atual = prev === null ? listaFiltro.map(item => item.id) : prev;
+            return atual.includes(id) ? atual.filter(x => x !== id) : [...atual, id];
+        });
+    };
+
+    const salasParaExibir = salasVisiveisIds === null ? salas : salas.filter(s => salasVisiveisIds.includes(s.id));
+    const medicosParaExibir = medicosVisiveisIds === null ? medicos : medicos.filter(m => medicosVisiveisIds.includes(m.id));
+
+    const labelParaItem = (item) => viewMode === 'salas'
+        ? item.nome
+        : `${prefixoTratamento(item)} ${item.first_name} ${item.last_name || ''}`.trim();
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#fff' }}>
@@ -371,7 +412,48 @@ useEffect(() => {
                             <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} /> Médicos
                         </ToggleButton>
                     </ToggleButtonGroup>
+                    <Tooltip title={viewMode === 'salas' ? 'Escolher salas exibidas' : 'Escolher médicos exibidos'}>
+                        <IconButton size="small" onClick={(e) => setFiltroAnchorEl(e.currentTarget)} sx={{ ml: 0.5, bgcolor: '#fff', border: '1px solid #e0e0e0' }}>
+                            <Badge badgeContent={qtdOcultos} color="warning" invisible={qtdOcultos === 0}>
+                                <FilterListIcon sx={{ fontSize: 18 }} />
+                            </Badge>
+                        </IconButton>
+                    </Tooltip>
                 </MiniToggleContainer>
+
+                <Menu
+                    anchorEl={filtroAnchorEl}
+                    open={filtroMenuAberto}
+                    onClose={() => setFiltroAnchorEl(null)}
+                    PaperProps={{ sx: { maxHeight: 360, minWidth: 220 } }}
+                >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 2, py: 0.5 }}>
+                        <Typography
+                            variant="caption"
+                            sx={{ cursor: 'pointer', fontWeight: 700, color: '#1976d2' }}
+                            onClick={() => setIdsVisiveis(null)}
+                        >
+                            Selecionar todos
+                        </Typography>
+                        <Typography
+                            variant="caption"
+                            sx={{ cursor: 'pointer', fontWeight: 700, color: '#d32f2f' }}
+                            onClick={() => setIdsVisiveis([])}
+                        >
+                            Limpar
+                        </Typography>
+                    </Box>
+                    <Divider />
+                    {listaFiltro.map(item => {
+                        const marcado = idsVisiveis === null || idsVisiveis.includes(item.id);
+                        return (
+                            <MenuItem key={item.id} dense onClick={(e) => { e.stopPropagation(); alternarVisibilidade(item.id); }}>
+                                <Checkbox size="small" checked={marcado} sx={{ p: 0.5, mr: 1 }} />
+                                <ListItemText primary={labelParaItem(item)} primaryTypographyProps={{ fontSize: '0.8rem' }} />
+                            </MenuItem>
+                        );
+                    })}
+                </Menu>
                 <FullCalendar
                     ref={calendarRef}
                     plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -382,31 +464,38 @@ useEffect(() => {
                     height="100%"
                     events={fetchEventos}
                     
-                    // A SEGUNDA MÁGICA: Muda as colunas dependendo do modo
+                    // A SEGUNDA MÁGICA: Muda as colunas dependendo do modo (e do filtro manual)
                     resources={
                         viewMode === 'salas'
-                        ? salas.map(s => ({ id: `sala_${s.id}`, title: s.nome }))
+                        ? salasParaExibir.map(s => ({ id: `sala_${s.id}`, title: s.nome }))
                         // Todos os médicos viram coluna, tenham ou não jornada cadastrada,
                         // senão os agendamentos deles somem (o FullCalendar descarta
                         // silenciosamente eventos cujo resourceId não bate com nenhuma coluna).
-                        : medicos.map(m => ({
+                        : medicosParaExibir.map(m => ({
                             id: `medico_${m.id}`,
-                            title: `Dr(a). ${m.first_name}`
+                            title: `${prefixoTratamento(m)} ${m.first_name}`
                         }))
                     }
                     resourceLabelContent={(arg) => {
                         if (viewMode !== 'medicos') return arg.resource.title;
                         const medico = medicos.find(m => `medico_${m.id}` === arg.resource.id);
                         const semJornada = medico && (!medico.jornadas || medico.jornadas.length === 0);
+                        const nomeCompleto = medico ? `${prefixoTratamento(medico)} ${medico.first_name} ${medico.last_name || ''}`.trim() : arg.resource.title;
+                        const tooltipTexto = semJornada
+                            ? `${nomeCompleto} — jornada de trabalho não configurada em Configurações`
+                            : nomeCompleto;
                         return (
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                                <span>{arg.resource.title}</span>
-                                {semJornada && (
-                                    <Tooltip title="Jornada de trabalho não configurada em Configurações">
-                                        <span style={{ fontSize: '0.85em' }}>⚠️</span>
-                                    </Tooltip>
-                                )}
-                            </Box>
+                            <Tooltip title={tooltipTexto}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.4, width: '100%', minWidth: 0 }}>
+                                    <Box component="span" sx={{
+                                        fontSize: '0.7rem', whiteSpace: 'nowrap', overflow: 'hidden',
+                                        textOverflow: 'ellipsis', display: 'block', minWidth: 0
+                                    }}>
+                                        {arg.resource.title}
+                                    </Box>
+                                    {semJornada && <span style={{ fontSize: '0.8em', flexShrink: 0 }}>⚠️</span>}
+                                </Box>
+                            </Tooltip>
                         );
                     }}
 
@@ -435,7 +524,7 @@ useEffect(() => {
                                         fontSize: '0.65rem', color: '#78909c', fontStyle: 'italic',
                                         textAlign: 'center', lineHeight: 1.2
                                     }}>
-                                        Dr(a). {medicoNome} — fora do expediente
+                                        {medicoNome} — fora do expediente
                                     </span>
                                 </Box>
                             );
@@ -475,7 +564,7 @@ useEffect(() => {
                                 <div>{arg.timeText}</div>
                                 {dados.tipo_procedimento && <div>📋 {dados.tipo_procedimento}</div>}
                                 {dados.sala_nome && <div>🚪 {dados.sala_nome}</div>}
-                                {dados.medico_nome && <div>🩺 Dr(a). {dados.medico_nome}</div>}
+                                {dados.medico_nome && <div>🩺 {dados.medico_nome_com_prefixo || dados.medico_nome}</div>}
                                 {dados.tipo_atendimento && <div>💳 {dados.tipo_atendimento}</div>}
                                 <div>📌 {dados.status}</div>
                                 {dados.is_encaixe && !isInativo && <div>⚡ Agendado como Encaixe</div>}
