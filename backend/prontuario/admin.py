@@ -120,11 +120,31 @@ class ModeloPrescricaoAdmin(admin.ModelAdmin):
 
 @admin.register(Atestado)
 class AtestadoAdmin(admin.ModelAdmin):
-    # Atendendo ao seu pedido: Visualização clara de Afastamento x Comparecimento e CID
-    list_display = ('id', 'paciente', 'tipo_atestado', 'cid', 'medico', 'data_emissao')
+    # Trocamos 'tipo_atestado' por 'tipo_detalhado' para usar a nossa função visual
+    list_display = ('id', 'paciente', 'tipo_detalhado', 'cid', 'medico', 'data_emissao')
     list_filter = ('tipo_atestado', 'medico', 'data_emissao')
     search_fields = ('paciente__nome_completo', 'cid', 'medico__first_name')
     readonly_fields = ('data_emissao',)
+
+    # Função inteligente que classifica o documento sem precisar de novos campos no banco
+    def tipo_detalhado(self, obj):
+        # Verifica se o texto de observações existe para evitar erros
+        texto = obj.observacoes.lower() if obj.observacoes else ""
+        
+        if obj.tipo_atestado == 'Comparecimento':
+            if 'acompanhando' in texto:
+                # Cor Laranja/Dourada para Acompanhantes
+                return format_html('<span style="color: #d97706; font-weight: bold;">Declaração de Acompanhante</span>')
+            else:
+                # Cor Azul para Comparecimento do próprio Paciente
+                return format_html('<span style="color: #2563eb; font-weight: bold;">Declaração de Comparecimento</span>')
+        elif obj.tipo_atestado == 'Afastamento':
+            # Cor Vermelha para Afastamentos
+            return format_html('<span style="color: #dc2626; font-weight: bold;">Atestado de Afastamento</span>')
+            
+        return format_html('<span style="font-weight: bold;">{}</span>', obj.tipo_atestado)
+        
+    tipo_detalhado.short_description = "Tipo de Documento"
 
 @admin.register(Anamnese)
 class AnamneseAdmin(admin.ModelAdmin):
