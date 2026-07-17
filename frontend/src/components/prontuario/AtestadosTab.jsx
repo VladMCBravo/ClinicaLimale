@@ -1,10 +1,9 @@
-// src/components/prontuario/AtestadosTab.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Button, CircularProgress, TextField, Typography, Paper, Accordion, AccordionSummary, AccordionDetails, Select, MenuItem, InputLabel, FormControl, Autocomplete, FormControlLabel, Checkbox } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import apiClient from '../../api/axiosConfig';
-import { useSnackbar } from '../../contexts/SnackbarContext'; // 1. IMPORTE O SNACKBAR
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
 // Uma lista rápida de exemplo (Você pode expandir isso depois)
 const listaCIDs = [
@@ -20,7 +19,7 @@ const listaCIDs = [
 const initialFormState = { tipo_atestado: '', observacoes: '', cid: null, paciente_autorizou_cid: false };
 
 export default function AtestadosTab({ pacienteId }) {
-  const { showSnackbar } = useSnackbar(); // 2. INICIALIZE O HOOK
+  const { showSnackbar } = useSnackbar(); 
   const [atestados, setAtestados] = useState([]);
   const [formData, setFormData] = useState(initialFormState);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,7 +30,6 @@ export default function AtestadosTab({ pacienteId }) {
       const response = await apiClient.get(`/prontuario/pacientes/${pacienteId}/atestados/`);
       setAtestados(response.data);
     } catch (error) {
-      // MUDANÇA AQUI
       showSnackbar('Erro ao buscar histórico de atestados.', 'error');
       console.error("Erro ao buscar atestados:", error);
     } finally {
@@ -47,14 +45,11 @@ export default function AtestadosTab({ pacienteId }) {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // 1. PREPARA OS DADOS ANTES DE ENVIAR
       const payloadFormatoCorreto = {
           ...formData,
-          // Se tiver um CID selecionado, manda só o código dele (String). Se não, manda null.
           cid: formData.cid ? formData.cid.codigo : null 
       };
 
-      // 2. ENVIA O PAYLOAD CORRETO
       await apiClient.post(`/prontuario/pacientes/${pacienteId}/atestados/`, payloadFormatoCorreto);
       
       showSnackbar('Atestado salvo com sucesso!', 'success');
@@ -70,31 +65,41 @@ export default function AtestadosTab({ pacienteId }) {
   
   const handleGerarPdf = async (atestadoId) => {
     try {
-        // --- CORREÇÃO AQUI ---
-
-        // ALTERE DE: (ERRADO - com /api e 'atestados' no plural)
-        // const response = await apiClient.get(
-        //     `/api/atestados/${atestadoId}/pdf/`, 
-        //     { responseType: 'blob' }
-        // );
-
-        // PARA: (CORRETO - sem /api e 'atestado' no singular, como em core/urls.py)
         const response = await apiClient.get(
             `/pdf/atestado/${atestadoId}/`,
             { responseType: 'blob' }
         );
         
-        // --- FIM DA CORREÇÃO ---
-        // Cria uma URL temporária para o blob
         const fileURL = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
-        // Abre essa URL em nova aba
         window.open(fileURL, '_blank');
-        // Limpa a URL temporária depois de um tempo (opcional, boa prática)
         setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
     } catch (error) {
         console.error("Erro ao gerar PDF do atestado:", error);
         showSnackbar('Erro ao gerar PDF do atestado.', 'error');
     }
+  };
+
+  // Função auxiliar para descobrir de forma inteligente se é acompanhante
+  const descobrirTipoDetalhado = (atestado) => {
+    const texto = atestado.observacoes ? atestado.observacoes.toLowerCase() : '';
+    
+    // Se o banco de dados salvou como Comparecimento, mas tem a palavra acompanhando no texto livre
+    if (atestado.tipo_atestado === 'Comparecimento' && texto.includes('acompanhando')) {
+        return {
+            titulo: 'Declaração de Acompanhante',
+            cor: '#d97706' // Laranja/Warning para destacar na tela
+        };
+    }
+    
+    // Fallback para os comportamentos normais
+    if (atestado.tipo_atestado === 'Afastamento') {
+        return { titulo: atestado.tipo_atestado_display || 'Atestado de Afastamento', cor: '#dc2626' }; // Vermelho
+    }
+
+    return { 
+        titulo: atestado.tipo_atestado_display || atestado.tipo_atestado, 
+        cor: '#2563eb' // Azul padrão para comparecimento normal
+    };
   };
 
   if (isLoading && atestados.length === 0) return <CircularProgress />;
@@ -118,7 +123,7 @@ export default function AtestadosTab({ pacienteId }) {
               <MenuItem value="Aptidao">Atestado de Aptidão Física</MenuItem>
             </Select>
           </FormControl>
-          {/* O MÁGICO AUTOCOMPLETE DE CID */}
+
           <Autocomplete
               options={listaCIDs}
               getOptionLabel={(option) => `${option.codigo} - ${option.descricao}`}
@@ -133,13 +138,12 @@ export default function AtestadosTab({ pacienteId }) {
               clearOnEscape
           />
 
-          {/* CHECKBOX DE AUTORIZAÇÃO (Requisito Legal) */}
           <FormControlLabel
               control={
                   <Checkbox 
                       checked={formData.paciente_autorizou_cid} 
                       onChange={(e) => setFormData({ ...formData, paciente_autorizou_cid: e.target.checked })}
-                      disabled={!formData.cid} // Só habilita se tiver um CID selecionado
+                      disabled={!formData.cid} 
                   />
               }
               label="Paciente autoriza a impressão do CID no atestado (Res. CFM nº 1.658/2002)"
@@ -151,6 +155,7 @@ export default function AtestadosTab({ pacienteId }) {
             multiline 
             rows={5} 
             required 
+            helperText="Se for acompanhante, garanta que a palavra 'acompanhando' esteja no texto para o sistema categorizar corretamente no histórico."
           />
           <Button type="submit" variant="contained" disabled={isLoading} sx={{ alignSelf: 'flex-start' }}>Salvar Atestado</Button>
         </Box>
@@ -159,14 +164,18 @@ export default function AtestadosTab({ pacienteId }) {
       {/* Lista de Atestados Anteriores */}
       <Typography variant="h6" gutterBottom>Histórico de Atestados</Typography>
       {atestados.length > 0 ? (
-        atestados.map(atestado => (
-          <Accordion key={atestado.id}>
+        atestados.map((atestado) => {
+          // Usa nossa função inteligente para pegar título e cor!
+          const visual = descobrirTipoDetalhado(atestado);
+          
+          return (
+          <Accordion key={atestado.id} sx={{ mb: 1, borderLeft: `4px solid ${visual.cor}` }}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography sx={{ flexShrink: 0, fontWeight: 'bold' }}>
                 {new Date(atestado.data_emissao).toLocaleDateString('pt-BR')}
               </Typography>
-              <Typography sx={{ ml: 2, color: 'text.secondary' }}>
-                {atestado.tipo_atestado_display}
+              <Typography sx={{ ml: 2, fontWeight: 'bold', color: visual.cor }}>
+                {visual.titulo}
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
@@ -181,7 +190,8 @@ export default function AtestadosTab({ pacienteId }) {
               </Button>
             </AccordionDetails>
           </Accordion>
-        ))
+          )
+        })
       ) : (
         <Typography>Nenhum atestado registrado para este paciente.</Typography>
       )}
