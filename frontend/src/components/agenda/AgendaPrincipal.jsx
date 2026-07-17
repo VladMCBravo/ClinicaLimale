@@ -81,14 +81,15 @@ const StyledCalendarWrapper = styled('div')({
     '.fc-button-active': { backgroundColor: '#000 !important' }
 });
 
-// <--- 2. ADICIONE ESTE BLOCO NOVO AQUI (Logo abaixo do StyledCalendarWrapper) --->
+// Linha própria acima do calendário (em vez de posicionamento absoluto sobre o
+// toolbar do FullCalendar) — evita sobrepor/esconder o título da data, que muda
+// de largura conforme o mês/dia exibido.
 const MiniToggleContainer = styled(Box)({
-    position: 'absolute',
-    top: '4px',
-    right: '250px', // Posiciona exatamente no espaço vazio entre o título e os botões "Dia/Semana/Mês"
-    zIndex: 10,
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'flex-end',
+    padding: '6px 12px 0',
+    backgroundColor: '#fff',
 });
 
 const SALA_COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#9c27b0', '#0288d1'];
