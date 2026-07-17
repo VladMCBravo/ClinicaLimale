@@ -70,11 +70,13 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
         setLoading(true);
         try {
             const payload = {
-                tipo_atestado: tipo,
+                // TRUQUE DE MESTRE AQUI: Se for Acompanhante, o banco salva como Comparecimento. 
+                // O texto do PDF já estará correto nas observações!
+                tipo_atestado: tipo === 'Acompanhante' ? 'Comparecimento' : tipo,
+                
                 observacoes: observacoes,
                 cid: cid,
                 paciente_autorizou_cid: autorizouCid,
-                // Mapeia os dados baseado na seleção do dropdown tipo
                 is_acompanhante: tipo === 'Acompanhante',
                 nome_acompanhante: tipo === 'Acompanhante' ? nomeAcompanhante : null,
                 rg_acompanhante: tipo === 'Acompanhante' ? rgAcompanhante : null,
