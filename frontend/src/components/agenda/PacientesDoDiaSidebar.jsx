@@ -18,6 +18,8 @@ import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn';
 import PrintIcon from '@mui/icons-material/Print';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
+import MeetingRoomOutlinedIcon from '@mui/icons-material/MeetingRoomOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import { gerarPdfAgendaDia } from '../../utils/agendaPdfGenerator';
 import apiClient from '../../api/axiosConfig';
 
@@ -64,6 +66,8 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                     if (ag.pagamento_status === 'Pendente') existente.pagamento_status = 'Pendente';
                     // ADICIONADO: Guarda a ID dos outros exames na mochila
                     if (ag.procedimento) existente.lista_procedimentos_ids.push(ag.procedimento);
+                    // Se qualquer exame do grupo for encaixe, o grupo inteiro é exibido como encaixe
+                    existente.is_encaixe = existente.is_encaixe || ag.is_encaixe;
                 } else {
                     const novo = { ...ag };
                     novo.procedimento_descricao = procAtual;
@@ -176,21 +180,22 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                 const statusInfo = statusMap[ag.status] || { icon: <HelpOutlineIcon />, color: '#9e9e9e', title: ag.status };
                 const isRetorno = ag.tipo_visita === 'Retorno' || !ag.primeira_consulta;
                 const isDevendo = ag.pagamento_status === 'Pendente';
+                const isEncaixe = ag.is_encaixe && !isCancelado;
 
                 return (
-                    <ListItem 
-                        key={ag.id} 
-                        sx={{ 
+                    <ListItem
+                        key={ag.id}
+                        sx={{
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'stretch',
                             py: 0.5,  // REDUZIDO: padding vertical
                             px: 1,    // REDUZIDO: padding horizontal
                             mb: 0.5,  // REDUZIDO: margem inferior
-                            bgcolor: isCancelado ? '#f9f9f9' : '#fff',
+                            bgcolor: isCancelado ? '#f9f9f9' : (isEncaixe ? '#fffaf3' : '#fff'),
                             borderRadius: 1.5,
-                            border: '1px solid #f0f0f0',
-                            borderLeft: `4px solid ${isCancelado ? '#e0e0e0' : statusInfo.color}`,
+                            border: isEncaixe ? '1px solid #ffcc80' : '1px solid #f0f0f0',
+                            borderLeft: `4px solid ${isCancelado ? '#e0e0e0' : (isEncaixe ? '#ffab00' : statusInfo.color)}`,
                             opacity: isCancelado ? 0.6 : 1,
                             transition: 'all 0.2s',
                             '&:hover': { bgcolor: '#f8fbff' }
@@ -253,19 +258,20 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                     </Tooltip>
                                 )}
                                 {/* Adicione este bloco logo abaixo ou ao lado do Chip de '1ª Vez' */}
-                                {ag.is_encaixe && (
-                                    <Chip 
-                                        label="⚡ Encaixe" 
-                                        size="small" 
-                                        sx={{ 
-                                            height: '14px', 
-                                            fontSize: '0.55rem', 
-                                            bgcolor: '#ffebee', 
-                                            color: '#c62828', 
-                                            border: '1px solid #ef9a9a', 
+                                {isEncaixe && (
+                                    <Chip
+                                        label="⚡ Encaixe"
+                                        size="small"
+                                        sx={{
+                                            height: '14px',
+                                            fontSize: '0.55rem',
+                                            bgcolor: '#fff3e0',
+                                            color: '#e65100',
+                                            border: '1px solid #ffcc80',
+                                            fontWeight: 'bold',
                                             '& .MuiChip-label': { px: 0.5 },
                                             ml: 0.5 // Margem à esquerda para não colar nos outros ícones
-                                        }} 
+                                        }}
                                     />
                                 )}
                                 
@@ -276,6 +282,28 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                 )}
                             </Box>
                         </Box>
+
+                        {/* LINHA 3: Sala e Médico */}
+                        {(ag.sala_nome || ag.medico_nome) && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
+                                {ag.sala_nome && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
+                                        <MeetingRoomOutlinedIcon sx={{ fontSize: 12, color: '#90a4ae' }} />
+                                        <Typography sx={{ fontSize: '0.6rem', color: '#78909c', noWrap: true, textOverflow: 'ellipsis' }}>
+                                            {ag.sala_nome}
+                                        </Typography>
+                                    </Box>
+                                )}
+                                {ag.medico_nome && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
+                                        <PersonOutlineIcon sx={{ fontSize: 12, color: '#90a4ae' }} />
+                                        <Typography sx={{ fontSize: '0.6rem', color: '#78909c', noWrap: true, textOverflow: 'ellipsis' }}>
+                                            Dr(a). {ag.medico_nome}
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </Box>
+                        )}
                     </ListItem>
                 );
             }) : (
