@@ -298,7 +298,7 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
                                         <PersonOutlineIcon sx={{ fontSize: 12, color: '#90a4ae' }} />
                                         <Typography sx={{ fontSize: '0.6rem', color: '#78909c', noWrap: true, textOverflow: 'ellipsis' }}>
-                                            Dr(a). {ag.medico_nome}
+                                            {ag.medico_nome_com_prefixo || ag.medico_nome}
                                         </Typography>
                                     </Box>
                                 )}

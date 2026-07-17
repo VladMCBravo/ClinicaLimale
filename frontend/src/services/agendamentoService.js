@@ -75,7 +75,7 @@ const getModalData = () => {
     return Promise.all([
         apiClient.get('/pacientes/'),
         apiClient.get('/faturamento/procedimentos/'),
-        apiClient.get('/usuarios/usuarios/?cargo=medico'),
+        apiClient.get('/usuarios/usuarios/?cargo=medico&apenas_ativos=true'),
         apiClient.get('/usuarios/especialidades/')
     ]);
 };

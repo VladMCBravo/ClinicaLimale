@@ -58,7 +58,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   useEffect(() => {
     if (open) {
       Promise.all([
-        apiClient.get('/usuarios/usuarios/?cargo=medico'),
+        apiClient.get('/usuarios/usuarios/?cargo=medico&apenas_ativos=true'),
         apiClient.get('/faturamento/convenios/')
       ]).then(([medicosRes, conveniosRes]) => {
         setMedicos(medicosRes.data);

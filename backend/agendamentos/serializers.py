@@ -15,6 +15,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     primeira_consulta = serializers.SerializerMethodField()
     
     medico_nome = serializers.CharField(source='medico.get_full_name', read_only=True, default=None)
+    medico_nome_com_prefixo = serializers.CharField(source='medico.nome_com_prefixo', read_only=True, default=None)
     especialidade_nome = serializers.CharField(source='especialidade.nome', read_only=True, default=None)
     procedimento_descricao = serializers.CharField(source='procedimento.descricao', read_only=True, default=None)
     plano_utilizado = serializers.CharField(source='plano_utilizado.nome', read_only=True, default=None)
@@ -27,8 +28,8 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             'id', 'paciente', 'paciente_nome', 'data_hora_inicio', 'data_hora_fim', 
             'status', 'plano_utilizado', 'tipo_atendimento', 'observacoes', 
             'status_pagamento', 'primeira_consulta', 'link_telemedicina', 
-            'modalidade', 'tipo_visita', 'tipo_agendamento', 'medico', 'medico_nome', 
-            'especialidade', 'especialidade_nome', 'procedimento', 'procedimento_descricao', 
+            'modalidade', 'tipo_visita', 'tipo_agendamento', 'medico', 'medico_nome', 'medico_nome_com_prefixo',
+            'especialidade', 'especialidade_nome', 'procedimento', 'procedimento_descricao',
             'data_criacao', 'data_atualizacao', 'expira_em', 'id_sala_telemedicina',
             'sala', 'sala_nome', 'valor_faturamento', 'is_encaixe'
         ]
