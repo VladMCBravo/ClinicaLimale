@@ -1,10 +1,12 @@
 // src/components/agenda/AgendaPrincipal.jsx
 import React, { useRef, useCallback, useEffect, useState } from 'react';
-import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Tooltip, Checkbox, IconButton, Typography, Badge } from '@mui/material';
+import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Tooltip, Checkbox, IconButton, Typography, Badge, Button } from '@mui/material';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import PersonIcon from '@mui/icons-material/Person';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import apiClient from '../../api/axiosConfig'; // Para buscar os médicos com jornada
 import { styled } from '@mui/material/styles'; 
 import FullCalendar from '@fullcalendar/react';
@@ -62,35 +64,28 @@ const StyledCalendarWrapper = styled('div')({
         opacity: 1
     },
     
-    // Header do FullCalendar (Navegação)
-    '.fc-header-toolbar': {
-        marginBottom: '0 !important',
-        padding: '6px 12px',
-        backgroundColor: '#fff',
-        borderBottom: '1px solid #eee'
-    },
-    '.fc-toolbar-title': { fontSize: '1.1rem !important', fontWeight: 700, color: '#37474f' },
-    '.fc-button': { 
-        padding: '2px 10px !important', 
-        height: '28px !important', 
-        fontSize: '0.8rem !important', 
-        fontWeight: 600,
-        textTransform: 'capitalize' 
-    },
-    '.fc-button-primary': { backgroundColor: '#1C2E4A', borderColor: '#1C2E4A' },
-    '.fc-button-active': { backgroundColor: '#000 !important' }
 });
 
-// Linha própria acima do calendário (em vez de posicionamento absoluto sobre o
-// toolbar do FullCalendar) — evita sobrepor/esconder o título da data, que muda
-// de largura conforme o mês/dia exibido.
-const MiniToggleContainer = styled(Box)({
+// Toolbar 100% customizada (substitui o headerToolbar nativo do FullCalendar) —
+// permite colocar navegação, título e os toggles de Salas/Médicos/Dia-Semana-Mês
+// todos numa linha só, sem sobreposição, independente da largura da data exibida.
+const CustomToolbar = styled(Box)({
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    padding: '6px 12px 0',
+    justifyContent: 'space-between',
+    padding: '6px 12px',
     backgroundColor: '#fff',
+    borderBottom: '1px solid #eee',
+    gap: 8
 });
+
+const toggleButtonSx = {
+    px: 1.5, fontSize: '0.8rem', fontWeight: 600, textTransform: 'capitalize',
+    color: '#fff', bgcolor: '#1C2E4A', borderColor: '#1C2E4A',
+    '&:hover': { bgcolor: '#16233a' },
+    '&.Mui-selected': { bgcolor: '#000', color: '#fff' },
+    '&.Mui-selected:hover': { bgcolor: '#000' }
+};
 
 const SALA_COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#9c27b0', '#0288d1'];
 const getColorForSala = (id) => SALA_COLORS[parseInt(String(id).replace(/\D/g, ''), 10) % SALA_COLORS.length] || '#1976d2';
@@ -217,6 +212,20 @@ export default function AgendaPrincipal({
     const [medicosVisiveisIds, setMedicosVisiveisIds] = useState(null);
     const [filtroAnchorEl, setFiltroAnchorEl] = useState(null);
     const filtroMenuAberto = Boolean(filtroAnchorEl);
+
+    // --- ESTADO DA TOOLBAR CUSTOMIZADA (título e view atual, refletindo o FullCalendar) ---
+    const [tituloAtual, setTituloAtual] = useState('');
+    const [viewAtual, setViewAtual] = useState('resourceTimeGridDay');
+
+    const handlePrev = () => calendarRef.current?.getApi().prev();
+    const handleNext = () => calendarRef.current?.getApi().next();
+    const handleHoje = () => calendarRef.current?.getApi().today();
+    const handleChangeView = (viewName) => calendarRef.current?.getApi().changeView(viewName);
+    const handleDatesSet = (arg) => {
+        setTituloAtual(arg.view.title);
+        setViewAtual(arg.view.type);
+        if (onDatesSet) onDatesSet(arg);
+    };
 
     useEffect(() => {
         apiClient.get('/usuarios/usuarios/?cargo=medico&apenas_ativos=true')
@@ -397,30 +406,60 @@ useEffect(() => {
             
             {/* --- FULLCALENDAR --- */}
             <StyledCalendarWrapper>
-                {/* 4. COLOCAMOS O BOTÃO AQUI DENTRO (Flutuando no cabeçalho) */}
-                <MiniToggleContainer>
-                    <ToggleButtonGroup
-                        value={viewMode}
-                        exclusive
-                        onChange={(e, newValue) => { if (newValue) setViewMode(newValue); }}
-                        size="small"
-                        sx={{ height: '26px', bgcolor: '#fff' }}
-                    >
-                        <ToggleButton value="salas" sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700, textTransform: 'none' }}>
-                            <MeetingRoomIcon sx={{ fontSize: 16, mr: 0.5 }} /> Salas
-                        </ToggleButton>
-                        <ToggleButton value="medicos" sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700, textTransform: 'none' }}>
-                            <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} /> Médicos
-                        </ToggleButton>
-                    </ToggleButtonGroup>
-                    <Tooltip title={viewMode === 'salas' ? 'Escolher salas exibidas' : 'Escolher médicos exibidos'}>
-                        <IconButton size="small" onClick={(e) => setFiltroAnchorEl(e.currentTarget)} sx={{ ml: 0.5, bgcolor: '#fff', border: '1px solid #e0e0e0' }}>
-                            <Badge badgeContent={qtdOcultos} color="warning" invisible={qtdOcultos === 0}>
-                                <FilterListIcon sx={{ fontSize: 18 }} />
-                            </Badge>
+                {/* Toolbar customizada: navegação, título e os toggles, tudo numa linha só */}
+                <CustomToolbar>
+                    <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
+                        <IconButton size="small" onClick={handlePrev} sx={{ bgcolor: '#1C2E4A', color: '#fff', borderRadius: 1, width: 30, height: 28, '&:hover': { bgcolor: '#16233a' } }}>
+                            <ChevronLeftIcon fontSize="small" />
                         </IconButton>
-                    </Tooltip>
-                </MiniToggleContainer>
+                        <IconButton size="small" onClick={handleNext} sx={{ bgcolor: '#1C2E4A', color: '#fff', borderRadius: 1, width: 30, height: 28, '&:hover': { bgcolor: '#16233a' } }}>
+                            <ChevronRightIcon fontSize="small" />
+                        </IconButton>
+                        <Button size="small" onClick={handleHoje} sx={{ bgcolor: '#78909c', color: '#fff', textTransform: 'none', fontWeight: 700, borderRadius: 1, height: 28, px: 1.5, minWidth: 0, '&:hover': { bgcolor: '#607d8b' } }}>
+                            Hoje
+                        </Button>
+                    </Box>
+
+                    <Typography sx={{
+                        fontSize: '1.1rem', fontWeight: 700, color: '#37474f', flex: 1, minWidth: 0,
+                        textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', px: 1
+                    }}>
+                        {tituloAtual}
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexShrink: 0 }}>
+                        <ToggleButtonGroup
+                            value={viewMode}
+                            exclusive
+                            onChange={(e, newValue) => { if (newValue) setViewMode(newValue); }}
+                            size="small"
+                        >
+                            <ToggleButton value="salas" sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700, textTransform: 'none' }}>
+                                <MeetingRoomIcon sx={{ fontSize: 16, mr: 0.5 }} /> Salas
+                            </ToggleButton>
+                            <ToggleButton value="medicos" sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700, textTransform: 'none' }}>
+                                <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} /> Médicos
+                            </ToggleButton>
+                        </ToggleButtonGroup>
+                        <Tooltip title={viewMode === 'salas' ? 'Escolher salas exibidas' : 'Escolher médicos exibidos'}>
+                            <IconButton size="small" onClick={(e) => setFiltroAnchorEl(e.currentTarget)} sx={{ bgcolor: '#fff', border: '1px solid #e0e0e0' }}>
+                                <Badge badgeContent={qtdOcultos} color="warning" invisible={qtdOcultos === 0}>
+                                    <FilterListIcon sx={{ fontSize: 18 }} />
+                                </Badge>
+                            </IconButton>
+                        </Tooltip>
+                        <ToggleButtonGroup
+                            value={viewAtual}
+                            exclusive
+                            onChange={(e, newValue) => { if (newValue) handleChangeView(newValue); }}
+                            size="small"
+                        >
+                            <ToggleButton value="resourceTimeGridDay" sx={toggleButtonSx}>Dia</ToggleButton>
+                            <ToggleButton value="timeGridWeek" sx={toggleButtonSx}>Semana</ToggleButton>
+                            <ToggleButton value="dayGridMonth" sx={toggleButtonSx}>Mês</ToggleButton>
+                        </ToggleButtonGroup>
+                    </Box>
+                </CustomToolbar>
 
                 <Menu
                     anchorEl={filtroAnchorEl}
@@ -460,8 +499,7 @@ useEffect(() => {
                     plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
                     initialView="resourceTimeGridDay"
                     locale="pt-br"
-                    buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' }}
-                    headerToolbar={{ left: 'prev,next today', center: 'title', right: 'resourceTimeGridDay,timeGridWeek,dayGridMonth' }}
+                    headerToolbar={false}
                     height="100%"
                     events={fetchEventos}
                     
@@ -502,7 +540,7 @@ useEffect(() => {
 
                     dateClick={onDateClick}
                     eventClick={handleCalendarEventClick}
-                    datesSet={onDatesSet}
+                    datesSet={handleDatesSet}
                     slotMinTime="08:00:00" 
                     slotMaxTime="22:30:00"
                     allDaySlot={false}
