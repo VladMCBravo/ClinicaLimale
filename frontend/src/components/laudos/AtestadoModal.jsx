@@ -18,12 +18,11 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
     const [horaFim, setHoraFim] = useState('');
     const [loading, setLoading] = useState(false);
     
-    // Estados para emissão de Atestado de Acompanhante
-    const [isAcompanhante, setIsAcompanhante] = useState(false);
+    // Estados para o Acompanhante (preenchidos quando tipo === 'Acompanhante')
     const [nomeAcompanhante, setNomeAcompanhante] = useState('');
     const [rgAcompanhante, setRgAcompanhante] = useState('');
 
-    // Gera o texto automático baseado na data, tipo, regras gramaticais e se há acompanhante
+    // Gera o texto automático baseado na escolha do dropdown e regras gramaticais
     useEffect(() => {
         if (!paciente) return;
         
@@ -31,57 +30,41 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
         const [ano, mes, dia] = dataAtestado.split('-');
         const dataBR = `${dia}/${mes}/${ano}`;
         
-        // 1. Identificação dinâmica de gênero com base no cadastro do paciente
+        // Identificação dinâmica de gênero com base no cadastro do paciente
         const genero = (paciente.genero || paciente.sexo || '').toUpperCase();
         
         let artigo = 'o(a)';
-        let portador = 'portador(a)';
-        let cadastrado = 'cadastrado(a)';
         let submetido = 'submetido(a)';
         let apto = 'apto(a)';
 
         if (genero === 'M' || genero === 'MASCULINO') {
             artigo = 'o';
-            portador = 'portador';
-            cadastrado = 'cadastrado';
             submetido = 'submetido';
             apto = 'apto';
         } else if (genero === 'F' || genero === 'FEMININO') {
             artigo = 'a';
-            portador = 'portadora';
-            cadastrado = 'cadastrada';
             submetido = 'submetida';
             apto = 'apta';
         }
 
-        // 2. Geração do texto final considerando se é Acompanhante ou o Próprio Paciente
         let texto = '';
 
-        if (isAcompanhante) {
+        // Nova Condicional: Se o tipo selecionado for o Acompanhante
+        if (tipo === 'Acompanhante') {
             const identificacaoAcompanhante = nomeAcompanhante ? nomeAcompanhante.toUpperCase() : '_______________________';
             const rgTexto = rgAcompanhante ? `, portador(a) do RG nº ${rgAcompanhante},` : '';
 
-            if (tipo === 'Comparecimento') {
-                texto = `Atesto para os devidos fins que o(a) Sr(a). ${identificacaoAcompanhante}${rgTexto} esteve presente nesta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}, acompanhando ${artigo} paciente ${paciente.nome_completo || paciente.nome}, que foi submetido(a) a consulta/exames médicos.`;
-            } else if (tipo === 'Afastamento') {
-                texto = `Atesto para os devidos fins que o(a) Sr(a). ${identificacaoAcompanhante}${rgTexto} esteve presente nesta clínica médica nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais para acompanhar e prestar cuidados ${artigo} paciente ${paciente.nome_completo || paciente.nome}, que se encontra sob cuidados médicos.`;
-            } else {
-                texto = `Atesto para os devidos fins que o(a) Sr(a). ${identificacaoAcompanhante}${rgTexto} esteve presente acompanhando ${artigo} paciente ${paciente.nome_completo || paciente.nome} nesta data (${dataBR}).`;
-            }
+            texto = `Atesto para os devidos fins que o(a) Sr(a). ${identificacaoAcompanhante}${rgTexto} esteve presente nesta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}, acompanhando ${artigo} paciente ${paciente.nome_completo || paciente.nome}, que foi submetido(a) a consulta/exames médicos.`;
+        } else if (tipo === 'Comparecimento') {
+            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
+        } else if (tipo === 'Afastamento') {
+            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, foi ${submetido} a atendimento médico nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
         } else {
-            // Lógica original para o próprio paciente
-            if (tipo === 'Comparecimento') {
-                texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
-            } else if (tipo === 'Afastamento') {
-                texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, foi ${submetido} a atendimento médico nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
-            } else {
-                texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, encontra-se ${apto} para a realização de suas atividades a partir desta data (${dataBR}).`;
-            }
+            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, encontra-se ${apto} para a realização de suas atividades a partir desta data (${dataBR}).`;
         }
         
         setObservacoes(texto);
-    // Incluídas as variáveis do acompanhante no array de dependências para o texto atualizar ao digitar!
-    }, [tipo, dias, horaInicio, horaFim, paciente, dataAtestado, isAcompanhante, nomeAcompanhante, rgAcompanhante]);
+    }, [tipo, dias, horaInicio, horaFim, paciente, dataAtestado, nomeAcompanhante, rgAcompanhante]);
 
     const handleSalvar = async () => {
         setLoading(true);
@@ -91,10 +74,10 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                 observacoes: observacoes,
                 cid: cid,
                 paciente_autorizou_cid: autorizouCid,
-                // Passa dados extras se for acompanhante para fins de payload (opcional para o backend registrar no banco se suportado)
-                is_acompanhante: isAcompanhante,
-                nome_acompanhante: isAcompanhante ? nomeAcompanhante : null,
-                rg_acompanhante: isAcompanhante ? rgAcompanhante : null,
+                // Mapeia os dados baseado na seleção do dropdown tipo
+                is_acompanhante: tipo === 'Acompanhante',
+                nome_acompanhante: tipo === 'Acompanhante' ? nomeAcompanhante : null,
+                rg_acompanhante: tipo === 'Acompanhante' ? rgAcompanhante : null,
                 data_emissao: `${dataAtestado}T12:00:00Z` 
             };
 
@@ -134,12 +117,20 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                                 select
                                 label="Tipo de Documento"
                                 value={tipo}
-                                onChange={(e) => setTipo(e.target.value)}
+                                onChange={(e) => {
+                                    setTipo(e.target.value);
+                                    // Limpa os campos de acompanhante se mudar para outro tipo
+                                    if(e.target.value !== 'Acompanhante') {
+                                        setNomeAcompanhante('');
+                                        setRgAcompanhante('');
+                                    }
+                                }}
                                 fullWidth
                                 size="small"
                             >
-                                <MenuItem value="Afastamento">Atestado de Afastamento</MenuItem>
                                 <MenuItem value="Comparecimento">Declaração de Comparecimento</MenuItem>
+                                <MenuItem value="Acompanhante">Declaração de Acompanhante</MenuItem>
+                                <MenuItem value="Afastamento">Atestado de Afastamento</MenuItem>
                                 <MenuItem value="Aptidao">Atestado de Aptidão Física</MenuItem>
                             </TextField>
                         </Grid>
@@ -155,7 +146,8 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                         </Grid>
                     </Grid>
 
-                    {tipo === 'Comparecimento' && (
+                    {/* Exibe os campos de horários tanto para comparecimento quanto para acompanhante */}
+                    {(tipo === 'Comparecimento' || tipo === 'Acompanhante') && (
                         <Grid container spacing={2}>
                             <Grid item xs={6}>
                                 <TextField label="Hora Início (Ex: 14:00)" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} fullWidth size="small" />
@@ -170,38 +162,13 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                         <TextField label="Dias de Afastamento" type="number" value={dias} onChange={(e) => setDias(e.target.value)} fullWidth size="small" />
                     )}
 
-                    <TextField
-                        label="Texto do Documento"
-                        value={observacoes}
-                        onChange={(e) => setObservacoes(e.target.value)}
-                        multiline
-                        rows={5}
-                        fullWidth
-                        size="small"
-                        helperText="Você pode editar o texto gerado livremente antes de imprimir."
-                    />
-
-                    {/* Caixa de Opções para o Acompanhante */}
-                    <Box sx={{ mt: 1, mb: 1, p: 2, border: '1px dashed #ccc', borderRadius: '8px', bgcolor: '#fbfbfb' }}>
-                        <FormControlLabel
-                            control={
-                                <Checkbox 
-                                    checked={isAcompanhante} 
-                                    onChange={(e) => {
-                                        setIsAcompanhante(e.target.checked);
-                                        if(!e.target.checked) {
-                                            setNomeAcompanhante('');
-                                            setRgAcompanhante('');
-                                        }
-                                    }} 
-                                    color="primary"
-                                />
-                            }
-                            label={<Typography fontWeight="bold" variant="body2">Emitir Atestado para Acompanhante?</Typography>}
-                        />
-
-                        {isAcompanhante && (
-                            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                    {/* Exibe os inputs de dados do acompanhante somente se o tipo for 'Acompanhante' */}
+                    {tipo === 'Acompanhante' && (
+                        <Box sx={{ p: 2, border: '1px dashed #1C2E4A', borderRadius: '8px', bgcolor: '#f9fbfd' }}>
+                            <Typography fontWeight="bold" variant="body2" sx={{ mb: 1.5, color: '#1C2E4A' }}>
+                                Informações do Acompanhante
+                            </Typography>
+                            <Grid container spacing={2}>
                                 <Grid item xs={12} sm={7}>
                                     <TextField
                                         label="Nome do Acompanhante"
@@ -222,8 +189,19 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                                     />
                                 </Grid>
                             </Grid>
-                        )}
-                    </Box>
+                        </Box>
+                    )}
+
+                    <TextField
+                        label="Texto do Documento"
+                        value={observacoes}
+                        onChange={(e) => setObservacoes(e.target.value)}
+                        multiline
+                        rows={5}
+                        fullWidth
+                        size="small"
+                        helperText="Você pode editar o texto gerado livremente antes de imprimir."
+                    />
 
                     <Box sx={{ border: '1px solid #e0e0e0', p: 1.5, borderRadius: 1, bgcolor: '#fafafa' }}>
                         <TextField
