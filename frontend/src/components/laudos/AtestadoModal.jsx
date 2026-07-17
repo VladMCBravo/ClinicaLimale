@@ -17,8 +17,13 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
     const [horaInicio, setHoraInicio] = useState('');
     const [horaFim, setHoraFim] = useState('');
     const [loading, setLoading] = useState(false);
+    
+    // Estados para emissão de Atestado de Acompanhante
+    const [isAcompanhante, setIsAcompanhante] = useState(false);
+    const [nomeAcompanhante, setNomeAcompanhante] = useState('');
+    const [rgAcompanhante, setRgAcompanhante] = useState('');
 
-    // Gera o texto automático baseado na data escolhida e no sexo do paciente
+    // Gera o texto automático baseado na data, tipo, regras gramaticais e se há acompanhante
     useEffect(() => {
         if (!paciente) return;
         
@@ -49,23 +54,34 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
             apto = 'apta';
         }
 
-        // 2. Montagem do documento de identificação
-        const docInfo = paciente.cpf 
-            ? `${portador} do CPF nº ${paciente.cpf}` 
-            : `${cadastrado} sob o ID ${paciente.id}`;
-
-        // 3. Geração do texto final com a gramática correta
+        // 2. Geração do texto final considerando se é Acompanhante ou o Próprio Paciente
         let texto = '';
-        if (tipo === 'Comparecimento') {
-            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
-        } else if (tipo === 'Afastamento') {
-            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, foi ${submetido} a atendimento médico nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
+
+        if (isAcompanhante) {
+            const identificacaoAcompanhante = nomeAcompanhante ? nomeAcompanhante.toUpperCase() : '_______________________';
+            const rgTexto = rgAcompanhante ? `, portador(a) do RG nº ${rgAcompanhante},` : '';
+
+            if (tipo === 'Comparecimento') {
+                texto = `Atesto para os devidos fins que o(a) Sr(a). ${identificacaoAcompanhante}${rgTexto} esteve presente nesta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}, acompanhando ${artigo} paciente ${paciente.nome_completo || paciente.nome}, que foi submetido(a) a consulta/exames médicos.`;
+            } else if (tipo === 'Afastamento') {
+                texto = `Atesto para os devidos fins que o(a) Sr(a). ${identificacaoAcompanhante}${rgTexto} esteve presente nesta clínica médica nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais para acompanhar e prestar cuidados ${artigo} paciente ${paciente.nome_completo || paciente.nome}, que se encontra sob cuidados médicos.`;
+            } else {
+                texto = `Atesto para os devidos fins que o(a) Sr(a). ${identificacaoAcompanhante}${rgTexto} esteve presente acompanhando ${artigo} paciente ${paciente.nome_completo || paciente.nome} nesta data (${dataBR}).`;
+            }
         } else {
-            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo}, encontra-se ${apto} para a realização de suas atividades a partir desta data (${dataBR}).`;
+            // Lógica original para o próprio paciente
+            if (tipo === 'Comparecimento') {
+                texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
+            } else if (tipo === 'Afastamento') {
+                texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, foi ${submetido} a atendimento médico nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
+            } else {
+                texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, encontra-se ${apto} para a realização de suas atividades a partir desta data (${dataBR}).`;
+            }
         }
         
         setObservacoes(texto);
-    }, [tipo, dias, horaInicio, horaFim, paciente, dataAtestado]);
+    // Incluídas as variáveis do acompanhante no array de dependências para o texto atualizar ao digitar!
+    }, [tipo, dias, horaInicio, horaFim, paciente, dataAtestado, isAcompanhante, nomeAcompanhante, rgAcompanhante]);
 
     const handleSalvar = async () => {
         setLoading(true);
@@ -75,7 +91,10 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                 observacoes: observacoes,
                 cid: cid,
                 paciente_autorizou_cid: autorizouCid,
-                // Envia a data retroativa (colocando meio-dia para evitar fuso)
+                // Passa dados extras se for acompanhante para fins de payload (opcional para o backend registrar no banco se suportado)
+                is_acompanhante: isAcompanhante,
+                nome_acompanhante: isAcompanhante ? nomeAcompanhante : null,
+                rg_acompanhante: isAcompanhante ? rgAcompanhante : null,
                 data_emissao: `${dataAtestado}T12:00:00Z` 
             };
 
@@ -156,11 +175,55 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                         value={observacoes}
                         onChange={(e) => setObservacoes(e.target.value)}
                         multiline
-                        rows={4}
+                        rows={5}
                         fullWidth
                         size="small"
                         helperText="Você pode editar o texto gerado livremente antes de imprimir."
                     />
+
+                    {/* Caixa de Opções para o Acompanhante */}
+                    <Box sx={{ mt: 1, mb: 1, p: 2, border: '1px dashed #ccc', borderRadius: '8px', bgcolor: '#fbfbfb' }}>
+                        <FormControlLabel
+                            control={
+                                <Checkbox 
+                                    checked={isAcompanhante} 
+                                    onChange={(e) => {
+                                        setIsAcompanhante(e.target.checked);
+                                        if(!e.target.checked) {
+                                            setNomeAcompanhante('');
+                                            setRgAcompanhante('');
+                                        }
+                                    }} 
+                                    color="primary"
+                                />
+                            }
+                            label={<Typography fontWeight="bold" variant="body2">Emitir Atestado para Acompanhante?</Typography>}
+                        />
+
+                        {isAcompanhante && (
+                            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                                <Grid item xs={12} sm={7}>
+                                    <TextField
+                                        label="Nome do Acompanhante"
+                                        fullWidth
+                                        size="small"
+                                        value={nomeAcompanhante}
+                                        onChange={(e) => setNomeAcompanhante(e.target.value)}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={5}>
+                                    <TextField
+                                        label="RG do Acompanhante"
+                                        fullWidth
+                                        size="small"
+                                        value={rgAcompanhante}
+                                        onChange={(e) => setRgAcompanhante(e.target.value)}
+                                        placeholder="Opcional"
+                                    />
+                                </Grid>
+                            </Grid>
+                        )}
+                    </Box>
 
                     <Box sx={{ border: '1px solid #e0e0e0', p: 1.5, borderRadius: 1, bgcolor: '#fafafa' }}>
                         <TextField
