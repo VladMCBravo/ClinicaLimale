@@ -1,6 +1,6 @@
 // src/components/agenda/AgendaPrincipal.jsx
 import React, { useRef, useCallback, useEffect, useState } from 'react';
-import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
+import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Tooltip } from '@mui/material';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import PersonIcon from '@mui/icons-material/Person';
@@ -40,11 +40,18 @@ const StyledCalendarWrapper = styled('div')({
     
     // Eventos
     '.fc-event': {
-        boxShadow: 'none', 
+        boxShadow: 'none',
         border: 'none',
         borderRadius: '3px',
         margin: '0 1px',
         fontSize: '0.75rem'
+    },
+
+    // Encaixe: contorno tracejado âmbar, visível independente da cor da sala
+    '.fc-event.evento-encaixe': {
+        boxShadow: 'inset 0 0 0 2px #ffab00',
+        outline: '1px dashed #ffab00',
+        outlineOffset: '1px'
     },
     
     // Header do FullCalendar (Navegação)
@@ -128,6 +135,8 @@ export default function AgendaPrincipal({
                         existente.quantidade_exames = (existente.quantidade_exames || 1) + 1;
                         // --- NOVO: GUARDA OS IDs DOS OUTROS EXAMES DO GRUPO ---
                         if (ag.procedimento) existente.lista_procedimentos_ids.push(ag.procedimento);
+                        // Se qualquer exame do grupo for encaixe, o grupo inteiro é exibido como encaixe
+                        existente.is_encaixe = existente.is_encaixe || ag.is_encaixe;
                     } else {
                         agrupadosMap.set(chave, {
                             ...ag,
@@ -158,11 +167,14 @@ export default function AgendaPrincipal({
                             medico_nome: ag.medico_nome,
                             medico_crm: ag.medico_crm
                         },
-                        resourceId: colunaId, 
+                        resourceId: colunaId,
                         backgroundColor: isInativo ? 'rgba(200, 200, 200, 0.4)' : getColorForSala(ag.sala),
                         borderColor: isInativo ? 'rgba(150, 150, 150, 0.5)' : getColorForSala(ag.sala),
                         textColor: isInativo ? '#666' : '#fff',
-                        classNames: isInativo ? ['evento-inativo'] : []
+                        classNames: [
+                            ...(isInativo ? ['evento-inativo'] : []),
+                            ...(ag.is_encaixe && !isInativo ? ['evento-encaixe'] : [])
+                        ]
                     };
                 });
                 
@@ -308,6 +320,7 @@ useEffect(() => {
                         const isInativo = dados.status === 'Cancelado' || dados.status === 'Não Compareceu';
                         
                         let emojis = "";
+                        if (dados.is_encaixe && !isInativo) emojis += " ⚡";
                         if (dados.pagamento_status === 'Pendente' && !isInativo) emojis += " 🔴";
                         if (dados.primeira_consulta && !isInativo) emojis += " ⭐";
                         else if (dados.tipo_visita === 'Retorno' && !isInativo) emojis += " 🔄";
@@ -331,49 +344,78 @@ useEffect(() => {
                             borderLeftColor = '#2196f3';
                         }
 
-                        return (
-                            <Box sx={{ 
-                                display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
-                                width: '100%', height: '100%', borderLeft: `3px solid ${borderLeftColor}`, padding: '0 2px 0 4px', overflow: 'hidden'
-                            }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', whiteSpace: 'nowrap', flexGrow: 1 }}>
-                                    <span style={{ 
-                                        fontWeight: 900, 
-                                        fontSize: '0.7em', 
-                                        opacity: isInativo ? 0.5 : 0.8, // Mais transparente se inativo
-                                        color: arg.textColor // Usa a cor do texto definida lá em cima
-                                    }}>
-                                        {arg.timeText.split(' - ')[0]}
-                                    </span>
-                                    <span style={{ 
-                                        fontWeight: isInativo ? 'normal' : 'bold', // Tira o negrito se inativo
-                                        fontSize: '0.75em', 
-                                        textOverflow: 'ellipsis', 
-                                        overflow: 'hidden', 
-                                        textDecoration: isInativo ? 'line-through' : 'none', 
-                                        color: arg.textColor // Usa a cor do texto definida lá em cima (#666 para inativos, #fff para ativos)
-                                    }}>
-                                        {arg.event.title}
-                                    </span>
-                                    {/* --- A MÁGICA: BADGE DE QUANTIDADE DE EXAMES --- */}
-                                    {dados.quantidade_exames > 1 && (
-                                        <span style={{ 
-                                            fontSize: '0.65em', 
-                                            backgroundColor: isInativo ? 'transparent' : 'rgba(255,255,255,0.25)', 
-                                            padding: '1px 5px', 
-                                            borderRadius: '6px',
-                                            fontWeight: 'bold',
-                                            border: isInativo ? 'none' : '1px solid rgba(255,255,255,0.4)',
-                                            color: arg.textColor 
-                                        }}>
-                                            ({dados.quantidade_exames} exames)
-                                        </span>
-                                    )}
-                                </Box>
-                                <Box sx={{ fontSize: '0.8em', flexShrink: 0, paddingLeft: '2px', display: 'flex', alignItems: 'center', opacity: isInativo ? 0.6 : 1 }}>
-                                    {emojis}
-                                </Box>
+                        const tooltipTitulo = (
+                            <Box sx={{ fontSize: '0.75rem', lineHeight: 1.6 }}>
+                                <div><strong>{arg.event.title}</strong></div>
+                                <div>{arg.timeText}</div>
+                                {dados.tipo_procedimento && <div>📋 {dados.tipo_procedimento}</div>}
+                                {dados.sala_nome && <div>🚪 {dados.sala_nome}</div>}
+                                {dados.medico_nome && <div>🩺 Dr(a). {dados.medico_nome}</div>}
+                                {dados.tipo_atendimento && <div>💳 {dados.tipo_atendimento}</div>}
+                                <div>📌 {dados.status}</div>
+                                {dados.is_encaixe && !isInativo && <div>⚡ Agendado como Encaixe</div>}
                             </Box>
+                        );
+
+                        return (
+                            <Tooltip title={tooltipTitulo} arrow placement="top" enterDelay={400}>
+                                <Box sx={{
+                                    display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                                    width: '100%', height: '100%', borderLeft: `3px solid ${borderLeftColor}`, padding: '0 2px 0 4px', overflow: 'hidden'
+                                }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', whiteSpace: 'nowrap', flexGrow: 1 }}>
+                                        <span style={{
+                                            fontWeight: 900,
+                                            fontSize: '0.7em',
+                                            opacity: isInativo ? 0.5 : 0.8, // Mais transparente se inativo
+                                            color: arg.textColor // Usa a cor do texto definida lá em cima
+                                        }}>
+                                            {arg.timeText.split(' - ')[0]}
+                                        </span>
+                                        <span style={{
+                                            fontWeight: isInativo ? 'normal' : 'bold', // Tira o negrito se inativo
+                                            fontSize: '0.75em',
+                                            textOverflow: 'ellipsis',
+                                            overflow: 'hidden',
+                                            textDecoration: isInativo ? 'line-through' : 'none',
+                                            color: arg.textColor // Usa a cor do texto definida lá em cima (#666 para inativos, #fff para ativos)
+                                        }}>
+                                            {arg.event.title}
+                                        </span>
+                                        {/* --- A MÁGICA: BADGE DE QUANTIDADE DE EXAMES --- */}
+                                        {dados.quantidade_exames > 1 && (
+                                            <span style={{
+                                                fontSize: '0.65em',
+                                                backgroundColor: isInativo ? 'transparent' : 'rgba(255,255,255,0.25)',
+                                                padding: '1px 5px',
+                                                borderRadius: '6px',
+                                                fontWeight: 'bold',
+                                                border: isInativo ? 'none' : '1px solid rgba(255,255,255,0.4)',
+                                                color: arg.textColor
+                                            }}>
+                                                ({dados.quantidade_exames} exames)
+                                            </span>
+                                        )}
+                                        {/* --- BADGE DE ENCAIXE --- */}
+                                        {dados.is_encaixe && !isInativo && (
+                                            <span style={{
+                                                fontSize: '0.65em',
+                                                backgroundColor: '#ffab00',
+                                                color: '#3e2723',
+                                                padding: '1px 5px',
+                                                borderRadius: '6px',
+                                                fontWeight: 'bold',
+                                                whiteSpace: 'nowrap'
+                                            }}>
+                                                ⚡ Encaixe
+                                            </span>
+                                        )}
+                                    </Box>
+                                    <Box sx={{ fontSize: '0.8em', flexShrink: 0, paddingLeft: '2px', display: 'flex', alignItems: 'center', opacity: isInativo ? 0.6 : 1 }}>
+                                        {emojis}
+                                    </Box>
+                                </Box>
+                            </Tooltip>
                         );
                     }}
                 />
