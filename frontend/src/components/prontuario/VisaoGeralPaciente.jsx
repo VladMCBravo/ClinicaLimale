@@ -13,6 +13,35 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 
+// Função inteligente para classificar o atestado com base no seu conteúdo
+const descobrirTipoDetalhado = (atestado) => {
+    const texto = atestado.observacoes ? atestado.observacoes.toLowerCase() : '';
+    const tipoBanco = atestado.tipo_atestado || '';
+
+    // Regra 1: Acompanhante
+    if (tipoBanco === 'Comparecimento' && texto.includes('acompanhando')) {
+        return {
+            titulo: 'Declaração de Acompanhante',
+            cor: 'warning' // Usa a cor warning (laranja/dourada) do MUI
+        };
+    }
+    
+    // Regra 2: Afastamento (com tratamento para os dias)
+    if (tipoBanco === 'Afastamento') {
+        const dias = atestado.dias_afastamento || atestado.dias || '';
+        return { 
+            titulo: dias ? `Atestado de Afastamento (${dias} dias)` : 'Atestado de Afastamento', 
+            cor: 'error' // Usa a cor error (vermelha) do MUI
+        };
+    }
+
+    // Regra 3: Comparecimento Padrão do Paciente ou outros tipos (como Aptidão)
+    return { 
+        titulo: atestado.tipo_atestado_display || tipoBanco || 'Documento Médico', 
+        cor: 'info' // Usa a cor info (azul) do MUI
+    };
+};
+
 export default function VisaoGeralPaciente({ pacienteId }) {
     const [eventos, setEventos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -57,18 +86,21 @@ export default function VisaoGeralPaciente({ pacienteId }) {
                     icon: <LocalPharmacyIcon fontSize="small" />
                 }));
 
-                // 3. Mapear Atestados
-                const atests = resAtestados.data.map(item => ({
-                    id: `atest-${item.id}`,
-                    tipo: 'ATESTADO',
-                    data: new Date(item.data_emissao),
-                    titulo: `Atestado Médico (${item.dias_afastamento} dias)`,
-                    medico: item.medico_nome || 'Não informado',
-                    detalhes: `CID: ${item.cid || 'Não informado'}`,
-                    pdfUrl: `/pdf/atestado/${item.id}/`,
-                    cor: 'error',
-                    icon: <DescriptionIcon fontSize="small" />
-                }));
+                // 3. Mapear Atestados (AGORA COM LÓGICA INTELIGENTE)
+                const atests = resAtestados.data.map(item => {
+                    const classificado = descobrirTipoDetalhado(item);
+                    return {
+                        id: `atest-${item.id}`,
+                        tipo: classificado.titulo.includes('Declaração') ? 'DECLARAÇÃO' : 'ATESTADO',
+                        data: new Date(item.data_emissao),
+                        titulo: classificado.titulo,
+                        medico: item.medico_nome || 'Não informado',
+                        detalhes: item.observacoes || (item.cid ? `CID: ${item.cid}` : 'Sem observações adicionais.'),
+                        pdfUrl: `/pdf/atestado/${item.id}/`,
+                        cor: classificado.cor, // Cor dinâmica baseada no tipo de atestado
+                        icon: <DescriptionIcon fontSize="small" />
+                    };
+                });
 
                 // 4. Mapear Relatórios Salvos
                 const relats = resRelatorios.data.map(item => ({
