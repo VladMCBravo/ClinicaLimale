@@ -149,6 +149,21 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [jornadasMedico, setJornadasMedico] = useState([]);
     const [confirmarJornadaOpen, setConfirmarJornadaOpen] = useState(false);
     const [esperandoNovoPaciente, setEsperandoNovoPaciente] = useState(false);
+
+    // Cole isso perto dos outros useEffects
+    useEffect(() => {
+        // Supondo que você guarde os dados do usuário no localStorage
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                const userObj = JSON.parse(userStr);
+                // Ajuste 'admin' para o nome exato da role/cargo que você usa
+                setIsAdmin(userObj.cargo === 'admin' || userObj.role === 'admin'); 
+            } catch (e) {
+                console.error("Erro ao ler usuário", e);
+            }
+        }
+    }, []);
     
 
     useEffect(() => {
@@ -362,9 +377,11 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         let bloqueado = false;
         if (tipoAgendamento === 'Consulta') bloqueado = ocupacaoConsultas >= MAX_CONS;
         else if (tipoAgendamento === 'Procedimento') bloqueado = ocupacaoProcedimentos >= MAX_PROC;
-        if (isAdmin) bloqueado = false;
+        
+        // 🚀 CORREÇÃO: Removemos a linha "if (isAdmin) bloqueado = false;" 
+        // Agora, mesmo sendo Admin, você VERÁ se a agenda estourou a capacidade!
         setBloqueioCapacidade(bloqueado);
-    }, [capacidade, tipoAgendamento, editingEvent, open, isAdmin]);
+    }, [capacidade, tipoAgendamento, editingEvent, open]); // Note que tiramos o isAdmin da lista final
 
     useEffect(() => {
         if (formData.medico && open) {
@@ -736,8 +753,26 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                     )}
 
                                     {bloqueioCapacidade && (
-                                        <Alert severity="warning" sx={{ alignItems: 'center', py: 0, '& .MuiAlert-message': { py: 0 } }}>
-                                            <FormControlLabel control={<Switch checked={isEncaixe} onChange={(e) => setIsEncaixe(e.target.checked)} color="warning" size="small" />} label={<Typography variant="caption" fontWeight="bold">Forçar Encaixe</Typography>} sx={{ m: 0 }} />
+                                        <Alert 
+                                            severity={bloqueioCapacidade ? "warning" : "info"} 
+                                            sx={{ alignItems: 'center', py: 0, '& .MuiAlert-message': { py: 0 } }}
+                                        >
+                                            <FormControlLabel 
+                                                control={
+                                                    <Switch 
+                                                        checked={isEncaixe} 
+                                                        onChange={(e) => setIsEncaixe(e.target.checked)} 
+                                                        color={bloqueioCapacidade ? "warning" : "info"} 
+                                                        size="small" 
+                                                    />
+                                                } 
+                                                label={
+                                                    <Typography variant="caption" fontWeight="bold">
+                                                        {bloqueioCapacidade ? "Forçar Encaixe (Lotado)" : "Marcar como Encaixe ⚡"}
+                                                    </Typography>
+                                                } 
+                                                sx={{ m: 0 }} 
+                                            />
                                         </Alert>
                                     )}
                                 </Box>

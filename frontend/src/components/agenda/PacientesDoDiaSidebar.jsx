@@ -252,6 +252,22 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                         <AssignmentReturnIcon sx={{ color: '#90caf9', fontSize: 14 }} />
                                     </Tooltip>
                                 )}
+                                {/* Adicione este bloco logo abaixo ou ao lado do Chip de '1ª Vez' */}
+                                {ag.is_encaixe && (
+                                    <Chip 
+                                        label="⚡ Encaixe" 
+                                        size="small" 
+                                        sx={{ 
+                                            height: '14px', 
+                                            fontSize: '0.55rem', 
+                                            bgcolor: '#ffebee', 
+                                            color: '#c62828', 
+                                            border: '1px solid #ef9a9a', 
+                                            '& .MuiChip-label': { px: 0.5 },
+                                            ml: 0.5 // Margem à esquerda para não colar nos outros ícones
+                                        }} 
+                                    />
+                                )}
                                 
                                 {isDevendo && !isCancelado && (
                                     <Tooltip title="Pagamento Pendente">
