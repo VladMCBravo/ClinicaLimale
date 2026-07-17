@@ -143,7 +143,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
     const [salasFiltradas, setSalasFiltradas] = useState([]);
     const [pacienteDetalhes, setPacienteDetalhes] = useState(null);
     const [tipoAgendamento, setTipoAgendamento] = useState('Consulta');
-    const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, loading: false });
+    const [capacidade, setCapacidade] = useState({ consultas: 0, procedimentos: 0, verificacaoPorSala: false, loading: false });
     const [bloqueioCapacidade, setBloqueioCapacidade] = useState(false);
     const [isSlotAvailable, setIsSlotAvailable] = useState(true);
     const [jornadasMedico, setJornadasMedico] = useState([]);
@@ -363,6 +363,33 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         });
     }, [pacientes, procedimentos, medicos, especialidades, salas, open]); // Roda silenciosamente em segundo plano
 
+    // Consulta a capacidade/ocupação real no backend sempre que horário ou sala mudam,
+    // para saber se é preciso oferecer a opção "Forçar Encaixe" antes de salvar.
+    useEffect(() => {
+        if (!open) return;
+        const inicio = formData.data_hora_inicio;
+        const fim = formData.data_hora_fim;
+        if (!inicio || !fim || !inicio.isValid() || !fim.isValid()) return;
+
+        let isMounted = true;
+        setCapacidade(prev => ({ ...prev, loading: true }));
+
+        agendamentoService.verificarCapacidade(inicio.toISOString(), fim.toISOString(), formData.sala?.id)
+            .then(response => {
+                if (!isMounted) return;
+                const dados = response.data;
+                setCapacidade({
+                    consultas: dados.consultas_agendadas || 0,
+                    procedimentos: dados.procedimentos_agendados || 0,
+                    verificacaoPorSala: !!dados.verificacao_por_sala,
+                    loading: false
+                });
+            })
+            .catch(() => { if (isMounted) setCapacidade(prev => ({ ...prev, loading: false })); });
+
+        return () => { isMounted = false; };
+    }, [open, formData.data_hora_inicio, formData.data_hora_fim, formData.sala]);
+
     useEffect(() => {
         if (!open) return;
         let ocupacaoConsultas = capacidade.consultas;
@@ -377,8 +404,15 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
         let bloqueado = false;
         if (tipoAgendamento === 'Consulta') bloqueado = ocupacaoConsultas >= MAX_CONS;
         else if (tipoAgendamento === 'Procedimento') bloqueado = ocupacaoProcedimentos >= MAX_PROC;
-        
-        // 🚀 CORREÇÃO: Removemos a linha "if (isAdmin) bloqueado = false;" 
+
+        // O backend bloqueia QUALQUER sobreposição na mesma sala (independente do tipo),
+        // a menos que 'Forçar Encaixe' esteja ligado. Reproduz essa regra aqui para que
+        // o switch apareça sempre que o salvamento normal seria rejeitado por choque de sala.
+        if (!bloqueado && capacidade.verificacaoPorSala && (ocupacaoConsultas + ocupacaoProcedimentos) > 0) {
+            bloqueado = true;
+        }
+
+        // 🚀 CORREÇÃO: Removemos a linha "if (isAdmin) bloqueado = false;"
         // Agora, mesmo sendo Admin, você VERÁ se a agenda estourou a capacidade!
         setBloqueioCapacidade(bloqueado);
     }, [capacidade, tipoAgendamento, editingEvent, open]); // Note que tiramos o isAdmin da lista final
