@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import apiClient from '../../api/axiosConfig';
 
-export default function AtestadoModal({ open, onClose, paciente, medicoNome, medicoCrm, usaAssinaturaDigital }) {
+export default function AtestadoModal({ open, onClose, paciente, medicoNome, medicoCrm, usaAssinaturaDigital, onSaveSuccess }) {
     const hojeISO = new Date().toISOString().split('T')[0];
     
     const [dataAtestado, setDataAtestado] = useState(hojeISO);
@@ -97,6 +97,7 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
             }
 
             onClose();
+            if (onSaveSuccess) onSaveSuccess(); // <-- ISSO AQUI AVISA A OUTRA TELA!
         } catch (error) {
             console.error("Erro ao salvar Documento", error);
             alert("Erro ao gerar o documento. Verifique a conexão com o servidor.");
