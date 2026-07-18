@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Box, Paper, Typography, List, ListItem, ListItemButton,
-    ListItemIcon, ListItemText, CircularProgress, Divider
+    ListItemIcon, ListItemText, CircularProgress
 } from '@mui/material';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
 import { agendamentoService } from '../../services/agendamentoService';
@@ -27,15 +27,22 @@ export default function ListaEspera({ onAgendamentoSelect, refreshTrigger }) {
     }, [refreshTrigger]); // Atualiza a lista quando o refreshTrigger mudar
 
     return (
-        <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" gutterBottom>Lista de Espera</Typography>
-            <Divider sx={{ mb: 1 }} />
+        <Paper variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* CABEÇALHO — título e contagem na mesma linha, pra economizar espaço */}
+            <Box sx={{ px: 1.5, py: 0.9, borderBottom: '1px solid #eee', bgcolor: '#fff', display: 'flex', alignItems: 'baseline', gap: 0.75 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', color: '#1C2E4A', lineHeight: 1.3, whiteSpace: 'nowrap' }}>
+                    Lista de Espera
+                </Typography>
+                <Typography sx={{ fontSize: '0.72rem', color: '#666', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {lista.length} {lista.length === 1 ? 'paciente aguardando' : 'pacientes aguardando'}
+                </Typography>
+            </Box>
             {isLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexGrow: 1 }}>
                     <CircularProgress size={24} />
                 </Box>
             ) : (
-                <Box sx={{ overflowY: 'auto', flexGrow: 1 }}>
+                <Box sx={{ overflowY: 'auto', flexGrow: 1, p: 1 }}>
                     {lista.length > 0 ? (
                         <List dense>
                             {lista.map(ag => (

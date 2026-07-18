@@ -11,6 +11,7 @@ from django.utils import timezone
 # --- Serializer para LEITURA (GET) ---
 class AgendamentoSerializer(serializers.ModelSerializer):
     paciente_nome = serializers.CharField(source='paciente.nome_completo', read_only=True)
+    paciente_telefone = serializers.CharField(source='paciente.telefone_celular', read_only=True, default=None)
     status_pagamento = serializers.CharField(source='pagamento.status', read_only=True, default='Pendente')
     primeira_consulta = serializers.SerializerMethodField()
     
@@ -25,7 +26,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agendamento
         fields = [
-            'id', 'paciente', 'paciente_nome', 'data_hora_inicio', 'data_hora_fim', 
+            'id', 'paciente', 'paciente_nome', 'paciente_telefone', 'data_hora_inicio', 'data_hora_fim',
             'status', 'plano_utilizado', 'tipo_atendimento', 'observacoes', 
             'status_pagamento', 'primeira_consulta', 'link_telemedicina', 
             'modalidade', 'tipo_visita', 'tipo_agendamento', 'medico', 'medico_nome', 'medico_nome_com_prefixo',
