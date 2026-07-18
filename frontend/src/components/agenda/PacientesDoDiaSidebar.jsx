@@ -149,17 +149,17 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
     return (
         <Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#fdfdfd', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             
-            {/* CABEÇALHO FIXO — mesma altura (44px) da barra única da agenda, pra alinhar as duas colunas */}
+            {/* CABEÇALHO FIXO — título em cima, data e contagem embaixo (mesmo padrão da Lista de Espera) */}
             <Box sx={{
-                height: 44, minHeight: 44, px: 1.5, borderBottom: '1px solid #eee', bgcolor: '#fff',
+                px: 1.5, py: 0.9, borderBottom: '1px solid #eee', bgcolor: '#fff',
                 borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1
             }}>
-                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, overflow: 'hidden' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800, fontSize: '0.85rem', color: '#1C2E4A', lineHeight: 1.2, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                <Box sx={{ overflow: 'hidden' }}>
+                    <Typography sx={{ fontWeight: 800, fontSize: '0.9rem', color: '#1C2E4A', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {isHoje ? 'Agenda Hoje' : 'Agenda do Dia'}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#666', textTransform: 'capitalize', fontSize: '0.7rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {dataFormatada} • {pacientes.length} agend.
+                    <Typography sx={{ fontSize: '0.72rem', color: '#666', textTransform: 'capitalize', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {dataFormatada} • {pacientes.length} agendamentos
                     </Typography>
                 </Box>
                 <Tooltip title="Imprimir Relação do Dia">
@@ -189,9 +189,9 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'stretch',
-                            py: 0.5,  // REDUZIDO: padding vertical
-                            px: 1,    // REDUZIDO: padding horizontal
-                            mb: 0.5,  // REDUZIDO: margem inferior
+                            py: 0.35, // REDUZIDO: padding vertical
+                            px: 0.75, // REDUZIDO: padding horizontal
+                            mb: 0.35, // REDUZIDO: margem inferior
                             bgcolor: isCancelado ? '#f9f9f9' : (isEncaixe ? '#fffaf3' : '#fff'),
                             borderRadius: 1.5,
                             border: isEncaixe ? '1px solid #ffcc80' : '1px solid #f0f0f0',
@@ -202,20 +202,20 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                         }}
                     >
                         {/* LINHA 1: Horário, Nome e Ícone Status */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.25 }}>
-                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', overflow: 'hidden' }}>
-                                <Typography sx={{ fontWeight: 800, fontSize: '0.8rem', color: isCancelado ? '#999' : '#1C2E4A' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.15 }}>
+                            <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center', overflow: 'hidden' }}>
+                                <Typography sx={{ fontWeight: 800, fontSize: '0.72rem', color: isCancelado ? '#999' : '#1C2E4A' }}>
                                     {new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                 </Typography>
 
                                 {/* --- ADICIONADO AQUI: Badge com o ID do paciente --- */}
                                 <Box component="span" sx={{
                                     bgcolor: isCancelado ? '#999' : '#1C2E4A', // Fica cinza se cancelado, padrão caso contrário
-                                    color: '#FFF', 
-                                    px: 0.6, 
-                                    py: 0.3, 
-                                    borderRadius: '4px', 
-                                    fontSize: '0.6rem',
+                                    color: '#FFF',
+                                    px: 0.5,
+                                    py: 0.2,
+                                    borderRadius: '4px',
+                                    fontSize: '0.55rem',
                                     fontWeight: 'bold',
                                     display: 'inline-flex',
                                     alignItems: 'center',
@@ -225,36 +225,36 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                 </Box>
 
                                 {/* O 'noWrap' impede que o nome quebre em duas linhas, economizando altura */}
-                                <Typography sx={{ fontWeight: 600, fontSize: '0.75rem', color: isCancelado ? '#999' : '#333', noWrap: true, textOverflow: 'ellipsis' }}>
+                                <Typography sx={{ fontWeight: 600, fontSize: '0.7rem', color: isCancelado ? '#999' : '#333', noWrap: true, textOverflow: 'ellipsis' }}>
                                     {ag.paciente_nome}
                                 </Typography>
                             </Box>
                             <Tooltip title={statusInfo.title} placement="left">
-                                {React.cloneElement(statusInfo.icon, { sx: { color: statusInfo.color, fontSize: 16 } })}
+                                {React.cloneElement(statusInfo.icon, { sx: { color: statusInfo.color, fontSize: 14 } })}
                             </Tooltip>
                         </Box>
 
                         {/* LINHA 2: Procedimento e Tags */}
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
-                                <MedicalInformationIcon sx={{ fontSize: 13, color: '#78909c' }} />
-                                <Typography sx={{ fontSize: '0.65rem', color: '#546e7a', noWrap: true, textOverflow: 'ellipsis' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, overflow: 'hidden' }}>
+                                <MedicalInformationIcon sx={{ fontSize: 11, color: '#78909c' }} />
+                                <Typography sx={{ fontSize: '0.6rem', color: '#546e7a', noWrap: true, textOverflow: 'ellipsis' }}>
                                     {/* AQUI: O frontend tenta ler o nome. Se não tiver, cai pro que tem (o ID 38) */}
                                     {ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta'}
                                 </Typography>
                             </Box>
 
                             {/* Ícones de Alerta / Tags Menores */}
-                            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
+                            <Box sx={{ display: 'flex', gap: 0.4, alignItems: 'center', flexShrink: 0 }}>
                                 {ag.primeira_consulta ? (
-                                    <Chip 
-                                        label="1ª Vez" 
-                                        size="small" 
-                                        sx={{ height: '14px', fontSize: '0.55rem', bgcolor: '#fff8e1', color: '#f57f17', border: '1px solid #ffe082', '& .MuiChip-label': { px: 0.5 } }} 
+                                    <Chip
+                                        label="1ª Vez"
+                                        size="small"
+                                        sx={{ height: '12px', fontSize: '0.5rem', bgcolor: '#fff8e1', color: '#f57f17', border: '1px solid #ffe082', '& .MuiChip-label': { px: 0.4 } }}
                                     />
                                 ) : (
                                     <Tooltip title="Retorno">
-                                        <AssignmentReturnIcon sx={{ color: '#90caf9', fontSize: 14 }} />
+                                        <AssignmentReturnIcon sx={{ color: '#90caf9', fontSize: 12 }} />
                                     </Tooltip>
                                 )}
                                 {/* Adicione este bloco logo abaixo ou ao lado do Chip de '1ª Vez' */}
@@ -263,21 +263,21 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                         label="⚡ Encaixe"
                                         size="small"
                                         sx={{
-                                            height: '14px',
-                                            fontSize: '0.55rem',
+                                            height: '12px',
+                                            fontSize: '0.5rem',
                                             bgcolor: '#fff3e0',
                                             color: '#e65100',
                                             border: '1px solid #ffcc80',
                                             fontWeight: 'bold',
-                                            '& .MuiChip-label': { px: 0.5 },
-                                            ml: 0.5 // Margem à esquerda para não colar nos outros ícones
+                                            '& .MuiChip-label': { px: 0.4 },
+                                            ml: 0.4 // Margem à esquerda para não colar nos outros ícones
                                         }}
                                     />
                                 )}
-                                
+
                                 {isDevendo && !isCancelado && (
                                     <Tooltip title="Pagamento Pendente">
-                                        <MonetizationOnIcon sx={{ color: '#d32f2f', fontSize: 14 }} />
+                                        <MonetizationOnIcon sx={{ color: '#d32f2f', fontSize: 12 }} />
                                     </Tooltip>
                                 )}
                             </Box>
@@ -285,19 +285,19 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
 
                         {/* LINHA 3: Sala e Médico */}
                         {(ag.sala_nome || ag.medico_nome) && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.1 }}>
                                 {ag.sala_nome && (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
-                                        <MeetingRoomOutlinedIcon sx={{ fontSize: 12, color: '#90a4ae' }} />
-                                        <Typography sx={{ fontSize: '0.6rem', color: '#78909c', noWrap: true, textOverflow: 'ellipsis' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, overflow: 'hidden' }}>
+                                        <MeetingRoomOutlinedIcon sx={{ fontSize: 10, color: '#90a4ae' }} />
+                                        <Typography sx={{ fontSize: '0.55rem', color: '#78909c', noWrap: true, textOverflow: 'ellipsis' }}>
                                             {ag.sala_nome}
                                         </Typography>
                                     </Box>
                                 )}
                                 {ag.medico_nome && (
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
-                                        <PersonOutlineIcon sx={{ fontSize: 12, color: '#90a4ae' }} />
-                                        <Typography sx={{ fontSize: '0.6rem', color: '#78909c', noWrap: true, textOverflow: 'ellipsis' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, overflow: 'hidden' }}>
+                                        <PersonOutlineIcon sx={{ fontSize: 10, color: '#90a4ae' }} />
+                                        <Typography sx={{ fontSize: '0.55rem', color: '#78909c', noWrap: true, textOverflow: 'ellipsis' }}>
                                             {ag.medico_nome_com_prefixo || ag.medico_nome}
                                         </Typography>
                                     </Box>
