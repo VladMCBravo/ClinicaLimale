@@ -497,6 +497,7 @@ useEffect(() => {
                 <FullCalendar
                     ref={calendarRef}
                     plugins={[resourceTimeGridPlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                    schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
                     initialView="resourceTimeGridDay"
                     locale="pt-br"
                     headerToolbar={false}
