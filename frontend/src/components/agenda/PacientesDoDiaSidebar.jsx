@@ -149,24 +149,24 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
     return (
         <Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#fdfdfd', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             
-            {/* CABEÇALHO FIXO */}
-            <Box sx={{ p: 1.5, borderBottom: '1px solid #eee', bgcolor: '#fff', borderRadius: '8px 8px 0 0' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Box>
-                        {/* <--- ADICIONADO AQUI: Título dinâmico */}
-                        <Typography variant="subtitle1" sx={{ fontWeight: '800', color: '#1C2E4A', lineHeight: 1.2 }}>
-                            {isHoje ? 'Agenda Hoje' : 'Agenda do Dia'}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: '#666', textTransform: 'capitalize' }}>
-                            {dataFormatada} • {pacientes.length} agendamentos
-                        </Typography>
-                    </Box>
-                    <Tooltip title="Imprimir Relação do Dia">
-                        <IconButton size="small" onClick={handlePrint} sx={{ color: '#1976d2', bgcolor: '#f0f7ff' }}>
-                            <PrintIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
+            {/* CABEÇALHO FIXO — mesma altura (44px) da barra única da agenda, pra alinhar as duas colunas */}
+            <Box sx={{
+                height: 44, minHeight: 44, px: 1.5, borderBottom: '1px solid #eee', bgcolor: '#fff',
+                borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1
+            }}>
+                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.75, overflow: 'hidden' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800, fontSize: '0.85rem', color: '#1C2E4A', lineHeight: 1.2, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {isHoje ? 'Agenda Hoje' : 'Agenda do Dia'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#666', textTransform: 'capitalize', fontSize: '0.7rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {dataFormatada} • {pacientes.length} agend.
+                    </Typography>
                 </Box>
+                <Tooltip title="Imprimir Relação do Dia">
+                    <IconButton size="small" onClick={handlePrint} sx={{ color: '#1976d2', bgcolor: '#f0f7ff', flexShrink: 0 }}>
+                        <PrintIcon fontSize="small" />
+                    </IconButton>
+                </Tooltip>
             </Box>
 
             {/* LISTA ROLÁVEL */}

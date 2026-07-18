@@ -1,12 +1,18 @@
 // src/components/agenda/AgendaPrincipal.jsx
 import React, { useRef, useCallback, useEffect, useState } from 'react';
-import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Tooltip, Checkbox, IconButton, Typography, Badge, Button } from '@mui/material';
+import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Tooltip, Checkbox, IconButton, Typography, Badge, Button, CircularProgress } from '@mui/material';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import PersonIcon from '@mui/icons-material/Person';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import apiClient from '../../api/axiosConfig'; // Para buscar os médicos com jornada
 import { styled } from '@mui/material/styles'; 
 import FullCalendar from '@fullcalendar/react';
@@ -23,7 +29,9 @@ import { agendamentoService } from '../../services/agendamentoService';
 // CSS CUSTOMIZADO
 const StyledCalendarWrapper = styled('div')({
     flexGrow: 1,
-    height: '100%', 
+    height: '100%',
+    minHeight: 0, // Impede que o wrapper cresça para caber todos os slots de horário (o mesmo padrão usado em MainLayout.jsx)
+    overflow: 'hidden', // O FullCalendar cuida do scroll interno da grade; sem isso o rodapé nunca termina
     display: 'flex',
     flexDirection: 'column',
     backgroundColor: '#fff',
@@ -72,8 +80,8 @@ const StyledCalendarWrapper = styled('div')({
 const CustomToolbar = styled(Box)({
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '6px 12px',
+    minHeight: 44,
+    padding: '6px 10px',
     backgroundColor: '#fff',
     borderBottom: '1px solid #eee',
     gap: 8
@@ -182,21 +190,36 @@ const construirEventosForaExpediente = (listaMedicos, dataExibida) => {
 };
 
 export default function AgendaPrincipal({
-    medicoFiltro, 
-    especialidadeFiltro, 
-    onDateClick, 
+    medicoFiltro,
+    especialidadeFiltro,
+    onDateClick,
     onEventClick,
-    onDatesSet, // <--- ADICIONE AQUI 
+    onDatesSet, // <--- ADICIONE AQUI
     salas = [],
-    refreshTrigger
+    refreshTrigger,
+    kpis = {},
+    loadingKpis = false,
+    onNovoPaciente,
+    onBuscarHorario,
+    onTabelaPrecos,
+    onStatusWhatsapp
 }) {
     const calendarRef = useRef(null);
     const navigate = useNavigate();
-    
+
     // ESTADOS DO MENU
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const openMenu = Boolean(anchorEl);
+
+    // Badge de KPIs e menu de ações secundárias, ambos recolhidos por padrão para
+    // caber a barra da agenda inteira numa linha só
+    const [kpiAnchorEl, setKpiAnchorEl] = useState(null);
+    const [moreAnchorEl, setMoreAnchorEl] = useState(null);
+    const handleCloseMore = (action) => {
+        setMoreAnchorEl(null);
+        if (action) action();
+    };
 
     // --- NOVOS ESTADOS PARA O MODO DE VISÃO ---
     const [viewMode, setViewMode] = useState('salas'); // 'salas' ou 'medicos'
@@ -402,30 +425,52 @@ useEffect(() => {
         : `${prefixoTratamento(item)} ${item.first_name} ${item.last_name || ''}`.trim();
 
     return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#fff' }}>
+        <Box sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', bgcolor: '#fff' }}>
             
             {/* --- FULLCALENDAR --- */}
             <StyledCalendarWrapper>
                 {/* Toolbar customizada: navegação, título e os toggles, tudo numa linha só */}
                 <CustomToolbar>
                     <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexShrink: 0 }}>
-                        <IconButton size="small" onClick={handlePrev} sx={{ bgcolor: '#1C2E4A', color: '#fff', borderRadius: 1, width: 30, height: 28, '&:hover': { bgcolor: '#16233a' } }}>
+                        <IconButton size="small" onClick={handlePrev} sx={{ bgcolor: '#1C2E4A', color: '#fff', borderRadius: 1, width: 26, height: 26, '&:hover': { bgcolor: '#16233a' } }}>
                             <ChevronLeftIcon fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" onClick={handleNext} sx={{ bgcolor: '#1C2E4A', color: '#fff', borderRadius: 1, width: 30, height: 28, '&:hover': { bgcolor: '#16233a' } }}>
+                        <IconButton size="small" onClick={handleNext} sx={{ bgcolor: '#1C2E4A', color: '#fff', borderRadius: 1, width: 26, height: 26, '&:hover': { bgcolor: '#16233a' } }}>
                             <ChevronRightIcon fontSize="small" />
                         </IconButton>
-                        <Button size="small" onClick={handleHoje} sx={{ bgcolor: '#78909c', color: '#fff', textTransform: 'none', fontWeight: 700, borderRadius: 1, height: 28, px: 1.5, minWidth: 0, '&:hover': { bgcolor: '#607d8b' } }}>
+                        <Button size="small" onClick={handleHoje} sx={{ bgcolor: '#78909c', color: '#fff', textTransform: 'none', fontWeight: 700, borderRadius: 1, height: 26, px: 1.2, minWidth: 0, fontSize: '0.7rem', '&:hover': { bgcolor: '#607d8b' } }}>
                             Hoje
                         </Button>
                     </Box>
 
                     <Typography sx={{
-                        fontSize: '1.1rem', fontWeight: 700, color: '#37474f', flex: 1, minWidth: 0,
-                        textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', px: 1
+                        fontSize: '0.85rem', fontWeight: 700, color: '#37474f', flexShrink: 0, maxWidth: 190,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
                         {tituloAtual}
                     </Typography>
+
+                    <Divider orientation="vertical" flexItem sx={{ my: 0.5 }} />
+
+                    <Tooltip title="Indicadores do dia (hoje · novos no mês · a confirmar)">
+                        <Box
+                            component="button"
+                            onClick={(e) => setKpiAnchorEl(e.currentTarget)}
+                            sx={{
+                                display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0,
+                                bgcolor: '#fdf1e2', border: '1px solid #e8b374', color: '#a35a1d',
+                                borderRadius: 5, height: 26, px: 1.2, fontSize: '0.7rem', fontWeight: 700,
+                                cursor: 'pointer', fontFamily: 'inherit'
+                            }}
+                        >
+                            {loadingKpis ? <CircularProgress size={11} sx={{ color: '#a35a1d' }} /> : (
+                                <>{kpis.hoje ?? 0} · {kpis.novos ?? 0} · {kpis.confirmar ?? 0}</>
+                            )}
+                            <KeyboardArrowDownIcon sx={{ fontSize: 14 }} />
+                        </Box>
+                    </Tooltip>
+
+                    <Divider orientation="vertical" flexItem sx={{ my: 0.5 }} />
 
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexShrink: 0 }}>
                         <ToggleButtonGroup
@@ -434,10 +479,10 @@ useEffect(() => {
                             onChange={(e, newValue) => { if (newValue) setViewMode(newValue); }}
                             size="small"
                         >
-                            <ToggleButton value="salas" sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700, textTransform: 'none' }}>
+                            <ToggleButton value="salas" sx={{ px: 1.2, py: 0.3, fontSize: '0.7rem', fontWeight: 700, textTransform: 'none' }}>
                                 <MeetingRoomIcon sx={{ fontSize: 16, mr: 0.5 }} /> Salas
                             </ToggleButton>
-                            <ToggleButton value="medicos" sx={{ px: 1.5, fontSize: '0.7rem', fontWeight: 700, textTransform: 'none' }}>
+                            <ToggleButton value="medicos" sx={{ px: 1.2, py: 0.3, fontSize: '0.7rem', fontWeight: 700, textTransform: 'none' }}>
                                 <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} /> Médicos
                             </ToggleButton>
                         </ToggleButtonGroup>
@@ -454,12 +499,57 @@ useEffect(() => {
                             onChange={(e, newValue) => { if (newValue) handleChangeView(newValue); }}
                             size="small"
                         >
-                            <ToggleButton value="resourceTimeGridDay" sx={toggleButtonSx}>Dia</ToggleButton>
-                            <ToggleButton value="timeGridWeek" sx={toggleButtonSx}>Semana</ToggleButton>
-                            <ToggleButton value="dayGridMonth" sx={toggleButtonSx}>Mês</ToggleButton>
+                            <ToggleButton value="resourceTimeGridDay" sx={{ ...toggleButtonSx, py: 0.3 }}>Dia</ToggleButton>
+                            <ToggleButton value="timeGridWeek" sx={{ ...toggleButtonSx, py: 0.3 }}>Semana</ToggleButton>
+                            <ToggleButton value="dayGridMonth" sx={{ ...toggleButtonSx, py: 0.3 }}>Mês</ToggleButton>
                         </ToggleButtonGroup>
                     </Box>
+
+                    <Box sx={{ flex: 1, minWidth: 8 }} />
+
+                    <Button
+                        size="small"
+                        onClick={onNovoPaciente}
+                        startIcon={<PersonAddIcon fontSize="small" />}
+                        sx={{ bgcolor: '#1a233b', color: '#fff', textTransform: 'none', fontWeight: 700, fontSize: '0.7rem', height: 26, px: 1.2, flexShrink: 0, '&:hover': { bgcolor: '#16233a' } }}
+                    >
+                        Novo Paciente
+                    </Button>
+                    <Tooltip title="Mais ações">
+                        <IconButton size="small" onClick={(e) => setMoreAnchorEl(e.currentTarget)} sx={{ border: '1px solid #e0e0e0', flexShrink: 0 }}>
+                            <MoreHorizIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
                 </CustomToolbar>
+
+                <Menu anchorEl={kpiAnchorEl} open={Boolean(kpiAnchorEl)} onClose={() => setKpiAnchorEl(null)}>
+                    <Box sx={{ px: 2, py: 1, minWidth: 160 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 3, fontSize: '0.8rem', py: 0.4 }}>
+                            <span style={{ color: '#666' }}>Hoje</span><b style={{ color: '#1a233b' }}>{kpis.hoje ?? 0}</b>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 3, fontSize: '0.8rem', py: 0.4 }}>
+                            <span style={{ color: '#666' }}>Novos no mês</span><b style={{ color: '#c0a46f' }}>{kpis.novos ?? 0}</b>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 3, fontSize: '0.8rem', py: 0.4 }}>
+                            <span style={{ color: '#666' }}>A confirmar</span><b style={{ color: '#a35a1d' }}>{kpis.confirmar ?? 0}</b>
+                        </Box>
+                    </Box>
+                </Menu>
+
+                <Menu anchorEl={moreAnchorEl} open={Boolean(moreAnchorEl)} onClose={() => setMoreAnchorEl(null)}>
+                    <MenuItem onClick={() => handleCloseMore(onBuscarHorario)}>
+                        <ListItemIcon><EventAvailableIcon fontSize="small" color="info" /></ListItemIcon>
+                        <ListItemText>Buscar Horário</ListItemText>
+                    </MenuItem>
+                    <MenuItem onClick={() => handleCloseMore(onTabelaPrecos)}>
+                        <ListItemIcon><RequestQuoteIcon fontSize="small" color="success" /></ListItemIcon>
+                        <ListItemText>Tabela de Preços</ListItemText>
+                    </MenuItem>
+                    <MenuItem onClick={() => handleCloseMore(onStatusWhatsapp)}>
+                        <ListItemIcon><SmartToyIcon fontSize="small" /></ListItemIcon>
+                        <ListItemText>Status do WhatsApp (IA)</ListItemText>
+                    </MenuItem>
+                </Menu>
 
                 <Menu
                     anchorEl={filtroAnchorEl}
