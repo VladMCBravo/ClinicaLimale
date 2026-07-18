@@ -1,21 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Drawer, Typography, Paper, CircularProgress, Stack, Divider, Button, IconButton, Tooltip } from '@mui/material';
+import { Box, Drawer } from '@mui/material';
 import { agendamentoService } from '../services/agendamentoService';
-
-// --- ÍCONES (Trazidos dos seus arquivos originais) ---
-import PersonAddIcon from '@mui/icons-material/PersonAdd';       // Novo Paciente
-import AddCardIcon from '@mui/icons-material/AddCard';           // Caixa
-import EventAvailableIcon from '@mui/icons-material/EventAvailable'; // Buscar Horário
-import CakeIcon from '@mui/icons-material/Cake';                 // Aniversariantes
-import TodayIcon from '@mui/icons-material/Today';               // Agendas do dia
-import SmartToyIcon from '@mui/icons-material/SmartToy';         // Chatbot
 
 // --- COMPONENTES ---
 import AgendaPrincipal from '../components/agenda/AgendaPrincipal';
 import PacientesDoDiaSidebar from '../components/agenda/PacientesDoDiaSidebar';
 import ListaEspera from '../components/painel/ListaEspera';
 import VerificadorDisponibilidade from '../components/painel/VerificadorDisponibilidade';
-import RequestQuoteIcon from '@mui/icons-material/RequestQuote'; // Ícone para a Tabela de Preços
 import TabelaValoresModal from '../components/painel/TabelaValoresModal'; // Ajuste o caminho conforme criou
 import ChatbotStatusModal from '../components/painel/ChatbotStatusModal'; // Ajuste o caminho
 
@@ -153,117 +144,28 @@ export default function PainelRecepcaoPage() {
             </Box>
 
             {/* --- ÁREA PRINCIPAL --- */}
-            <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0, overflow: 'hidden' }}>
-                
-                {/* ================================================================================
-                    BARRA SUPERIOR UNIFICADA (KPIs + BOTÕES + ÍCONES)
-                    ================================================================================
-                */}
-                <Paper variant="outlined" sx={{ 
-                    px: 2, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between', 
-                    bgcolor: '#fff', 
-                    flexShrink: 0,
-                    height: '50px', // Altura fina fixa
-                    borderRadius: '8px',
-                    border: 'none',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-                }}>
-                    
-                    {/* KPIs */}
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', width: '220px' }}>
-                         <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1, fontSize: '0.55rem', fontWeight: 600}}>HOJE</Typography>
-                            {loadingKpis ? <CircularProgress size={12} /> : <Typography variant="h6" sx={{ lineHeight: 1, fontSize: '0.9rem', fontWeight: 800, color: '#1C2E4A' }}>{kpis.hoje}</Typography>}
-                         </Box>
-                         <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1, fontSize: '0.55rem', fontWeight: 600}}>NOVOS</Typography>
-                             {loadingKpis ? <CircularProgress size={12} /> : <Typography variant="h6" sx={{ lineHeight: 1, color: 'secondary.main', fontSize: '0.9rem', fontWeight: 800 }}>{kpis.novos}</Typography>}
-                         </Box>
-                         <Box>
-                            <Typography variant="caption" color="text.secondary" sx={{display: 'block', lineHeight: 1, fontSize: '0.55rem', fontWeight: 600}}>A CONFIRM.</Typography>
-                             {loadingKpis ? <CircularProgress size={12} /> : <Typography variant="h6" sx={{ lineHeight: 1, color: 'warning.main', fontSize: '0.9rem', fontWeight: 800 }}>{kpis.confirmar}</Typography>}
-                         </Box>
-                    </Box>
-
-                    <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%', alignSelf:'center' }} />
-
-                    {/* 2. BOTÕES DE AÇÃO (Extraídos do seu ControlesAgenda.jsx mas em linha) */}
-                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexGrow: 1, justifyContent: 'center' }}>
-                        
-                        <Button 
-                            variant="contained" 
-                            startIcon={<PersonAddIcon fontSize="small" />}
-                            onClick={() => setIsPacienteModalOpen(true)}
-                            sx={{ bgcolor: '#1C2E4A', height: '32px', fontSize: '0.75rem', textTransform: 'none', fontWeight: 600 }}
-                        >
-                            Novo Paciente
-                        </Button>
-
-                        <Button 
-                            variant="outlined" color="info"
-                            startIcon={<EventAvailableIcon fontSize="small" />}
-                            onClick={() => setIsDispoOpen(true)}
-                            sx={{ height: '32px', fontSize: '0.75rem', textTransform: 'none', fontWeight: 600 }}
-                        >
-                            Buscar Horário
-                        </Button>
-
-                        {/* NOVO BOTÃO DE VALORES */}
-                        <Button 
-                            variant="outlined" color="success"
-                            startIcon={<RequestQuoteIcon fontSize="small" />}
-                            onClick={() => setIsValoresModalOpen(true)}
-                            sx={{ height: '32px', fontSize: '0.75rem', textTransform: 'none', fontWeight: 600 }}
-                        >
-                            Tabela de Preços
-                        </Button>
-
-                    </Stack>
-
-                    <Divider orientation="vertical" flexItem sx={{ mx: 2, height: '60%', alignSelf:'center' }} />
-
-                    {/* 3. ÍCONES (Extraídos do seu BarraIconesLateral.jsx mas em linha) */}
-                    <Stack direction="row" spacing={0.5}>
-                        <Tooltip title="Aniversariantes do Mês">
-                            <IconButton size="small" sx={{color: '#546E7A'}}> <CakeIcon fontSize="small"/> </IconButton>
-                        </Tooltip>
-                        
-                        <Tooltip title="Agendas do Dia">
-                            <IconButton size="small" sx={{color: '#546E7A'}}> <TodayIcon fontSize="small"/> </IconButton>
-                        </Tooltip>
-                        
-                        <Tooltip title="Status do WhatsApp (IA)">
-                            <IconButton 
-                                size="small" 
-                                sx={{color: '#546E7A'}} 
-                                onClick={() => setIsChatbotModalOpen(true)}
-                            > 
-                                <SmartToyIcon fontSize="small"/> 
-                            </IconButton>
-                        </Tooltip>
-                        
-                        <ChatbotStatusModal open={isChatbotModalOpen} onClose={() => setIsChatbotModalOpen(false)} />
-                    </Stack>
-
-                </Paper>
+            <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
                 {/* ================================================================================
-                    AGENDA (Com filtro interno)
+                    AGENDA — navegação, KPIs, filtros e ações, tudo numa barra só dentro do AgendaPrincipal
                     ================================================================================
                 */}
-                <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#fff' }}>
-                    <AgendaPrincipal 
-                        medicoFiltro={medicoFiltro} 
-                        especialidadeFiltro={especialidadeFiltro} 
-                        onDateClick={handleDateClick} 
+                <Box sx={{ flexGrow: 1, minHeight: 0, overflow: 'hidden', borderRadius: '8px', border: '1px solid', borderColor: 'divider', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', bgcolor: '#fff' }}>
+                    <AgendaPrincipal
+                        medicoFiltro={medicoFiltro}
+                        especialidadeFiltro={especialidadeFiltro}
+                        onDateClick={handleDateClick}
                         onEventClick={handleEventClick}
-                        onDatesSet={handleDatesSet}  // <--- ADICIONE ESTA LINHA AQUI 
+                        onDatesSet={handleDatesSet}  // <--- ADICIONE ESTA LINHA AQUI
                         salas={salas}
                         refreshTrigger={refreshTrigger}
-                        onFiltroChange={handleFiltroChange} 
+                        onFiltroChange={handleFiltroChange}
+                        kpis={kpis}
+                        loadingKpis={loadingKpis}
+                        onNovoPaciente={() => setIsPacienteModalOpen(true)}
+                        onBuscarHorario={() => setIsDispoOpen(true)}
+                        onTabelaPrecos={() => setIsValoresModalOpen(true)}
+                        onStatusWhatsapp={() => setIsChatbotModalOpen(true)}
                     />
                 </Box>
             </Box>
