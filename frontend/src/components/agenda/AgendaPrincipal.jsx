@@ -103,8 +103,8 @@ const prefixoTratamento = (medico) => {
 };
 
 // --- SOMBREAMENTO DE JORNADA (modo "Médicos") ---
-const SLOT_MIN_TIME = '08:00:00';
-const SLOT_MAX_TIME = '22:30:00';
+const SLOT_MIN_TIME = '06:30:00';
+const SLOT_MAX_TIME = '22:00:00';
 
 const timeStrParaMinutos = (t) => {
     const [h, m] = t.split(':').map(Number);
@@ -541,8 +541,8 @@ useEffect(() => {
                     dateClick={onDateClick}
                     eventClick={handleCalendarEventClick}
                     datesSet={handleDatesSet}
-                    slotMinTime="08:00:00" 
-                    slotMaxTime="22:30:00"
+                    slotMinTime="06:30:00"
+                    slotMaxTime="22:00:00"
                     allDaySlot={false}
                     nowIndicator={true}
                     slotDuration="00:15:00"
