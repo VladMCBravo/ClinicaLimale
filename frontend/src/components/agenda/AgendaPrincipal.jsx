@@ -433,7 +433,7 @@ useEffect(() => {
 
         const mensagem = `Olá, ${primeiroNome}! 😊\n\n`
             + `Aqui é da *Clínica Limalé*. Passando para confirmar o seu agendamento:\n\n`
-            + `🗓️ ${dataFormatada}, às ${horaFormatada}\n`
+            + `📅 ${dataFormatada}, às ${horaFormatada}\n`
             + `📋 ${procedimento}\n`
             + (medico ? `🩺 ${medico}\n` : '')
             + `\n📍 *Endereço da clínica*\n${CLINICA_ENDERECO}\n`
