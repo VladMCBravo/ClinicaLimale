@@ -4,18 +4,27 @@ import {
     Button, TextField, MenuItem, Box, FormControlLabel, Checkbox, Typography, CircularProgress, Grid
 } from '@mui/material';
 import apiClient from '../../api/axiosConfig';
+import { useAuth } from '../../hooks/useAuth';
 
-export default function AtestadoModal({ open, onClose, paciente, medicoNome, medicoCrm, usaAssinaturaDigital, onSaveSuccess }) {
+// dataInicial/horaInicioInicial/horaFimInicial são opcionais — usados quando o modal é
+// aberto a partir de um agendamento já existente (ver EventoAgendaMenu.jsx), pra vir
+// pré-preenchido em vez de começar em branco/hoje.
+export default function AtestadoModal({ open, onClose, paciente, medicoNome, medicoCrm, usaAssinaturaDigital, onSaveSuccess, dataInicial, horaInicioInicial, horaFimInicial }) {
     const hojeISO = new Date().toISOString().split('T')[0];
-    
-    const [dataAtestado, setDataAtestado] = useState(hojeISO);
+    const { user } = useAuth();
+    // Atestado de Afastamento/Aptidão são atos privativos de médico (CFM) — o backend já
+    // bloqueia isso (CanCreateAtestado), aqui é só pra não oferecer a opção a quem não
+    // pode usá-la.
+    const ehMedico = Boolean(user?.isMedico);
+
+    const [dataAtestado, setDataAtestado] = useState(dataInicial || hojeISO);
     const [tipo, setTipo] = useState('Comparecimento');
     const [observacoes, setObservacoes] = useState('');
     const [cid, setCid] = useState('');
     const [autorizouCid, setAutorizouCid] = useState(false);
     const [dias, setDias] = useState('1');
-    const [horaInicio, setHoraInicio] = useState('');
-    const [horaFim, setHoraFim] = useState('');
+    const [horaInicio, setHoraInicio] = useState(horaInicioInicial || '');
+    const [horaFim, setHoraFim] = useState(horaFimInicial || '');
     const [loading, setLoading] = useState(false);
     
     // Estados para o Acompanhante (preenchidos quando tipo === 'Acompanhante')
@@ -49,22 +58,29 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
 
         let texto = '';
 
+        // Nas Declarações (Comparecimento/Acompanhante), menciona quem atendeu — o
+        // documento continua assinado institucionalmente quando emitido pela recepção,
+        // mas o texto registra o médico responsável pelo atendimento.
+        const infoMedicoAtendimento = medicoNome
+            ? ` Atendimento realizado por ${medicoNome}${medicoCrm ? ` — CRM ${medicoCrm}` : ''}.`
+            : '';
+
         // Nova Condicional: Se o tipo selecionado for o Acompanhante
         if (tipo === 'Acompanhante') {
             const identificacaoAcompanhante = nomeAcompanhante ? nomeAcompanhante.toUpperCase() : '_______________________';
             const rgTexto = rgAcompanhante ? `, portador(a) do RG nº ${rgAcompanhante},` : '';
 
-            texto = `Atesto para os devidos fins que o(a) Sr(a). ${identificacaoAcompanhante}${rgTexto} esteve presente nesta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}, acompanhando ${artigo} paciente ${paciente.nome_completo || paciente.nome}, que foi submetido(a) a consulta/exames médicos.`;
+            texto = `Atesto para os devidos fins que o(a) Sr(a). ${identificacaoAcompanhante}${rgTexto} esteve presente nesta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}, acompanhando ${artigo} paciente ${paciente.nome_completo || paciente.nome}, que foi submetido(a) a consulta/exames médicos.${infoMedicoAtendimento}`;
         } else if (tipo === 'Comparecimento') {
-            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.`;
+            texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, compareceu a esta clínica médica nesta data (${dataBR}) no período das ${horaInicio || '___'} às ${horaFim || '___'}.${infoMedicoAtendimento}`;
         } else if (tipo === 'Afastamento') {
             texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, foi ${submetido} a atendimento médico nesta data (${dataBR}), necessitando de ${dias} dia(s) de repouso e afastamento de suas atividades laborais.`;
         } else {
             texto = `Atesto para os devidos fins que ${artigo} paciente ${paciente.nome_completo || paciente.nome}, encontra-se ${apto} para a realização de suas atividades a partir desta data (${dataBR}).`;
         }
-        
+
         setObservacoes(texto);
-    }, [tipo, dias, horaInicio, horaFim, paciente, dataAtestado, nomeAcompanhante, rgAcompanhante]);
+    }, [tipo, dias, horaInicio, horaFim, paciente, dataAtestado, nomeAcompanhante, rgAcompanhante, medicoNome, medicoCrm]);
 
     const handleSalvar = async () => {
         setLoading(true);
@@ -133,8 +149,8 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                             >
                                 <MenuItem value="Comparecimento">Declaração de Comparecimento</MenuItem>
                                 <MenuItem value="Acompanhante">Declaração de Acompanhante</MenuItem>
-                                <MenuItem value="Afastamento">Atestado de Afastamento</MenuItem>
-                                <MenuItem value="Aptidao">Atestado de Aptidão Física</MenuItem>
+                                {ehMedico && <MenuItem value="Afastamento">Atestado de Afastamento</MenuItem>}
+                                {ehMedico && <MenuItem value="Aptidao">Atestado de Aptidão Física</MenuItem>}
                             </TextField>
                         </Grid>
                         <Grid item xs={5}>
@@ -206,24 +222,34 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
                         helperText="Você pode editar o texto gerado livremente antes de imprimir."
                     />
 
-                    <Box sx={{ border: '1px solid #e0e0e0', p: 1.5, borderRadius: 1, bgcolor: '#fafafa' }}>
-                        <TextField
-                            label="Diagnóstico / CID-10 (Opcional)"
-                            value={cid}
-                            onChange={(e) => setCid(e.target.value)}
-                            fullWidth
-                            size="small"
-                            sx={{ mb: 1 }}
-                        />
-                        <FormControlLabel
-                            control={<Checkbox size="small" checked={autorizouCid} onChange={(e) => setAutorizouCid(e.target.checked)} disabled={!cid} />}
-                            label={<Typography variant="caption" color="text.secondary">O paciente autoriza a inserção do CID neste documento.</Typography>}
-                        />
-                    </Box>
-                    
+                    {/* CID é diagnóstico — informação clínica que só faz sentido junto de uma
+                        assinatura médica, então não aparece pra quem não é médico. */}
+                    {ehMedico && (
+                        <Box sx={{ border: '1px solid #e0e0e0', p: 1.5, borderRadius: 1, bgcolor: '#fafafa' }}>
+                            <TextField
+                                label="Diagnóstico / CID-10 (Opcional)"
+                                value={cid}
+                                onChange={(e) => setCid(e.target.value)}
+                                fullWidth
+                                size="small"
+                                sx={{ mb: 1 }}
+                            />
+                            <FormControlLabel
+                                control={<Checkbox size="small" checked={autorizouCid} onChange={(e) => setAutorizouCid(e.target.checked)} disabled={!cid} />}
+                                label={<Typography variant="caption" color="text.secondary">O paciente autoriza a inserção do CID neste documento.</Typography>}
+                            />
+                        </Box>
+                    )}
+
                     {usaAssinaturaDigital && (
                         <Typography variant="caption" sx={{ color: '#2E7D32', fontWeight: 'bold' }}>
                             ✓ Este documento será salvo no histórico e receberá sua Assinatura Digital ICP-Brasil.
+                        </Typography>
+                    )}
+
+                    {!ehMedico && (
+                        <Typography variant="caption" sx={{ color: '#666' }}>
+                            Este documento será assinado institucionalmente como "Secretaria — Clínica Limalé", sem CRM.
                         </Typography>
                     )}
 

@@ -28,7 +28,6 @@ import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal
 import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardiograma';
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
 import FormEletrocardiograma from '../components/laudos/eletrocardiograma/FormEletrocardiograma';
-import DeclaracaoModal from '../components/laudos/DeclaracaoModal';
 import AtestadoModal from '../components/laudos/AtestadoModal'; // Vamos criar este arquivo abaixo
 import LaudosPreviewModal from '../components/laudos/LaudosPreviewModal'; // Novo Modal
 import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal'; // <--- ADICIONE ISSO
@@ -195,7 +194,6 @@ const getInitialState = (key, fallback) => {
   const [modalSucessoOpen, setModalSucessoOpen] = useState(false);
   const [credenciais, setCredenciais] = useState(null);
   const [laudoId, setLaudoId] = useState(() => getInitialState('laudoId', null)); 
-  const [modalDeclaracaoOpen, setModalDeclaracaoOpen] = useState(false);
   const [modalAtestadoOpen, setModalAtestadoOpen] = useState(false);
   const [modalRevisaoOpen, setModalRevisaoOpen] = useState(false); // NOVO: Controle do Modal de Revisão
   const [modalNuvemOpen, setModalNuvemOpen] = useState(false); // <--- ADICIONE ISSO
@@ -916,7 +914,6 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
     </div>
 </Dialog>
 
-      <DeclaracaoModal open={modalDeclaracaoOpen} onClose={() => setModalDeclaracaoOpen(false)} paciente={paciente} medico={medicoNome} />
         {/* ADICIONE AQUI O MODAL DE ATESTADO */}
 <AtestadoModal 
     open={modalAtestadoOpen} 

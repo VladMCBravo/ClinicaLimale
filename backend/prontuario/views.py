@@ -37,7 +37,7 @@ from exames.serializers import ExameSerializer
 from .serializers import LaudoSerializer, PatientBannerSerializer, WorkspacePacienteSerializer
 
 # Importando APENAS a permissão necessária para o prontuário
-from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin
+from usuarios.permissions import CanViewProntuario, IsMedicoResponsavelOrAdmin, CanCreateAtestado
 from .models import (
     Anamnese, Atestado, DocumentoPaciente, Evolucao, Paciente, Prescricao, OpcaoClinica, ModeloPrescricao, AnamneseGinecologica, 
     AnamneseOrtopedia, AnamneseCardiologia, AnamnesePediatria, AnamneseNeonatologia, AnamneseClinicaGeral,
@@ -169,7 +169,7 @@ class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
 
 class AtestadoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AtestadoSerializer
-    permission_classes = [CanViewProntuario]
+    permission_classes = [CanCreateAtestado]
 
     def get_queryset(self):
         # Tenta pegar o ID da URL (Novo) ou dos parâmetros de busca (Antigo)
@@ -179,10 +179,16 @@ class AtestadoListCreateAPIView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         # Tenta pegar o ID da URL (Novo) ou do corpo da requisição (Antigo)
         paciente_id = self.kwargs.get('paciente_id') or self.request.data.get('paciente')
-        
+
         # Busca o paciente e salva
         paciente = Paciente.objects.get(id=paciente_id)
-        serializer.save(medico=self.request.user, paciente=paciente)
+        # Quem não é médico só chega aqui com tipo_atestado 'Comparecimento' (checado em
+        # CanCreateAtestado) — nesse caso o documento é assinado institucionalmente.
+        serializer.save(
+            medico=self.request.user,
+            paciente=paciente,
+            assinatura_institucional=self.request.user.cargo != 'medico'
+        )
 
 # --- ★★★ CORREÇÃO DO ERRO 500 ESTÁ AQUI ★★★ ---
 # Substituímos 'generics.RetrieveUpdateAPIView' por 'APIView' para controle manual

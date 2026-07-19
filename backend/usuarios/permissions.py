@@ -68,3 +68,20 @@ class CanViewProntuario(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         print(f"[DEBUG] Checking CanViewProntuario (object-level) for user: {request.user.username}")
         return request.user.cargo == 'medico'
+
+
+# Atestados/Declarações: médico pode listar e criar qualquer tipo. Recepção/admin só
+# podem CRIAR o tipo 'Comparecimento' (Declaração de Comparecimento ou de Acompanhante,
+# que no formulário viram o mesmo tipo_atestado) — Atestado de Afastamento e de Aptidão
+# Física são atos privativos de médico (Código de Ética Médica / Resoluções CFM) e
+# continuam bloqueados pra quem não é médico. Listagem (GET) segue restrita a médico,
+# como o resto do prontuário.
+class CanCreateAtestado(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.cargo == 'medico':
+            return True
+        if request.method == 'POST':
+            return request.data.get('tipo_atestado') == 'Comparecimento'
+        return False
