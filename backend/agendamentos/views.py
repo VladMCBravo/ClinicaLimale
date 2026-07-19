@@ -93,6 +93,11 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
             return Response({"detail": "Dados inválidos."}, status=status.HTTP_400_BAD_REQUEST)
 
         agendamentos_criados = []
+        # IDs já criados NESTE mesmo lote — usados pra excluir da checagem de conflito de
+        # sala/limite no serializer (eles são exames da MESMA visita, não um choque real
+        # com outro paciente; antes disso era "resolvido" forçando is_encaixe=True em todos
+        # a partir do 2º, o que marcava visitas normais com vários exames como "Encaixe").
+        ids_do_lote = []
 
         with transaction.atomic():
             # Pega a duração do primeiro procedimento para definir o tamanho do bloco único na agenda
@@ -112,21 +117,20 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
                     # Todos ocupam exatamente o mesmo slot de tempo agora
                     dados_item['data_hora_inicio'] = data_inicio_base.isoformat()
                     dados_item['data_hora_fim'] = tempo_fim_base.isoformat()
-                    
+
                     if 'especialidade' in dados_item: del dados_item['especialidade']
                     if 'medico' in dados_item: del dados_item['medico']
 
-                    # O Pulo do Gato: a partir do 2º procedimento, forçamos o "encaixe" silenciosamente
-                    # para driblar a validação de bloqueio da sala no serializers.py
-                    if index > 0:
-                        dados_item['is_encaixe'] = True
-
-                    serializer = self.get_serializer(data=dados_item)
+                    serializer = self.get_serializer(
+                        data=dados_item,
+                        context={**self.get_serializer_context(), 'ids_ignorar_conflito': ids_do_lote}
+                    )
                     serializer.is_valid(raise_exception=True)
-                    
+
                     # Chama a função que salva o agendamento e gera a cobrança correta para ESTE exame específico
                     self.perform_create(serializer)
-                    
+                    ids_do_lote.append(serializer.instance.id)
+
                     agendamentos_criados.append(serializer.data)
 
                 except Exception as e:
@@ -262,11 +266,18 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
                 data_hora_inicio=instance.data_hora_inicio,
                 tipo_agendamento='Procedimento'
             )
+            # Os exames desta mesma visita compartilham sala/horário de propósito — não são
+            # conflito real entre si, então saem da checagem de conflito no serializer (ver
+            # 'ids_ignorar_conflito' em AgendamentoWriteSerializer.validate).
+            ids_grupo_atual = list(grupo_restante.values_list('id', flat=True))
             print(f"[DEBUG-MULTI] Processando regras financeiras para {grupo_restante.count()} exames mantidos...")
             for ag in grupo_restante:
-                serializer = self.get_serializer(ag, data=dados_atualizacao, partial=partial)
+                serializer = self.get_serializer(
+                    ag, data=dados_atualizacao, partial=partial,
+                    context={**self.get_serializer_context(), 'ids_ignorar_conflito': ids_grupo_atual}
+                )
                 serializer.is_valid(raise_exception=True)
-                self.perform_update(serializer) 
+                self.perform_update(serializer)
             
             # --- C. ADICIONAR OS NOVOS EXAMES AO GRUPO ---
             if ids_para_adicionar:
@@ -281,13 +292,16 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
                     print(f"[DEBUG-MULTI] Criando agendamento para novo proc ID {proc_id}")
                     dados_novo = dados_atualizacao.copy()
                     dados_novo['procedimento'] = proc_id
-                    dados_novo['is_encaixe'] = True 
                     dados_novo['data_hora_fim'] = str(tempo_fim_base)
-                    
-                    serializer_novo = AgendamentoWriteSerializer(data=dados_novo, context={'request': request})
+
+                    serializer_novo = AgendamentoWriteSerializer(
+                        data=dados_novo,
+                        context={'request': request, 'ids_ignorar_conflito': ids_grupo_atual}
+                    )
                     serializer_novo.is_valid(raise_exception=True)
                     novo_ag = serializer_novo.save()
-                    
+                    ids_grupo_atual.append(novo_ag.id)
+
                     pagamento = Pagamento.objects.filter(agendamento=novo_ag).first()
                     if pagamento:
                         pagamento.registrado_por = request.user
