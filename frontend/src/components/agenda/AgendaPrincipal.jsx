@@ -274,7 +274,9 @@ export default function AgendaPrincipal({
                     if (!ag.sala) return;
 
                     const chave = `${ag.paciente}_${ag.data_hora_inicio}`;
-                    const procAtual = ag.procedimento_descricao || ag.tipo_exame || 'Procedimento';
+                    // Consultas normais não têm procedimento_descricao/tipo_exame — cai pra especialidade
+                    // (ex: "Cardiologia") em vez do texto genérico "Procedimento" que não dizia nada.
+                    const procAtual = ag.procedimento_descricao || ag.tipo_exame || ag.especialidade_nome || 'Consulta';
 
                     if (agrupadosMap.has(chave)) {
                         const existente = agrupadosMap.get(chave);
@@ -431,14 +433,19 @@ useEffect(() => {
         const procedimento = dados.tipo_procedimento || dados.procedimento_descricao || dados.especialidade_nome || 'sua consulta';
         const medico = dados.medico_nome_com_prefixo || dados.medico_nome;
 
-        const mensagem = `Olá, ${primeiroNome}! 😊\n\n`
+        // SEM emojis de fora do plano básico do Unicode (😊 📅 📋 🩺 📍 💛 etc.): mesmo usando
+        // \u{...} e com o encoding correto na URL, eles chegam corrompidos ("�") no WhatsApp em
+        // todas as plataformas testadas (Mac, Windows, iPhone, Android) — parece ser uma limitação
+        // do próprio link wa.me com o parâmetro de texto, não do nosso código. Mensagem só com
+        // texto simples e negrito (*assim*), que o WhatsApp sempre suporta.
+        const mensagem = `Olá, ${primeiroNome}!\n\n`
             + `Aqui é da *Clínica Limalé*. Passando para confirmar o seu agendamento:\n\n`
-            + `📅 ${dataFormatada}, às ${horaFormatada}\n`
-            + `📋 ${procedimento}\n`
-            + (medico ? `🩺 ${medico}\n` : '')
-            + `\n📍 *Endereço da clínica*\n${CLINICA_ENDERECO}\n`
+            + `Data: ${dataFormatada}, às ${horaFormatada}\n`
+            + `${dados.tipo_agendamento === 'Consulta' ? 'Especialidade' : 'Procedimento'}: ${procedimento}\n`
+            + (medico ? `Médico(a): ${medico}\n` : '')
+            + `\n*Endereço da clínica*\n${CLINICA_ENDERECO}\n`
             + `Como chegar: ${CLINICA_MAPS_URL}\n\n`
-            + `Você confirma sua presença? Basta responder *SIM* 💛 ou nos avisar se precisar remarcar.`;
+            + `Você confirma sua presença? Basta responder *SIM* ou nos avisar se precisar remarcar.`;
 
         window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
         handleCloseMenu();
