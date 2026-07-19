@@ -600,8 +600,9 @@ class AgendamentosFaturaveisAPIView(generics.ListAPIView):
             data_hora_inicio__month=mes,
             data_hora_inicio__year=ano,
             tipo_atendimento='Convenio',
+            status='Realizado', # Só fatura ao convênio o que de fato aconteceu
             guia_tiss__isnull=True
-        ).exclude(status__in=['Cancelado', 'Não Compareceu']) # Boa prática
+        )
         
         # --- FILTRO DE QUINZENA ---
         if periodo == 'quinzena1':
@@ -652,55 +653,44 @@ class TransacaoFinanceiraViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='renegociar')
     def renegociar(self, request):
+        """
+        NOTA: esta ação vive no TransacaoFinanceiraViewSet só para preservar a URL
+        já usada pelo frontend (/faturamento/transacoes/renegociar/). A escrita real
+        acontece em `Pagamento`, que é a fonte única de verdade da receita hoje
+        (dashboard, Contas a Receber, LTV do CRM e Dashboard Executivo só leem dele).
+        """
         ids = request.data.get('ids_originais', [])
         parcelas = request.data.get('novas_parcelas', [])
         paciente_id = request.data.get('paciente_id')
-        
+
         if not ids: return Response({"erro": "Sem seleção."}, 400)
+        if not parcelas: return Response({"erro": "Nenhuma parcela informada."}, 400)
 
         with transaction.atomic():
-            # 1. Atualiza as transações ORIGINAIS para 'Renegociado' (Histórico)
-            originais_novas = TransacaoFinanceira.objects.filter(id__in=ids)
-            pai = None
-            
-            if originais_novas.exists():
-                # Soma o valor original para registro histórico se necessário
-                originais_novas.update(status='Renegociado', observacoes=f"Renegociado em {datetime.now().strftime('%d/%m/%Y')}")
-                pai = originais_novas.first()
-            else:
-                # Fallback para legado (Pagamento)
-                originais_legado = Pagamento.objects.filter(id__in=ids)
-                if originais_legado.exists():
-                    originais_legado.update(status='Renegociado')
-                else:
-                    return Response({"erro": "Transações não encontradas."}, 400)
+            # 1. Arquiva as dívidas ORIGINAIS como 'Renegociado' (histórico)
+            originais = Pagamento.objects.filter(id__in=ids)
+            if not originais.exists():
+                return Response({"erro": "Transações não encontradas."}, 400)
+            originais.update(status='Renegociado')
 
             novos_ids = []
-            
-            # 2. Cria as NOVAS parcelas
-            for i, p in enumerate(parcelas):
-                # Verifica explicitamente se o frontend marcou para pagar agora
-                esta_pago = p.get('pago_agora') is True
-                
-                status_inicial = 'Pago' if esta_pago else 'Pendente'
-                data_pgto = timezone.now().date() if esta_pago else None
-                forma_pgto = p.get('forma_pagamento') if esta_pago else None
 
-                nova = TransacaoFinanceira.objects.create(
-                    tipo='Receita',
-                    # Descrição clara: "Renegociação 1/3"
+            # 2. Cria as NOVAS parcelas (sem agendamento vinculado, para não colidir
+            # com o UniqueConstraint do OneToOne Pagamento<->Agendamento)
+            for i, p in enumerate(parcelas):
+                esta_pago = p.get('pago_agora') is True
+
+                nova = Pagamento.objects.create(
+                    paciente_id=paciente_id,
                     descricao=f"Renegociação ({i+1}/{len(parcelas)})",
                     valor=p['valor'],
                     data_vencimento=p['vencimento'],
-                    
-                    # AQUI ESTÁ A CORREÇÃO DO STATUS:
-                    status=status_inicial,
-                    data_pagamento=data_pgto,
-                    forma_pagamento=forma_pgto,
-                    
-                    paciente_id=paciente_id,
-                    transacao_pai=pai,
-                    observacoes=f"Gerado via renegociação. Origem: {ids}"
+                    status='Pago' if esta_pago else 'Pendente',
+                    data_pagamento=timezone.now().date() if esta_pago else None,
+                    forma_pagamento=p.get('forma_pagamento') if esta_pago else None,
+                    registrado_por=request.user,
+                    baixado_por=request.user if esta_pago else None,
+                    data_hora_baixa=timezone.now() if esta_pago else None,
                 )
                 novos_ids.append(nova.id)
 
@@ -747,18 +737,20 @@ class LoteFaturamentoViewSet(viewsets.ModelViewSet):
         lote.status = 'Pago com Glosa' if valor_glosa > 0 else 'Pago'
         lote.save()
 
-        # 3. CRIA A RECEITA REAL NO FLUXO DE CAIXA
+        # 3. CRIA A RECEITA REAL NO FLUXO DE CAIXA (em Pagamento, fonte única de verdade)
         if valor_pago > 0:
-            TransacaoFinanceira.objects.create(
-                tipo='Receita',
-                descricao=f"Recebimento Lote {lote.id} - {lote.convenio.nome}",
+            Pagamento.objects.create(
+                paciente=None,  # aporte de convênio, não é de um paciente específico
+                descricao=(
+                    f"Recebimento Lote {lote.id} - {lote.convenio.nome} "
+                    f"(Original: R$ {lote.valor_total_lote} | Glosa: R$ {valor_glosa})"
+                ),
                 valor=valor_pago,
                 status='Pago',
                 data_vencimento=data_pag,
                 data_pagamento=data_pag,
                 forma_pagamento='Transferencia',
-                observacoes=f"Faturamento TISS. Valor original: {lote.valor_total_lote} | Glosa: {valor_glosa}",
-                criado_por=request.user,
+                registrado_por=request.user,
                 baixado_por=request.user,
                 data_hora_baixa=timezone.now()
             )
@@ -884,12 +876,71 @@ class TussUploadView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, 400)
 
-# Stubs para evitar erro de importação no urls.py
 class RelatorioFinanceiroAPIView(APIView):
-    def get(self, request): return Response({"msg": "OK"})
-class InterWebhookAPIView(APIView):
-    def post(self, request): return Response(status=200)
+    """Relatório detalhado: faturamento por forma de pagamento, despesas por categoria e fluxo de caixa mensal."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not FaturamentoService:
+            return Response({"erro": "Serviço de faturamento indisponível."}, status=500)
+        try:
+            data_inicio = request.query_params.get('data_inicio')
+            data_fim = request.query_params.get('data_fim')
+            dados = FaturamentoService.gerar_relatorio_completo(data_inicio, data_fim)
+            return Response(dados)
+        except Exception as e:
+            return Response({"erro": str(e)}, status=500)
+
+
 class LancamentoAvulsoAPIView(APIView):
-    def post(self, request): return Response({"msg": "Use /transacoes/"})
+    """Cria uma receita avulsa (sem agendamento vinculado), com suporte a parcelamento."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not FaturamentoService:
+            return Response({"error": "Serviço de faturamento indisponível."}, status=500)
+        try:
+            dados = request.data
+            valor_total = float(dados.get('valor', 0))
+            if valor_total <= 0:
+                return Response({"erro": "Informe um valor maior que zero."}, status=400)
+
+            qtd_parcelas = int(dados.get('qtd_parcelas', 1))
+
+            data_venc_str = dados.get('data_vencimento')
+            data_vencimento_base = (
+                datetime.strptime(data_venc_str, '%Y-%m-%d').date() if data_venc_str else timezone.now().date()
+            )
+
+            data_pag_str = dados.get('data_pagamento')
+            data_pagamento_manual = datetime.strptime(data_pag_str, '%Y-%m-%d').date() if data_pag_str else None
+
+            criados = FaturamentoService.criar_receita(
+                paciente=dados.get('paciente'),
+                valor_total=valor_total,
+                qtd_parcelas=qtd_parcelas,
+                data_vencimento_base=data_vencimento_base,
+                user=request.user,
+                descricao=dados.get('descricao', 'Receita Avulsa'),
+                forma_pagamento=dados.get('forma_pagamento'),
+                status_inicial=dados.get('status', 'Pendente'),
+                data_pagamento_manual=data_pagamento_manual,
+            )
+            return Response({"msg": f"{len(criados)} lançamento(s) gerado(s) com sucesso."}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"erro": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class ProjecaoFluxoCaixaAPIView(APIView):
-    def get(self, request): return Response({"msg": "OK"})
+    """Projeta o saldo em caixa para os próximos N dias com base no realizado + contas pendentes."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not FaturamentoService:
+            return Response({"erro": "Serviço de faturamento indisponível."}, status=500)
+        try:
+            dias = int(request.query_params.get('dias', 30))
+            dados = FaturamentoService.calcular_projecao_fluxo_caixa(dias)
+            return Response(dados)
+        except Exception as e:
+            return Response({"erro": str(e)}, status=500)

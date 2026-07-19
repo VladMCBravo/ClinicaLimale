@@ -24,8 +24,17 @@ class Command(BaseCommand):
             expira_em__isnull=False, # Garante que só pegamos agendamentos que têm um prazo
             expira_em__lte=agora_utc
         )
-        
-        total_cancelados = agendamentos_expirados.update(status='Cancelado')
+
+        # IMPORTANTE: cancelamos um por um com .save() em vez de um .update() em massa.
+        # QuerySet.update() não dispara os signals do Django — e são os signals que
+        # cancelam o Pagamento 'Pendente' atrelado e avisam o CRM para entrar em
+        # recuperação (fase F5). Um .update() em massa deixava cobranças fantasma
+        # penduradas e o funil de recuperação nunca era acionado.
+        total_cancelados = 0
+        for agendamento in agendamentos_expirados:
+            agendamento.status = 'Cancelado'
+            agendamento.save(update_fields=['status', 'data_atualizacao'])
+            total_cancelados += 1
 
         if total_cancelados > 0:
             msg = f"SUCESSO: {total_cancelados} agendamento(s) foram cancelados."

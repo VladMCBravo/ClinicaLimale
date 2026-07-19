@@ -16,7 +16,6 @@ from .views import (
     ProcedimentoViewSet,
     TussUploadView,
     FinanceiroDashboardAPIView,
-    InterWebhookAPIView,
     CobrancasPendentesPacienteAPIView, # <-- Importe a nova view
     LancamentoAvulsoAPIView,
     ProjecaoFluxoCaixaAPIView,
@@ -56,7 +55,6 @@ urlpatterns = [
      # --- NOVA ROTA PARA O DASHBOARD ---
     path('dashboard-financeiro/', FinanceiroDashboardAPIView.as_view(), name='dashboard-financeiro'),
 
-    path('pagamentos/inter-webhook/', InterWebhookAPIView.as_view(), name='inter-webhook'),
     # <<< NOVA ROTA PARA BUSCAR COBRANÇAS PENDENTES (ABA 1) >>>
     path('pacientes/<int:paciente_id>/cobrancas-pendentes/', CobrancasPendentesPacienteAPIView.as_view(), name='cobrancas-pendentes-paciente'),
     

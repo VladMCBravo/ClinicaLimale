@@ -4,7 +4,7 @@ from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from django.db import transaction
 from django.db.models import Sum, Count, Q
-from django.db.models.functions import TruncDate, TruncMonth
+from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 # Ajuste os imports conforme sua estrutura exata de pastas
@@ -205,30 +205,7 @@ class FaturamentoService:
             raise ValueError(f"Erro ao processar CSV TUSS: {str(e)}")
 
     # =========================================================================
-    # 3. INTEGRAÇÕES E WEBHOOKS
-    # =========================================================================
-    
-    @staticmethod
-    def processar_webhook_inter(dados_webhook):
-        count_baixas = 0
-        if 'pix' in dados_webhook and isinstance(dados_webhook['pix'], list):
-            for pix_info in dados_webhook['pix']:
-                txid = pix_info.get('txid')
-                if not txid: continue
-                
-                try:
-                    pagamento = Pagamento.objects.get(inter_txid=txid, status='Pendente')
-                    pagamento.status = 'Pago'
-                    pagamento.forma_pagamento = 'PIX'
-                    pagamento.data_pagamento = timezone.localdate()
-                    pagamento.save()
-                    count_baixas += 1
-                except Pagamento.DoesNotExist:
-                    pass
-        return count_baixas
-
-    # =========================================================================
-    # 4. INTELIGÊNCIA E RELATÓRIOS (DASHBOARD)
+    # 3. INTELIGÊNCIA E RELATÓRIOS (DASHBOARD)
     # =========================================================================
 
     @staticmethod
@@ -260,66 +237,91 @@ class FaturamentoService:
 
     @staticmethod
     def calcular_projecao_fluxo_caixa(dias=30):
+        """
+        Projeta o saldo em caixa somando o realizado (Pagamento 'Pago' - Despesa paga)
+        às contas já lançadas para os próximos `dias` (Pagamento 'Pendente' e Despesa em aberto).
+
+        Como todo Agendamento já gera um Pagamento automaticamente (mesmo que de valor 0),
+        não existe mais o cenário de "agendamento futuro sem pagamento" — por isso a
+        projeção usa só o Pagamento 'Pendente' como fonte de receita futura.
+        """
         hoje = timezone.localdate()
         data_final = hoje + timedelta(days=dias)
-        
+
         total_entradas = Pagamento.objects.filter(status='Pago').aggregate(Sum('valor'))['valor__sum'] or 0
         total_saidas = Despesa.objects.filter(pago=True).aggregate(Sum('valor'))['valor__sum'] or 0
         saldo_acumulado = float(total_entradas) - float(total_saidas)
-        
-        mapa_receitas = {}
-        receitas = Pagamento.objects.filter(status='Pendente', data_vencimento__range=[hoje, data_final]).annotate(dia=TruncDate('data_vencimento')).values('dia').annotate(total=Sum('valor'))
-        for r in receitas: mapa_receitas[r['dia']] = mapa_receitas.get(r['dia'], 0) + (float(r['total'] or 0))
 
-        agendamentos = Agendamento.objects.filter(data_hora_inicio__date__range=[hoje, data_final], status__in=['Agendado', 'Confirmado'], pagamento__isnull=True).annotate(dia=TruncDate('data_hora_inicio')).values('dia').annotate(total=Sum('procedimento__valor_particular'))
-        for ag in agendamentos: mapa_receitas[ag['dia']] = mapa_receitas.get(ag['dia'], 0) + (float(ag['total'] or 0))
+        # NOTA: data_vencimento já é um DateField (sem hora) tanto em Pagamento quanto em
+        # Despesa, então agrupamos direto por ele — sem TruncDate(), que é redundante aqui.
+        mapa_receitas = {}
+        receitas = Pagamento.objects.filter(status='Pendente', data_vencimento__range=[hoje, data_final]).values('data_vencimento').annotate(total=Sum('valor'))
+        for r in receitas: mapa_receitas[r['data_vencimento']] = mapa_receitas.get(r['data_vencimento'], 0) + (float(r['total'] or 0))
 
         mapa_despesas = {}
-        despesas = Despesa.objects.filter(pago=False, data_vencimento__range=[hoje, data_final]).annotate(dia=TruncDate('data_vencimento')).values('dia').annotate(total=Sum('valor'))
-        for d in despesas: mapa_despesas[d['dia']] = float(d['total'] or 0)
+        despesas = Despesa.objects.filter(pago=False, data_vencimento__range=[hoje, data_final]).values('data_vencimento').annotate(total=Sum('valor'))
+        for d in despesas: mapa_despesas[d['data_vencimento']] = float(d['total'] or 0)
 
-        resultado = {'labels': [], 'saldo_projetado': [], 'despesas_previstas': []}
+        resultado = {'labels': [], 'saldo_projetado': [], 'receitas_previstas': [], 'despesas_previstas': []}
         saldo_atual_loop = saldo_acumulado
         for i in range(dias + 1):
             data_corrente = hoje + timedelta(days=i)
             entrada = float(mapa_receitas.get(data_corrente, 0))
             saida = float(mapa_despesas.get(data_corrente, 0))
             saldo_atual_loop = saldo_atual_loop + entrada - saida
-            
+
             resultado['labels'].append(data_corrente.strftime('%d/%m'))
             resultado['saldo_projetado'].append(round(saldo_atual_loop, 2))
+            resultado['receitas_previstas'].append(round(entrada, 2))
             resultado['despesas_previstas'].append(round(saida, 2))
         return resultado
 
     @staticmethod
-    def gerar_relatorio_completo():
+    def gerar_relatorio_completo(data_inicio=None, data_fim=None):
         """
         Gera os dados para a tela de Relatórios Detalhados.
+        Aceita `data_inicio`/`data_fim` (strings 'YYYY-MM-DD') para restringir o
+        período; sem eles, o relatório é acumulado (todo o histórico).
         """
         pagamentos_confirmados = Pagamento.objects.filter(status='Pago')
-        faturamento_por_forma = pagamentos_confirmados.values('forma_pagamento').annotate(total=Sum('valor')).order_by('-total')
-        despesas_por_categoria = Despesa.objects.values('categoria__nome').annotate(total=Sum('valor')).order_by('-total')
-        
+        despesas_qs = Despesa.objects.all()
+
+        if data_inicio and data_fim:
+            pagamentos_confirmados = pagamentos_confirmados.filter(data_pagamento__range=[data_inicio, data_fim])
+            despesas_qs = despesas_qs.filter(data_despesa__range=[data_inicio, data_fim])
+
+        faturamento_por_forma_qs = pagamentos_confirmados.values('forma_pagamento').annotate(total=Sum('valor')).order_by('-total')
+        faturamento_por_forma = [
+            {'forma_pagamento': item['forma_pagamento'] or 'Não informado', 'total': float(item['total'] or 0)}
+            for item in faturamento_por_forma_qs
+        ]
+
+        despesas_por_categoria_qs = despesas_qs.values('categoria__nome').annotate(total=Sum('valor')).order_by('-total')
+        despesas_por_categoria = [
+            {'categoria_nome': item['categoria__nome'] or 'Sem categoria', 'total': float(item['total'] or 0)}
+            for item in despesas_por_categoria_qs
+        ]
+
         faturamento_mensal = pagamentos_confirmados.annotate(mes=TruncMonth('data_pagamento')).values('mes').annotate(total=Sum('valor')).order_by('mes')
-        despesas_mensais = Despesa.objects.annotate(mes=TruncMonth('data_despesa')).values('mes').annotate(total=Sum('valor')).order_by('mes')
-        
+        despesas_mensais = despesas_qs.annotate(mes=TruncMonth('data_despesa')).values('mes').annotate(total=Sum('valor')).order_by('mes')
+
         fluxo_caixa = {}
         for item in faturamento_mensal:
             if item['mes']:
                 mes_str = item['mes'].strftime('%Y-%m')
-                fluxo_caixa.setdefault(mes_str, {'receitas': 0, 'despesas': 0})
-                fluxo_caixa[mes_str]['receitas'] = item['total'] or 0
-        
+                fluxo_caixa.setdefault(mes_str, {'receitas': 0.0, 'despesas': 0.0})
+                fluxo_caixa[mes_str]['receitas'] = float(item['total'] or 0)
+
         for item in despesas_mensais:
             if item['mes']:
                 mes_str = item['mes'].strftime('%Y-%m')
-                fluxo_caixa.setdefault(mes_str, {'receitas': 0, 'despesas': 0})
-                fluxo_caixa[mes_str]['despesas'] = item['total'] or 0
-                
-        fluxo_caixa_formatado = [{'mes': mes, **valores} for mes, valores in fluxo_caixa.items()]
-        
+                fluxo_caixa.setdefault(mes_str, {'receitas': 0.0, 'despesas': 0.0})
+                fluxo_caixa[mes_str]['despesas'] = float(item['total'] or 0)
+
+        fluxo_caixa_formatado = [{'mes': mes, **valores} for mes, valores in sorted(fluxo_caixa.items())]
+
         return {
-            'faturamento_por_forma': list(faturamento_por_forma),
-            'despesas_por_categoria': list(despesas_por_categoria),
+            'faturamento_por_forma': faturamento_por_forma,
+            'despesas_por_categoria': despesas_por_categoria,
             'fluxo_caixa_mensal': fluxo_caixa_formatado,
         }

@@ -2,8 +2,12 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from agendamentos.models import Sala, Agendamento
 from pacientes.models import Paciente
+from faturamento.models import Pagamento
+from usuarios.models import Especialidade
+from crm.models import Ciclo
 from django.utils import timezone
 from datetime import timedelta
 
@@ -182,12 +186,104 @@ class AgendamentoPrivacidadeTests(APITestCase):
         """
         # Forçamos o login como Dr. Alberto
         self.client.force_authenticate(user=self.dr_alberto)
-        
+
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
         # Confirma que a consulta dele está lá
         self.assertContains(response, "Consulta Exclusiva do Alberto")
-        
+
         # AQUI O TESTE VAI QUEBRAR: O sistema não deve expor a consulta do Bruno
         self.assertNotContains(response, "Consulta Exclusiva do Bruno")
+
+
+class AgendamentoFinanceiroAutomacaoTests(APITestCase):
+    """
+    Cobre a costura entre Agendamento -> Pagamento -> CRM que vive nos signals.
+    Esses testes existem para travar duas correções da auditoria financeira:
+    1. O robô de cancelamento por expiração não pode mais deixar cobrança fantasma.
+    2. A isenção de cobrança precisa zerar e já baixar o pagamento corretamente.
+    """
+
+    def setUp(self):
+        self.user_admin = User.objects.create_user(username='admin_automacao', password='123', cargo='admin')
+        self.paciente = Paciente.objects.create(nome_completo="Paciente Automação", cpf="55566677788", data_nascimento="1990-01-01")
+        self.medico = User.objects.create_user(username='dr_automacao', password='123', cargo='medico')
+        self.sala = Sala.objects.create(nome="Sala Automação")
+        self.esp = Especialidade.objects.create(nome="Clínica Geral Automação", valor_consulta=200.00)
+        self.url_agenda = reverse('lista-agendamentos')
+
+    def test_cancelamento_por_expiracao_dispara_signals_financeiro_e_crm(self):
+        """
+        Cenário: um agendamento com prazo de pagamento (expira_em) vencido é varrido
+        pelo robô "cancelar_agendamentos_expirados".
+        Resultado esperado: o Agendamento vira 'Cancelado', o Pagamento 'Pendente'
+        atrelado também vira 'Cancelado' e o Ciclo do CRM entra em recuperação (F5).
+
+        Antes da correção, o comando usava queryset.update() em massa, que NÃO
+        dispara post_save — deixando a cobrança pendente ativa para sempre (inflando
+        "a receber"/"atrasado") e o CRM nunca acionava a cadência de recuperação.
+        """
+        agendamento = Agendamento.objects.create(
+            paciente=self.paciente,
+            medico=self.medico,
+            sala=self.sala,
+            tipo_agendamento='Consulta',
+            especialidade=self.esp,
+            data_hora_inicio=timezone.now() + timedelta(days=1),
+            data_hora_fim=timezone.now() + timedelta(days=1, minutes=30),
+            status='Agendado',
+            expira_em=timezone.now() - timedelta(minutes=5),  # prazo já vencido
+        )
+
+        pagamento = Pagamento.objects.get(agendamento=agendamento)
+        self.assertEqual(pagamento.status, 'Pendente')
+
+        ciclo = Ciclo.objects.get(paciente=self.paciente)
+        self.assertNotEqual(ciclo.fase_atual, 'F5')
+
+        call_command('cancelar_agendamentos_expirados')
+
+        agendamento.refresh_from_db()
+        pagamento.refresh_from_db()
+        ciclo.refresh_from_db()
+
+        self.assertEqual(agendamento.status, 'Cancelado')
+        self.assertEqual(
+            pagamento.status, 'Cancelado',
+            "FALHA FINANCEIRA: o robô cancelou o agendamento mas a cobrança pendente continuou ativa."
+        )
+        self.assertEqual(
+            ciclo.fase_atual, 'F5',
+            "FALHA CRM: o ciclo do paciente não entrou em recuperação após a expiração automática."
+        )
+
+    def test_isento_cobranca_zera_valor_e_da_baixa_automatica(self):
+        """
+        Cenário: a recepção marca o agendamento como isento de cobrança (ex: retorno gratuito).
+        Resultado esperado: o Pagamento nasce com valor 0, já 'Pago' (não polui a fila de
+        pendências da recepção) e com o motivo da isenção registrado na descrição.
+        """
+        self.client.force_authenticate(user=self.user_admin)
+
+        dados = {
+            "paciente": self.paciente.id,
+            "medico": self.medico.id,
+            "sala": self.sala.id,
+            "tipo_agendamento": "Consulta",
+            "especialidade": self.esp.id,
+            "data_hora_inicio": (timezone.now() + timedelta(days=3)).isoformat(),
+            "data_hora_fim": (timezone.now() + timedelta(days=3, minutes=30)).isoformat(),
+            "isento_cobranca": "true",
+            "motivo_isencao": "Retorno gratuito",
+        }
+
+        response = self.client.post(self.url_agenda, dados)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, f"Erro na API: {response.data}")
+
+        agendamento = Agendamento.objects.filter(paciente=self.paciente).last()
+        pagamento = Pagamento.objects.get(agendamento=agendamento)
+
+        self.assertEqual(float(pagamento.valor), 0.00)
+        self.assertEqual(pagamento.status, 'Pago')
+        self.assertIn('ISENTO', pagamento.descricao)
