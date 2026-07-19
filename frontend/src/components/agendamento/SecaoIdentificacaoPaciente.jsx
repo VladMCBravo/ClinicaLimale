@@ -20,8 +20,8 @@ export default function SecaoIdentificacaoPaciente({
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'primary.main' }}>
+        <Paper variant="outlined" sx={{ p: 1.25, mb: 1, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75, color: 'primary.main' }}>
                 <PersonOutlineIcon sx={{ mr: 1, fontSize: 20 }} />
                 <Typography variant="subtitle2" fontWeight="bold">Identificação</Typography>
             </Box>

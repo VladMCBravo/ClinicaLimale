@@ -3,10 +3,45 @@
 from rest_framework import serializers
 from .models import Agendamento, Sala
 from pacientes.models import Paciente
-from usuarios.models import CustomUser, Especialidade
+from usuarios.models import CustomUser, Especialidade, JornadaDeTrabalho
 from faturamento.models import Procedimento
 from datetime import timedelta
 from django.utils import timezone
+
+
+def _esta_fora_da_jornada(medico, inicio_dt, fim_dt):
+    """
+    Retorna True somente quando o médico TEM jornada(s) cadastrada(s) e o horário do
+    agendamento cai fora de todas as jornadas ativas daquele dia/semana. Se o médico não
+    tem nenhuma jornada cadastrada, retorna False — não sabemos o horário dele, então não
+    tratamos como encaixe (evita marcar todo agendamento de médico sem jornada como encaixe).
+    Espelha a lógica de verificarDentroDaJornada no frontend (useAgendamentoForm.js).
+    """
+    if not medico or not inicio_dt or not fim_dt:
+        return False
+
+    jornadas = list(JornadaDeTrabalho.objects.filter(medico=medico, ativo=True))
+    if not jornadas:
+        return False
+
+    inicio_local = timezone.localtime(inicio_dt)
+    fim_local = timezone.localtime(fim_dt)
+    # weekday() do Python já é 0=Segunda ... 6=Domingo, igual ao dia_da_semana do model.
+    dia_semana = inicio_local.weekday()
+    semana_do_mes = (inicio_local.day - 1) // 7 + 1
+
+    jornadas_do_dia = [
+        j for j in jornadas
+        if j.dia_da_semana == dia_semana
+        and (not j.semanas_do_mes or semana_do_mes in [int(s) for s in j.semanas_do_mes])
+    ]
+    if not jornadas_do_dia:
+        return True  # tem jornada cadastrada, mas não atende neste dia/semana → fora
+
+    hora_inicio = inicio_local.time()
+    hora_fim = fim_local.time()
+    dentro = any(j.hora_inicio <= hora_inicio and hora_fim <= j.hora_fim for j in jornadas_do_dia)
+    return not dentro
 
 # --- Serializer para LEITURA (GET) ---
 class AgendamentoSerializer(serializers.ModelSerializer):
@@ -206,10 +241,15 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
                     "non_field_errors": f"⚠️ Fila Cheia: Já existe {LIMITE_GLOBAL_PROCEDIMENTOS} procedimento sendo realizado neste momento.\n👉 O que fazer: Selecione outro horário livre na agenda ou ative a chave 'Forçar Encaixe'."
                 })
 
-        # O valor salvo reflete se este agendamento REALMENTE sobrepôs sala/capacidade,
-        # e não apenas se a flag "is_encaixe" veio marcada na requisição (que também é
-        # forçada para True silenciosamente quando o usuário é admin, ver acima).
-        data['is_encaixe'] = conflito_sala_existe or limite_excedido
+        # O agendamento também conta como encaixe quando cai fora da jornada de trabalho
+        # cadastrada do médico (ex: horário/dia em que ele teoricamente não está na clínica).
+        medico_do_agendamento = data.get('medico') or getattr(instance, 'medico', None)
+        fora_jornada = _esta_fora_da_jornada(medico_do_agendamento, inicio, fim)
+
+        # O valor salvo reflete se este agendamento REALMENTE sobrepôs sala/capacidade ou caiu
+        # fora da jornada — não apenas se a flag "is_encaixe" veio marcada na requisição (que
+        # também é forçada para True silenciosamente quando o usuário é admin, ver acima).
+        data['is_encaixe'] = conflito_sala_existe or limite_excedido or fora_jornada
 
         return data
 
