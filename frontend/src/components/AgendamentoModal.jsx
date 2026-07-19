@@ -58,8 +58,8 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
             </DialogTitle>
 
             <form onSubmit={handleSubmit}>
-                <DialogContent sx={{ p: 1.5 }}>
-                    <Grid container spacing={1.5}>
+                <DialogContent sx={{ p: 1.25 }}>
+                    <Grid container spacing={1.25}>
 
                         <Grid item xs={12} md={7}>
                             <SecaoIdentificacaoPaciente
@@ -90,7 +90,7 @@ export default function AgendamentoModal({ open, onClose, onSave, editingEvent, 
                                 setIsEncaixe={setIsEncaixe}
                             />
 
-                            <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
+                            <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 2, borderColor: '#e0e0e0', bgcolor: '#fff' }}>
                                 <TextField
                                     label="Observações Gerais (Opcional)"
                                     fullWidth

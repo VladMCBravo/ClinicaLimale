@@ -119,7 +119,9 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
                     dados_item['data_hora_fim'] = tempo_fim_base.isoformat()
 
                     if 'especialidade' in dados_item: del dados_item['especialidade']
-                    if 'medico' in dados_item: del dados_item['medico']
+                    # ANTES aqui apagava o 'medico' — por isso procedimentos ficavam sem médico
+                    # vinculado e sumiam do filtro "Médicos" na agenda. Agora o médico responsável
+                    # (obrigatório no formulário) é preservado em cada exame do grupo.
 
                     serializer = self.get_serializer(
                         data=dados_item,

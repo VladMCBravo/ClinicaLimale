@@ -400,7 +400,9 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
     };
 
     const verificarDentroDaJornada = (inicioDayjs, fimDayjs) => {
-        if (jornadasMedico.length === 0) return false;
+        // Médico sem jornada cadastrada: não temos como saber o horário dele, então tratamos
+        // como "dentro" (não avisa nem marca encaixe). Mesma regra do backend (_esta_fora_da_jornada).
+        if (jornadasMedico.length === 0) return true;
         const diaSemanaDayjs = inicioDayjs.day();
         const diaSemanaDjango = diaSemanaDayjs === 0 ? 6 : diaSemanaDayjs - 1;
         const semanaDoMes = Math.ceil(inicioDayjs.date() / 7);
@@ -482,7 +484,9 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
         const erroValidacao = validarFormulario();
         if (erroValidacao) { showSnackbar(erroValidacao, 'warning'); return; }
 
-        if (tipoAgendamento === 'Consulta' && formData.medico && formData.data_hora_inicio && formData.data_hora_fim) {
+        // Vale para Consulta E Procedimento: se o horário cai fora da jornada do médico,
+        // avisa antes (e o backend marca como encaixe ao salvar).
+        if (formData.medico && formData.data_hora_inicio && formData.data_hora_fim) {
             const dentroDaJornada = verificarDentroDaJornada(formData.data_hora_inicio, formData.data_hora_fim);
             if (!dentroDaJornada) { setConfirmarJornadaOpen(true); return; }
         }
