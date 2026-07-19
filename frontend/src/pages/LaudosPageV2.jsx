@@ -18,8 +18,7 @@ import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCaro
 import FormEletrocardiograma from '../components/laudos/eletrocardiograma/FormEletrocardiograma';
 
 // Modais (IMPORTANDO O V2 AQUI!)
-import DeclaracaoModal from '../components/laudos/DeclaracaoModal';
-import AtestadoModal from '../components/laudos/AtestadoModal'; 
+import AtestadoModal from '../components/laudos/AtestadoModal';
 import LaudosPreviewModalV2 from '../components/laudos/LaudosPreviewModalV2'; // <--- O NOVO MODAL WYSIWYG
 import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal'; 
 
@@ -67,7 +66,6 @@ const LaudosPageV2 = () => {
   const [modalSucessoOpen, setModalSucessoOpen] = useState(false);
   const [credenciais, setCredenciais] = useState(null);
   const [laudoId, setLaudoId] = useState(() => getInitialState('laudoId', null)); 
-  const [modalDeclaracaoOpen, setModalDeclaracaoOpen] = useState(false);
   const [modalAtestadoOpen, setModalAtestadoOpen] = useState(false);
   const [modalRevisaoOpen, setModalRevisaoOpen] = useState(false); 
   const [modalNuvemOpen, setModalNuvemOpen] = useState(false); 
@@ -350,7 +348,6 @@ const LaudosPageV2 = () => {
           }}
       />
       <ImagensNuvemModal open={modalNuvemOpen} onClose={() => setModalNuvemOpen(false)} paciente={paciente} onConfirmar={handleImportarDaNuvem} />
-      <DeclaracaoModal open={modalDeclaracaoOpen} onClose={() => setModalDeclaracaoOpen(false)} paciente={paciente} medico={medicoNome} />
       <AtestadoModal open={modalAtestadoOpen} onClose={() => setModalAtestadoOpen(false)} paciente={paciente} medicoNome={medicoNome} medicoCrm={medicoCrm} usaAssinaturaDigital={usuarioTemCertificado} />
     </div>
   );

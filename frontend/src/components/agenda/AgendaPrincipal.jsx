@@ -14,10 +14,9 @@ import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import apiClient from '../../api/axiosConfig'; // Para buscar os médicos com jornada
-import { styled } from '@mui/material/styles'; 
+import { styled } from '@mui/material/styles';
 import FullCalendar from '@fullcalendar/react';
-import { useNavigate } from 'react-router-dom';
-import { FaEdit, FaFileMedical, FaStethoscope, FaExclamationTriangle, FaWhatsapp } from 'react-icons/fa';
+import EventoAgendaMenu from './EventoAgendaMenu';
 // Plugins
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -97,11 +96,6 @@ const toggleButtonSx = {
 
 const SALA_COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#9c27b0', '#0288d1'];
 const getColorForSala = (id) => SALA_COLORS[parseInt(String(id).replace(/\D/g, ''), 10) % SALA_COLORS.length] || '#1976d2';
-
-// Mesmo endereço usado nas mensagens automáticas do chatbot (backend/chatbot/agente_*.py)
-const CLINICA_ENDERECO = 'Rua Orense, 41 - Sala 512, Centro - Diadema/SP';
-const CLINICA_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Rua Orense, 41 - Centro, Diadema - SP')}`;
-const capitalizar = (texto) => texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : texto;
 
 // Espelha CustomUser.nome_com_prefixo (backend/usuarios/models.py): usa o campo
 // 'genero' quando preenchido, senão cai no fallback de checar a última letra do
@@ -210,12 +204,10 @@ export default function AgendaPrincipal({
     onStatusWhatsapp
 }) {
     const calendarRef = useRef(null);
-    const navigate = useNavigate();
 
     // ESTADOS DO MENU
     const [anchorEl, setAnchorEl] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
-    const openMenu = Boolean(anchorEl);
 
     // Badge de KPIs e menu de ações secundárias, ambos recolhidos por padrão para
     // caber a barra da agenda inteira numa linha só
@@ -358,97 +350,6 @@ useEffect(() => {
     const handleCloseMenu = () => {
         setAnchorEl(null);
         setSelectedEvent(null);
-    };
-
-    // 2. Ação: Editar
-    const handleActionEditar = () => {
-    if (selectedEvent) {
-        onEventClick({ 
-            event: { 
-                id: selectedEvent.id, 
-                start: selectedEvent.start, // <--- ADICIONE ESTA LINHA
-                end: selectedEvent.end,     // <--- ADICIONE ESTA LINHA (boa prática)
-                ...selectedEvent.extendedProps 
-            } 
-        }); 
-    }
-    handleCloseMenu();
-};
-
-    // 3. Ação: Laudo
-    const handleActionLaudo = () => {
-        const dados = selectedEvent?.extendedProps;
-        if (!dados || !dados.paciente_id) {
-            alert("Erro: Este agendamento não tem um paciente vinculado.");
-            return;
-        }
-        const draftLaudo = {
-            paciente: { id: dados.paciente_id, nome_completo: selectedEvent.title }, 
-            medicoNome: dados.medico_nome,
-            medicoCrm: dados.medico_crm,
-            tipoExame: dados.tipo_procedimento !== 'CONSULTA' ? dados.tipo_procedimento : 'OBSTETRICO',
-            textoFinal: '',
-            dadosEstruturados: {}
-        };
-        sessionStorage.setItem('laudos_rascunho_auto_save', JSON.stringify(draftLaudo));
-        handleCloseMenu();
-        navigate('/laudos');
-    };
-
-    // 4. Ação: Painel Médico
-    const handleActionConsulta = () => {
-        const dados = selectedEvent?.extendedProps;
-        if (!dados?.paciente_id) {
-             alert("Erro: Paciente não identificado.");
-             return;
-        }
-        navigate('/painel-medico', {
-            state: {
-                agendamentoId: selectedEvent.id,
-                pacienteId: dados.paciente_id
-            }
-        });
-        handleCloseMenu();
-    };
-
-    // 5. Ação: Confirmação via WhatsApp — abre o WhatsApp com uma mensagem pronta
-    // pedindo a confirmação do paciente, já com data/hora e o endereço da clínica.
-    // Quem efetivamente envia é a pessoa da recepção, clicando em enviar no WhatsApp.
-    const handleActionConfirmarWhatsapp = () => {
-        const dados = selectedEvent?.extendedProps;
-        const telefoneBruto = dados?.paciente_telefone;
-        if (!telefoneBruto) {
-            alert('Este paciente não tem telefone/WhatsApp cadastrado.');
-            handleCloseMenu();
-            return;
-        }
-
-        let numero = telefoneBruto.replace(/\D/g, '');
-        if (numero.length <= 11) numero = `55${numero}`; // adiciona o DDI do Brasil se faltando
-
-        const primeiroNome = (selectedEvent.title || '').trim().split(' ')[0];
-        const inicio = selectedEvent.start ? new Date(selectedEvent.start) : null;
-        const dataFormatada = inicio ? capitalizar(inicio.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })) : '';
-        const horaFormatada = inicio ? inicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
-        const procedimento = dados.tipo_procedimento || dados.procedimento_descricao || dados.especialidade_nome || 'sua consulta';
-        const medico = dados.medico_nome_com_prefixo || dados.medico_nome;
-
-        // SEM emojis de fora do plano básico do Unicode (😊 📅 📋 🩺 📍 💛 etc.): mesmo usando
-        // \u{...} e com o encoding correto na URL, eles chegam corrompidos ("�") no WhatsApp em
-        // todas as plataformas testadas (Mac, Windows, iPhone, Android) — parece ser uma limitação
-        // do próprio link wa.me com o parâmetro de texto, não do nosso código. Mensagem só com
-        // texto simples e negrito (*assim*), que o WhatsApp sempre suporta.
-        const mensagem = `Olá, ${primeiroNome}!\n\n`
-            + `Aqui é da *Clínica Limalé*. Passando para confirmar o seu agendamento:\n\n`
-            + `Data: ${dataFormatada}, às ${horaFormatada}\n`
-            + `${dados.tipo_agendamento === 'Consulta' ? 'Especialidade' : 'Procedimento'}: ${procedimento}\n`
-            + (medico ? `Médico(a): ${medico}\n` : '')
-            + `\n*Endereço da clínica*\n${CLINICA_ENDERECO}\n`
-            + `Como chegar: ${CLINICA_MAPS_URL}\n\n`
-            + `Você confirma sua presença? Basta responder *SIM* ou nos avisar se precisar remarcar.`;
-
-        window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
-        handleCloseMenu();
     };
 
     // --- FILTRO DE SALAS/MÉDICOS EXIBIDOS ---
@@ -812,43 +713,12 @@ useEffect(() => {
                 />
             </StyledCalendarWrapper>
 
-            <Menu
+            <EventoAgendaMenu
                 anchorEl={anchorEl}
-                open={openMenu}
+                selectedEvent={selectedEvent}
                 onClose={handleCloseMenu}
-                PaperProps={{ elevation: 3, sx: { minWidth: 200 } }}
-            >
-                <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid #eee' }}>
-                    <div style={{fontWeight: 'bold', fontSize: '14px', color:'#1C2E4A'}}>
-                        {selectedEvent?.title || 'Agendamento'}
-                    </div>
-                    <div style={{fontSize: '11px', color:'#666'}}>Selecione uma ação:</div>
-                </Box>
-
-                <MenuItem onClick={handleActionConfirmarWhatsapp} disabled={!selectedEvent?.extendedProps?.paciente_telefone}>
-                    <ListItemIcon><FaWhatsapp fontSize="small" color="#25D366" /></ListItemIcon>
-                    <ListItemText>Confirmar via WhatsApp</ListItemText>
-                </MenuItem>
-
-                <Divider />
-
-                <MenuItem onClick={handleActionEditar}>
-                    <ListItemIcon><FaEdit fontSize="small" /></ListItemIcon>
-                    <ListItemText>Editar Agendamento</ListItemText>
-                </MenuItem>
-
-                <Divider />
-
-                <MenuItem onClick={handleActionLaudo} disabled={!selectedEvent?.extendedProps?.paciente_id}>
-                    <ListItemIcon><FaFileMedical fontSize="small" color="#2E7D32"/></ListItemIcon>
-                    <ListItemText>Realizar Laudo</ListItemText>
-                </MenuItem>
-
-                <MenuItem onClick={handleActionConsulta} disabled={!selectedEvent?.extendedProps?.paciente_id}>
-                    <ListItemIcon><FaStethoscope fontSize="small" color="#1976d2"/></ListItemIcon>
-                    <ListItemText>Iniciar Atendimento</ListItemText>
-                </MenuItem>
-            </Menu>
+                onEditar={onEventClick}
+            />
         </Box>
     );
 }

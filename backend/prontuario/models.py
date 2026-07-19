@@ -142,6 +142,15 @@ class Atestado(models.Model):
 
     observacoes = models.TextField(help_text="Texto do atestado, incluindo informações como CID, dias de afastamento, etc.")
 
+    # Marca documentos gerados por quem não é médico (recepção/admin): só pode ser True
+    # quando tipo_atestado == 'Comparecimento' (ver CanCreateAtestado). O PDF usa essa flag
+    # pra assinar como "Secretaria" em vez de usar o nome/CRM de quem está no campo 'medico'
+    # (que nesse caso é só quem gerou o documento, não necessariamente um médico).
+    assinatura_institucional = models.BooleanField(
+        default=False,
+        verbose_name="Assinatura institucional (emitido pela recepção, sem CRM)"
+    )
+
     class Meta:
         ordering = ['-data_emissao']
 

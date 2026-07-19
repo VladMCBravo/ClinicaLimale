@@ -61,7 +61,12 @@
 <!-- 5. BLOCO DA ASSINATURA -->
 <!-- REMOVIDO o margin-top daqui. A caixa do base_pdf vai segurar ele no lugar perfeitamente. -->
 <div id="assinatura_digital">
-    {% if tem_assinatura_digital %}
+    {% if atestado.assinatura_institucional %}
+        <div style="text-align: center; border-top: 1px solid #999; padding-top: 10px; margin: 0 auto; width: 60%;">
+            <p style="margin-bottom: 2px; font-size: 11pt; font-weight: bold; color: #333;">Secretaria</p>
+            <p style="margin-bottom: 2px; font-size: 10pt; color: #666;">{{ clinica.nome|default:"Clínica Limalé" }}</p>
+        </div>
+    {% elif tem_assinatura_digital %}
         <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 0;">
             <tr>
                 <td style="width: 15%; text-align: right; vertical-align: middle;">
