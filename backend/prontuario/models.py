@@ -128,7 +128,7 @@ class Anamnese(models.Model):
 
 class Atestado(models.Model):
     TIPO_CHOICES = [
-        ('Comparecimento', 'Atestado de Comparecimento'),
+        ('Comparecimento', 'Declaração de Comparecimento'),
         ('Afastamento', 'Atestado de Afastamento'),
         ('Aptidao', 'Atestado de Aptidão Física'),
     ]
@@ -144,7 +144,7 @@ class Atestado(models.Model):
 
     # Marca documentos gerados por quem não é médico (recepção/admin): só pode ser True
     # quando tipo_atestado == 'Comparecimento' (ver CanCreateAtestado). O PDF usa essa flag
-    # pra assinar como "Secretaria" em vez de usar o nome/CRM de quem está no campo 'medico'
+    # pra assinar como "Secretária" em vez de usar o nome/CRM de quem está no campo 'medico'
     # (que nesse caso é só quem gerou o documento, não necessariamente um médico).
     assinatura_institucional = models.BooleanField(
         default=False,

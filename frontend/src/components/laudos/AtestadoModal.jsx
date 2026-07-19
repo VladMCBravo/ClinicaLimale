@@ -249,7 +249,7 @@ export default function AtestadoModal({ open, onClose, paciente, medicoNome, med
 
                     {!ehMedico && (
                         <Typography variant="caption" sx={{ color: '#666' }}>
-                            Este documento será assinado institucionalmente como "Secretaria — Clínica Limalé", sem CRM.
+                            Este documento será assinado institucionalmente como "Secretária — Clínica Limalé", sem CRM.
                         </Typography>
                     )}
 

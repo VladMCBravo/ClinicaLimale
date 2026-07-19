@@ -62,10 +62,24 @@
 <!-- REMOVIDO o margin-top daqui. A caixa do base_pdf vai segurar ele no lugar perfeitamente. -->
 <div id="assinatura_digital">
     {% if atestado.assinatura_institucional %}
-        <div style="text-align: center; border-top: 1px solid #999; padding-top: 10px; margin: 0 auto; width: 60%;">
-            <p style="margin-bottom: 2px; font-size: 11pt; font-weight: bold; color: #333;">Secretaria</p>
-            <p style="margin-bottom: 2px; font-size: 10pt; color: #666;">{{ clinica.nome|default:"Clínica Limalé" }}</p>
-        </div>
+        <!-- Carimbo só estilizado (borda e caixa) — sem QR code, selo ICP-Brasil ou texto de
+             "assinado digitalmente": não existe certificado digital da clínica, então nada
+             aqui pode sugerir verificação criptográfica real. -->
+        <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 0;">
+            <tr>
+                <td style="text-align: center;">
+                    <table style="margin: 0 auto; border: 1.5pt solid #C6A87C; background-color: #FBF6EC;">
+                        <tr>
+                            <td style="padding: 8px 34px;">
+                                <p style="margin: 0 0 4px 0; text-align: center; font-size: 7.5pt; letter-spacing: 1.5px; color: #A88B54; text-transform: uppercase; font-weight: bold;">Documento emitido pela</p>
+                                <p style="margin: 0 0 2px 0; text-align: center; font-size: 12.5pt; font-weight: bold; color: #1C2E4A;">Secretária</p>
+                                <p style="margin: 0; text-align: center; font-size: 9.5pt; color: #555;">{{ clinica.nome|default:"Clínica Limalé" }}</p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     {% elif tem_assinatura_digital %}
         <table style="width: 100%; border-collapse: collapse; border: none; margin-top: 0;">
             <tr>
