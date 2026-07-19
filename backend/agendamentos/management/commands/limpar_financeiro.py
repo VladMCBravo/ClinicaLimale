@@ -6,7 +6,7 @@ class Command(BaseCommand):
     help = 'Sincroniza pagamentos pendentes de agendamentos antigos que foram cancelados ou tiveram falta.'
 
     def handle(self, *args, **kwargs):
-        status_quebra = ['Cancelado', 'Falta', 'Desistência', 'Não Compareceu']
+        status_quebra = ['Cancelado', 'Não Compareceu']  # precisam bater com Agendamento.STATUS_CHOICES
         
         # Busca todos os agendamentos antigos que deram errado
         agendamentos_perdidos = Agendamento.objects.filter(status__in=status_quebra)
