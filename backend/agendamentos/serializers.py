@@ -93,6 +93,11 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         sala_selecionada = data.get('sala') or (getattr(instance, 'sala', None))
         agendamento_id = instance.pk if instance else None
 
+        # IDs de outros agendamentos da MESMA visita (ex: outros exames do mesmo lote de
+        # "múltiplos procedimentos", que ocupam a mesma sala/horário de propósito) — não
+        # contam como conflito real, então saem da checagem de sala e de limite abaixo.
+        ids_ignorar_conflito = self.context.get('ids_ignorar_conflito') or []
+
         if not inicio or not fim:
             return data
 
@@ -159,6 +164,8 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
 
             if agendamento_id:
                 conflito_sala = conflito_sala.exclude(pk=agendamento_id)
+            if ids_ignorar_conflito:
+                conflito_sala = conflito_sala.exclude(pk__in=ids_ignorar_conflito)
 
             conflito_sala_existe = conflito_sala.exists()
 
@@ -177,6 +184,8 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
 
         if agendamento_id:
             conflitos_globais = conflitos_globais.exclude(pk=agendamento_id)
+        if ids_ignorar_conflito:
+            conflitos_globais = conflitos_globais.exclude(pk__in=ids_ignorar_conflito)
 
         qtd_existente = conflitos_globais.count()
 

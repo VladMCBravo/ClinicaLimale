@@ -183,16 +183,21 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                 </MenuItem>
             </Menu>
 
-            <AtestadoModal
-                open={documentoAberto}
-                onClose={() => setDocumentoAberto(false)}
-                paciente={documentoDados?.paciente}
-                medicoNome={documentoDados?.medicoNome}
-                medicoCrm={documentoDados?.medicoCrm}
-                dataInicial={documentoDados?.dataInicial}
-                horaInicioInicial={documentoDados?.horaInicioInicial}
-                horaFimInicial={documentoDados?.horaFimInicial}
-            />
+            {/* Só monta o modal quando abre — o AtestadoModal guarda data/hora/tipo em estado
+                local que só lê as props "iniciais" na primeira montagem. Mantendo montado o
+                tempo todo, o segundo agendamento clicado reaproveitava a data do primeiro. */}
+            {documentoAberto && (
+                <AtestadoModal
+                    open={documentoAberto}
+                    onClose={() => setDocumentoAberto(false)}
+                    paciente={documentoDados?.paciente}
+                    medicoNome={documentoDados?.medicoNome}
+                    medicoCrm={documentoDados?.medicoCrm}
+                    dataInicial={documentoDados?.dataInicial}
+                    horaInicioInicial={documentoDados?.horaInicioInicial}
+                    horaFimInicial={documentoDados?.horaFimInicial}
+                />
+            )}
         </>
     );
 }
