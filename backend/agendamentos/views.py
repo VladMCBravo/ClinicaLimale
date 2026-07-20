@@ -638,6 +638,10 @@ class VerificarCapacidadeHorarioAPIView(APIView):
         ).exclude(status__in=['Cancelado', 'Não Compareceu']) 
 
         if sala_id and str(sala_id).lower() != 'null':
+            try:
+                sala_id = int(sala_id)
+            except (TypeError, ValueError):
+                return Response({'detail': 'sala_id inválido.'}, status=400)
             agendamentos_conflitantes = agendamentos_conflitantes.filter(sala_id=sala_id)
 
         qtd_consultas = agendamentos_conflitantes.filter(tipo_agendamento='Consulta').count()

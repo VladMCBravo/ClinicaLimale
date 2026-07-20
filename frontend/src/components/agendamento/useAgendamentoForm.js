@@ -218,12 +218,22 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
             const endTime = startTime.add(15, 'minute');
             if (initialData.medicoId) setTipoAgendamento('Consulta');
 
+            // O resource.id que vem do clique na agenda é o ID sintético do FullCalendar
+            // ("sala_5" ou "medico_5", usado só pra identificar a coluna) — não o ID real
+            // do banco. Extrai o número certo e joga pro campo certo, senão essa string
+            // quebrada (ex: "sala_5") acaba indo pro backend como se fosse o ID da sala.
+            const resourceId = initialData.resource?.id || '';
+            const salaIdMatch = resourceId.match(/^sala_(\d+)$/);
+            const medicoIdMatch = resourceId.match(/^medico_(\d+)$/);
+
             setFormData(prev => ({
                 ...prev,
                 data_hora_inicio: startTime,
                 data_hora_fim: endTime,
-                sala: initialData.resource ? { id: initialData.resource.id, nome: 'Carregando...' } : null,
-                medico: initialData.medicoId ? { id: initialData.medicoId, first_name: 'Carregando...', last_name: '' } : null,
+                sala: salaIdMatch ? { id: Number(salaIdMatch[1]), nome: 'Carregando...' } : null,
+                medico: initialData.medicoId
+                    ? { id: initialData.medicoId, first_name: 'Carregando...', last_name: '' }
+                    : (medicoIdMatch ? { id: Number(medicoIdMatch[1]), first_name: 'Carregando...', last_name: '' } : null),
                 especialidade: initialData.especialidadeId ? { id: initialData.especialidadeId, nome: 'Carregando...' } : null,
             }));
 
