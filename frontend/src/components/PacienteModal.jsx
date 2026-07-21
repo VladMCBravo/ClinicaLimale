@@ -22,7 +22,9 @@ const initialState = {
   plano_convenio: null, numero_carteirinha: '',
   cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
   nome_responsavel: '', cpf_responsavel: '', telefone_responsavel: '',
+  contato_emergencia_nome: '', contato_emergencia_telefone: '', contato_emergencia_parentesco: '',
 };
+
 // --- CORREÇÃO: DEFINIR AQUI FORA, ANTES DO COMPONENTE ---
 const TextMaskData = React.forwardRef(function TextMaskData(props, ref) {
   const { onChange, ...other } = props;
@@ -101,6 +103,9 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           nome_responsavel: pacienteParaEditar.nome_responsavel || '',
           cpf_responsavel: pacienteParaEditar.cpf_responsavel || '',
           telefone_responsavel: pacienteParaEditar.telefone_responsavel || '',
+          contato_emergencia_nome: pacienteParaEditar.contato_emergencia_nome || '',
+          contato_emergencia_telefone: pacienteParaEditar.contato_emergencia_telefone || '',
+          contato_emergencia_parentesco: pacienteParaEditar.contato_emergencia_parentesco || '',
         });
       } else {
         // --- ALTERAÇÃO AQUI: Se for paciente novo, mescla o estado inicial com o nome digitado ---
@@ -342,14 +347,26 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         return (
           <Grid container spacing={2} sx={{ mt: 1 }}>
              <Grid item xs={12}>
-                 <Paper variant="outlined" sx={{p: 2, bgcolor: '#f8f9fa'}}>
+                 {/* Bloco Responsável */}
+                 <Paper variant="outlined" sx={{p: 2, mb: 2, bgcolor: '#f8f9fa'}}>
+                    <Typography variant="subtitle2" color="primary" sx={{mb: 1}}>Responsável Legal</Typography>
                     <Typography variant="caption" display="block" sx={{mb: 2}}>
-                        Preencha apenas se o paciente for menor de idade ou necessitar de um responsável legal.
+                        Preencha apenas se o paciente for menor de idade ou necessitar.
                     </Typography>
                     <Grid container spacing={2}>
                         <Grid item xs={12}><TextField name="nome_responsavel" label="Nome do Responsável" value={formData.nome_responsavel} onChange={handleChange} fullWidth size="small" /></Grid>
                         <Grid item xs={12} sm={6}><TextField name="cpf_responsavel" label="CPF Responsável" value={formData.cpf_responsavel} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskCPF }} /></Grid>
                         <Grid item xs={12} sm={6}><TextField name="telefone_responsavel" label="Tel. Responsável" value={formData.telefone_responsavel} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskTelefone }} /></Grid>
+                    </Grid>
+                 </Paper>
+
+                 {/* NOVO: Bloco Contato de Emergência */}
+                 <Paper variant="outlined" sx={{p: 2, bgcolor: '#fff5f5', borderColor: '#ffcdd2'}}>
+                    <Typography variant="subtitle2" color="error" sx={{mb: 1}}>Contato de Emergência</Typography>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} sm={5}><TextField name="contato_emergencia_nome" label="Nome do Contato" value={formData.contato_emergencia_nome} onChange={handleChange} fullWidth size="small" /></Grid>
+                        <Grid item xs={12} sm={4}><TextField name="contato_emergencia_telefone" label="Telefone" value={formData.contato_emergencia_telefone} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskTelefone }} /></Grid>
+                        <Grid item xs={12} sm={3}><TextField name="contato_emergencia_parentesco" label="Parentesco" placeholder="Ex: Mãe, Filho" value={formData.contato_emergencia_parentesco} onChange={handleChange} fullWidth size="small" /></Grid>
                     </Grid>
                  </Paper>
             </Grid>
@@ -380,7 +397,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
                 <Tab icon={<Person />} iconPosition="start" label="Pessoais" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
                 <Tab icon={<Home />} iconPosition="start" label="Endereço" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
                 <Tab icon={<MedicalServices />} iconPosition="start" label="Convênio" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
-                <Tab icon={<SupervisorAccount />} iconPosition="start" label="Responsável" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
+                <Tab icon={<SupervisorAccount />} iconPosition="start" label="Resp/Emergência" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
             </Tabs>
         </Paper>
         <DialogContent sx={{ py: 2, px: 3, minHeight: '300px' }}>

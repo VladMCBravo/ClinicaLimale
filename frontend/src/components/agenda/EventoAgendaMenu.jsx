@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useNavigate } from 'react-router-dom';
-import { FaEdit, FaFileMedical, FaStethoscope, FaWhatsapp } from 'react-icons/fa';
+import { FaEdit, FaFileMedical, FaStethoscope, FaWhatsapp, FaUserEdit } from 'react-icons/fa';
 import AtestadoModal from '../laudos/AtestadoModal';
 
 // Mesmo endereço usado nas mensagens automáticas do chatbot (backend/chatbot/agente_*.py)
@@ -19,7 +19,7 @@ const formatarHoraHHMM = (data) => data.toLocaleTimeString('pt-BR', { hour: '2-d
 
 // selectedEvent: objeto de evento do FullCalendar (title, start, end, extendedProps).
 // onEditar: callback do AgendaPrincipal pra abrir o AgendamentoModal em modo de edição.
-export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onEditar }) {
+export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onEditar, onEditarPaciente }) {
     const navigate = useNavigate();
 
     // Abre o AtestadoModal (que também gera Declaração de Comparecimento/Acompanhante —
@@ -74,6 +74,16 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                 pacienteId: dados.paciente_id
             }
         });
+        onClose();
+    };
+
+    const handleActionEditarPaciente = () => {
+        const dados = selectedEvent?.extendedProps;
+        if (dados && dados.paciente_id && onEditarPaciente) {
+            onEditarPaciente(dados.paciente_id);
+        } else if (!dados?.paciente_id) {
+            alert("Erro: Este agendamento não tem um paciente vinculado.");
+        }
         onClose();
     };
 
@@ -144,15 +154,40 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={onClose}
-                PaperProps={{ elevation: 3, sx: { minWidth: 220 } }}
+                PaperProps={{ elevation: 3, sx: { minWidth: 260, borderRadius: 2 } }} // Leve aumento na largura e bordas mais arredondadas
             >
+                {/* CABEÇALHO ENRIQUECIDO */}
                 <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid #eee' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1C2E4A' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#1C2E4A', marginBottom: '8px' }}>
                         {selectedEvent?.title || 'Agendamento'}
                     </div>
+                    
+                    {/* Bloco de Detalhes do Agendamento */}
+                    {selectedEvent && (
+                        <Box sx={{ p: 1.5, bgcolor: '#f4f6f8', borderRadius: 1, fontSize: '12px', color: '#444', mb: 1 }}>
+                            <div style={{ marginBottom: '4px' }}>
+                                <strong>Médico:</strong> {selectedEvent.extendedProps?.medico_nome || 'Não informado'}
+                            </div>
+                            <div style={{ marginBottom: '4px' }}>
+                                <strong>Horário:</strong> {selectedEvent.start ? formatarHoraHHMM(new Date(selectedEvent.start)) : '--:--'} às {selectedEvent.end ? formatarHoraHHMM(new Date(selectedEvent.end)) : '--:--'}
+                            </div>
+                            <div>
+                                <strong>Procedimento:</strong> {selectedEvent.extendedProps?.tipo_procedimento || selectedEvent.extendedProps?.procedimento_descricao || 'Não informado'}
+                            </div>
+                        </Box>
+                    )}
                     <div style={{ fontSize: '11px', color: '#666' }}>Selecione uma ação:</div>
                 </Box>
 
+                {/* NOVA AÇÃO: Editar Paciente */}
+                <MenuItem onClick={handleActionEditarPaciente} disabled={!selectedEvent?.extendedProps?.paciente_id}>
+                    <ListItemIcon><FaUserEdit fontSize="small" color="#ed6c02" /></ListItemIcon>
+                    <ListItemText>Editar Cadastro do Paciente</ListItemText>
+                </MenuItem>
+
+                <Divider />
+
+                {/* Mantenha os outros MenuItems exatamente como estavam */}
                 <MenuItem onClick={handleActionConfirmarWhatsapp} disabled={!selectedEvent?.extendedProps?.paciente_telefone}>
                     <ListItemIcon><FaWhatsapp fontSize="small" color="#25D366" /></ListItemIcon>
                     <ListItemText>Confirmar via WhatsApp</ListItemText>
