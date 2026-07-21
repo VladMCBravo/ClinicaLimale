@@ -1,10 +1,11 @@
 // src/components/agenda/EventoAgendaMenu.jsx
 import React, { useState } from 'react';
-import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
+import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Select, FormControl, CircularProgress } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useNavigate } from 'react-router-dom';
 import { FaEdit, FaFileMedical, FaStethoscope, FaWhatsapp, FaUserEdit } from 'react-icons/fa';
 import AtestadoModal from '../laudos/AtestadoModal';
+import apiClient from '../../api/axiosConfig'; // <-- Adicionado para a chamada de API
 
 const CLINICA_ENDERECO = 'Rua Orense, 41 - Sala 512, Centro - Diadema/SP';
 const CLINICA_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Rua Orense, 41 - Centro, Diadema - SP')}`;
@@ -12,10 +13,32 @@ const capitalizar = (texto) => texto ? texto.charAt(0).toUpperCase() + texto.sli
 const formatarDataYYYYMMDD = (data) => `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
 const formatarHoraHHMM = (data) => data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onEditar, onEditarPaciente }) {
+export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onEditar, onEditarPaciente, onStatusUpdated }) {
     const navigate = useNavigate();
     const [documentoAberto, setDocumentoAberto] = useState(false);
     const [documentoDados, setDocumentoDados] = useState(null);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+    // FUNÇÃO QUE FAZ A MÁGICA DE ALTERAR O STATUS
+    const handleStatusChange = async (event) => {
+        const novoStatus = event.target.value;
+        if (!selectedEvent) return;
+
+        setIsUpdatingStatus(true);
+        try {
+            await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, { status: novoStatus });
+            // Se o pai passou a função, manda a agenda dar "refresh" para o evento mudar de cor
+            if (onStatusUpdated) {
+                onStatusUpdated();
+            }
+            onClose();
+        } catch (error) {
+            console.error("Erro ao atualizar status", error);
+            alert("Erro ao atualizar o status do agendamento.");
+        } finally {
+            setIsUpdatingStatus(false);
+        }
+    };
 
     const handleActionEditar = () => {
         if (selectedEvent) {
@@ -143,7 +166,7 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                   } 
                 }}
             >
-                {/* CABEÇALHO INTEGRADO NO ESTILO AGENDAMENTOMODAL */}
+                {/* CABEÇALHO ESCURO */}
                 <Box sx={{ p: 2, bgcolor: '#1C2E4A', color: '#fff' }}>
                     <div style={{ fontWeight: 700, fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {selectedEvent?.title || 'Agendamento'}
@@ -157,8 +180,27 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                     )}
                 </Box>
 
+                {/* NOVO: SELETOR DE STATUS EXPRESSO */}
+                <Box sx={{ p: 1.5, bgcolor: '#f8f9fa', borderBottom: '1px solid #e0e0e0' }}>
+                    <FormControl fullWidth size="small">
+                        <Select
+                            value={selectedEvent?.extendedProps?.status || ''}
+                            onChange={handleStatusChange}
+                            disabled={isUpdatingStatus}
+                            displayEmpty
+                            sx={{ bgcolor: '#fff', fontSize: '0.85rem', fontWeight: 600, borderRadius: 1 }}
+                        >
+                            <MenuItem value="Agendado">🗓️ Agendado</MenuItem>
+                            <MenuItem value="Confirmado">✅ Confirmado</MenuItem>
+                            <MenuItem value="Aguardando Pagamento">⏳ Aguardando Pgto.</MenuItem>
+                            <MenuItem value="Realizado">🏁 Realizado</MenuItem>
+                            <MenuItem value="Não Compareceu">👻 Não Compareceu</MenuItem>
+                            <MenuItem value="Cancelado">❌ Cancelado</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Box>
+
                 <Box sx={{ py: 0.5 }}>
-                    {/* AÇÕES DE ATENDIMENTO & COMUNICAÇÃO */}
                     <MenuItem onClick={handleActionConfirmarWhatsapp} disabled={!selectedEvent?.extendedProps?.paciente_telefone}>
                         <ListItemIcon><FaWhatsapp fontSize="small" color="#25D366" /></ListItemIcon>
                         <ListItemText primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}>Confirmar via WhatsApp</ListItemText>
@@ -171,7 +213,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
 
                     <Divider sx={{ my: 0.5 }} />
 
-                    {/* AÇÕES DE CADASTRO */}
                     <MenuItem onClick={handleActionEditar}>
                         <ListItemIcon><FaEdit fontSize="small" color="#78909c" /></ListItemIcon>
                         <ListItemText primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}>Editar Agendamento</ListItemText>
@@ -184,7 +225,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
 
                     <Divider sx={{ my: 0.5 }} />
 
-                    {/* AÇÕES CLÍNICAS */}
                     <MenuItem onClick={handleActionLaudo} disabled={!selectedEvent?.extendedProps?.paciente_id}>
                         <ListItemIcon><FaFileMedical fontSize="small" color="#2E7D32" /></ListItemIcon>
                         <ListItemText primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}>Realizar Laudo</ListItemText>
