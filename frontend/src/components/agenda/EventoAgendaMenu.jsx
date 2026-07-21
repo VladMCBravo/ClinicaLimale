@@ -1,8 +1,4 @@
 // src/components/agenda/EventoAgendaMenu.jsx
-// Menu de ações que abre ao clicar num agendamento na grade da Agenda
-// (Editar, Realizar Laudo, Iniciar Atendimento, Confirmar via WhatsApp,
-// Atestado/Declaração). Extraído do AgendaPrincipal.jsx pra não deixar aquele
-// arquivo ainda maior — ele já cuida só do calendário, toolbar e filtros.
 import React, { useState } from 'react';
 import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
@@ -10,22 +6,14 @@ import { useNavigate } from 'react-router-dom';
 import { FaEdit, FaFileMedical, FaStethoscope, FaWhatsapp, FaUserEdit } from 'react-icons/fa';
 import AtestadoModal from '../laudos/AtestadoModal';
 
-// Mesmo endereço usado nas mensagens automáticas do chatbot (backend/chatbot/agente_*.py)
 const CLINICA_ENDERECO = 'Rua Orense, 41 - Sala 512, Centro - Diadema/SP';
 const CLINICA_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Rua Orense, 41 - Centro, Diadema - SP')}`;
 const capitalizar = (texto) => texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : texto;
 const formatarDataYYYYMMDD = (data) => `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
 const formatarHoraHHMM = (data) => data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-// selectedEvent: objeto de evento do FullCalendar (title, start, end, extendedProps).
-// onEditar: callback do AgendaPrincipal pra abrir o AgendamentoModal em modo de edição.
 export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onEditar, onEditarPaciente }) {
     const navigate = useNavigate();
-
-    // Abre o AtestadoModal (que também gera Declaração de Comparecimento/Acompanhante —
-    // o nome do componente ficou legado). Quem não é médico só consegue gerar os tipos de
-    // Declaração por ali (o backend bloqueia Atestado de Afastamento/Aptidão pra quem não
-    // é médico — ver CanCreateAtestado); a assinatura sai institucional nesse caso.
     const [documentoAberto, setDocumentoAberto] = useState(false);
     const [documentoDados, setDocumentoDados] = useState(null);
 
@@ -39,6 +27,16 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                     ...selectedEvent.extendedProps
                 }
             });
+        }
+        onClose();
+    };
+
+    const handleActionEditarPaciente = () => {
+        const dados = selectedEvent?.extendedProps;
+        if (dados && dados.paciente_id && onEditarPaciente) {
+            onEditarPaciente(dados.paciente_id);
+        } else if (!dados?.paciente_id) {
+            alert("Erro: Este agendamento não tem um paciente vinculado.");
         }
         onClose();
     };
@@ -62,7 +60,7 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         navigate('/laudos');
     };
 
-    const handleActionConsulta = () => {
+    const handleActionOriginalConsulta = () => {
         const dados = selectedEvent?.extendedProps;
         if (!dados?.paciente_id) {
             alert("Erro: Paciente não identificado.");
@@ -77,19 +75,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         onClose();
     };
 
-    const handleActionEditarPaciente = () => {
-        const dados = selectedEvent?.extendedProps;
-        if (dados && dados.paciente_id && onEditarPaciente) {
-            onEditarPaciente(dados.paciente_id);
-        } else if (!dados?.paciente_id) {
-            alert("Erro: Este agendamento não tem um paciente vinculado.");
-        }
-        onClose();
-    };
-
-    // Abre o WhatsApp com uma mensagem pronta pedindo a confirmação do paciente, já com
-    // data/hora e o endereço da clínica. Quem efetivamente envia é a recepção, clicando
-    // em enviar no WhatsApp — nada é disparado automaticamente por aqui.
     const handleActionConfirmarWhatsapp = () => {
         const dados = selectedEvent?.extendedProps;
         const telefoneBruto = dados?.paciente_telefone;
@@ -100,7 +85,7 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         }
 
         let numero = telefoneBruto.replace(/\D/g, '');
-        if (numero.length <= 11) numero = `55${numero}`; // adiciona o DDI do Brasil se faltando
+        if (numero.length <= 11) numero = `55${numero}`; 
 
         const primeiroNome = (selectedEvent.title || '').trim().split(' ')[0];
         const inicio = selectedEvent.start ? new Date(selectedEvent.start) : null;
@@ -109,10 +94,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         const procedimento = dados.tipo_procedimento || dados.procedimento_descricao || dados.especialidade_nome || 'sua consulta';
         const medico = dados.medico_nome_com_prefixo || dados.medico_nome;
 
-        // SEM emojis de fora do plano básico do Unicode (😊 📅 📋 🩺 📍 💛 etc.): mesmo com
-        // o encoding correto na URL, eles chegam corrompidos ("�") no WhatsApp em todas as
-        // plataformas testadas (Mac, Windows, iPhone, Android) — limitação do próprio link
-        // wa.me com o parâmetro de texto, não do nosso código. Só texto e negrito (*assim*).
         const mensagem = `Olá, ${primeiroNome}!\n\n`
             + `Aqui é da *Clínica Limalé*. Passando para confirmar o seu agendamento:\n\n`
             + `Data: ${dataFormatada}, às ${horaFormatada}\n`
@@ -126,8 +107,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         onClose();
     };
 
-    // Captura um retrato do evento ANTES de fechar o menu pequeno (que zera o selectedEvent
-    // lá no AgendaPrincipal), pro documento continuar com os dados certos depois de aberto.
     const handleAbrirDocumento = () => {
         const dados = selectedEvent?.extendedProps;
         if (selectedEvent && dados?.paciente_id) {
@@ -154,73 +133,70 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={onClose}
-                PaperProps={{ elevation: 3, sx: { minWidth: 260, borderRadius: 2 } }} // Leve aumento na largura e bordas mais arredondadas
+                PaperProps={{ 
+                  elevation: 4, 
+                  sx: { 
+                    minWidth: 260, 
+                    borderRadius: 2.5, 
+                    overflow: 'hidden',
+                    border: '1px solid #e0e0e0'
+                  } 
+                }}
             >
-                {/* CABEÇALHO ENRIQUECIDO */}
-                <Box sx={{ p: 2, pb: 1, borderBottom: '1px solid #eee' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#1C2E4A', marginBottom: '8px' }}>
+                {/* CABEÇALHO INTEGRADO NO ESTILO AGENDAMENTOMODAL */}
+                <Box sx={{ p: 2, bgcolor: '#1C2E4A', color: '#fff' }}>
+                    <div style={{ fontWeight: 700, fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {selectedEvent?.title || 'Agendamento'}
                     </div>
-                    
-                    {/* Bloco de Detalhes do Agendamento */}
-                    {selectedEvent && (
-                        <Box sx={{ p: 1.5, bgcolor: '#f4f6f8', borderRadius: 1, fontSize: '12px', color: '#444', mb: 1 }}>
-                            <div style={{ marginBottom: '4px' }}>
-                                <strong>Médico:</strong> {selectedEvent.extendedProps?.medico_nome || 'Não informado'}
-                            </div>
-                            <div style={{ marginBottom: '4px' }}>
-                                <strong>Horário:</strong> {selectedEvent.start ? formatarHoraHHMM(new Date(selectedEvent.start)) : '--:--'} às {selectedEvent.end ? formatarHoraHHMM(new Date(selectedEvent.end)) : '--:--'}
-                            </div>
-                            <div>
-                                <strong>Procedimento:</strong> {selectedEvent.extendedProps?.tipo_procedimento || selectedEvent.extendedProps?.procedimento_descricao || 'Não informado'}
-                            </div>
+                    {selectedEvent?.extendedProps && (
+                        <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 1, fontSize: '11px', lineHeight: 1.4 }}>
+                            <div><strong>🩺 Médico:</strong> {selectedEvent.extendedProps.medico_nome_com_prefixo || selectedEvent.extendedProps.medico_nome || 'Não vinculado'}</div>
+                            <div><strong>📋 Exame/Consulta:</strong> {selectedEvent.extendedProps.tipo_procedimento || 'Consulta'}</div>
+                            <div><strong>⏰ Horário:</strong> {selectedEvent.start ? formatarHoraHHMM(new Date(selectedEvent.start)) : '--:--'} às {selectedEvent.end ? formatarHoraHHMM(new Date(selectedEvent.end)) : '--:--'}</div>
                         </Box>
                     )}
-                    <div style={{ fontSize: '11px', color: '#666' }}>Selecione uma ação:</div>
                 </Box>
 
-                {/* NOVA AÇÃO: Editar Paciente */}
-                <MenuItem onClick={handleActionEditarPaciente} disabled={!selectedEvent?.extendedProps?.paciente_id}>
-                    <ListItemIcon><FaUserEdit fontSize="small" color="#ed6c02" /></ListItemIcon>
-                    <ListItemText>Editar Cadastro do Paciente</ListItemText>
-                </MenuItem>
+                <Box sx={{ py: 0.5 }}>
+                    {/* AÇÕES DE ATENDIMENTO & COMUNICAÇÃO */}
+                    <MenuItem onClick={handleActionConfirmarWhatsapp} disabled={!selectedEvent?.extendedProps?.paciente_telefone}>
+                        <ListItemIcon><FaWhatsapp fontSize="small" color="#25D366" /></ListItemIcon>
+                        <ListItemText primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}>Confirmar via WhatsApp</ListItemText>
+                    </MenuItem>
 
-                <Divider />
+                    <MenuItem onClick={handleAbrirDocumento} disabled={!selectedEvent?.extendedProps?.paciente_id}>
+                        <ListItemIcon><DescriptionOutlinedIcon fontSize="small" sx={{ color: '#1C2E4A' }} /></ListItemIcon>
+                        <ListItemText primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}>Atestado / Declaração</ListItemText>
+                    </MenuItem>
 
-                {/* Mantenha os outros MenuItems exatamente como estavam */}
-                <MenuItem onClick={handleActionConfirmarWhatsapp} disabled={!selectedEvent?.extendedProps?.paciente_telefone}>
-                    <ListItemIcon><FaWhatsapp fontSize="small" color="#25D366" /></ListItemIcon>
-                    <ListItemText>Confirmar via WhatsApp</ListItemText>
-                </MenuItem>
+                    <Divider sx={{ my: 0.5 }} />
 
-                <MenuItem onClick={handleAbrirDocumento} disabled={!selectedEvent?.extendedProps?.paciente_id}>
-                    <ListItemIcon><DescriptionOutlinedIcon fontSize="small" sx={{ color: '#1C2E4A' }} /></ListItemIcon>
-                    <ListItemText>Atestado / Declaração</ListItemText>
-                </MenuItem>
+                    {/* AÇÕES DE CADASTRO */}
+                    <MenuItem onClick={handleActionEditar}>
+                        <ListItemIcon><FaEdit fontSize="small" color="#78909c" /></ListItemIcon>
+                        <ListItemText primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}>Editar Agendamento</ListItemText>
+                    </MenuItem>
 
-                <Divider />
+                    <MenuItem onClick={handleActionEditarPaciente} disabled={!selectedEvent?.extendedProps?.paciente_id}>
+                        <ListItemIcon><FaUserEdit fontSize="small" color="#ed6c02" /></ListItemIcon>
+                        <ListItemText primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}>Editar Cadastro do Paciente</ListItemText>
+                    </MenuItem>
 
-                <MenuItem onClick={handleActionEditar}>
-                    <ListItemIcon><FaEdit fontSize="small" /></ListItemIcon>
-                    <ListItemText>Editar Agendamento</ListItemText>
-                </MenuItem>
+                    <Divider sx={{ my: 0.5 }} />
 
-                <Divider />
+                    {/* AÇÕES CLÍNICAS */}
+                    <MenuItem onClick={handleActionLaudo} disabled={!selectedEvent?.extendedProps?.paciente_id}>
+                        <ListItemIcon><FaFileMedical fontSize="small" color="#2E7D32" /></ListItemIcon>
+                        <ListItemText primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}>Realizar Laudo</ListItemText>
+                    </MenuItem>
 
-                <MenuItem onClick={handleActionLaudo} disabled={!selectedEvent?.extendedProps?.paciente_id}>
-                    <ListItemIcon><FaFileMedical fontSize="small" color="#2E7D32" /></ListItemIcon>
-                    <ListItemText>Realizar Laudo</ListItemText>
-                </MenuItem>
-
-                <MenuItem onClick={handleActionConsulta} disabled={!selectedEvent?.extendedProps?.paciente_id}>
-                    <ListItemIcon><FaStethoscope fontSize="small" color="#1976d2" /></ListItemIcon>
-                    <ListItemText>Iniciar Atendimento</ListItemText>
-                </MenuItem>
+                    <MenuItem onClick={handleActionOriginalConsulta} disabled={!selectedEvent?.extendedProps?.paciente_id}>
+                        <ListItemIcon><FaStethoscope fontSize="small" color="#1976d2" /></ListItemIcon>
+                        <ListItemText primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 500 }}>Iniciar Atendimento</ListItemText>
+                    </MenuItem>
+                </Box>
             </Menu>
 
-            {/* Só monta o modal quando abre — o AtestadoModal guarda data/hora/tipo em estado
-                local que só lê as props "iniciais" na primeira montagem. Mantendo montado o
-                tempo todo, o segundo agendamento clicado reaproveitava a data do primeiro. */}
             {documentoAberto && (
                 <AtestadoModal
                     open={documentoAberto}

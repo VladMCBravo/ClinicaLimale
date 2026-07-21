@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Drawer } from '@mui/material';
 import { agendamentoService } from '../services/agendamentoService';
+import apiClient from '../api/axiosConfig'; // <--- 1. ADICIONADO: Import do apiClient
 
 // --- COMPONENTES ---
 import AgendaPrincipal from '../components/agenda/AgendaPrincipal';
@@ -40,6 +41,8 @@ export default function PainelRecepcaoPage() {
     const [initialData, setInitialData] = useState(null);
     const [nomeNovoPaciente, setNomeNovoPaciente] = useState('');
     const [isChatbotModalOpen, setIsChatbotModalOpen] = useState(false);
+    // <--- 2. ADICIONADO: Estado para o paciente que será editado
+    const [pacienteParaEditar, setPacienteParaEditar] = useState(null);
 
     // Carrega SALAS
     useEffect(() => {
@@ -166,6 +169,18 @@ export default function PainelRecepcaoPage() {
                         onBuscarHorario={() => setIsDispoOpen(true)}
                         onTabelaPrecos={() => setIsValoresModalOpen(true)}
                         onStatusWhatsapp={() => setIsChatbotModalOpen(true)}
+                        // <--- 3. CORRIGIDO: Agora busca o paciente real na API e abre o modal
+                        onEditarPaciente={(pacienteId) => {
+                            apiClient.get(`/pacientes/${pacienteId}/`)
+                                .then(res => {
+                                    setPacienteParaEditar(res.data);
+                                    setIsPacienteModalOpen(true);
+                                })
+                                .catch(err => {
+                                    console.error("Erro ao buscar dados do paciente", err);
+                                    alert("Não foi possível carregar os dados do paciente para edição.");
+                                });
+                        }}
                     />
                 </Box>
             </Box>
@@ -183,8 +198,9 @@ export default function PainelRecepcaoPage() {
                     setNomeNovoPaciente(''); // Limpa o nome ao fechar
                 }} 
                 onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); setNomeNovoPaciente(''); }} 
-                pacienteParaEditar={null} 
-                nomeInicial={nomeNovoPaciente} // <--- A MÁGICA AQUI
+                // <--- 4. CORRIGIDO: Passa o paciente que foi puxado da API para o Modal
+                pacienteParaEditar={pacienteParaEditar} 
+                nomeInicial={nomeNovoPaciente} 
             />
             <AgendamentoModal 
                 open={isAgendamentoModalOpen} 

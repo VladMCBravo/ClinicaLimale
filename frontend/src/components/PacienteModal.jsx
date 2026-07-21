@@ -5,12 +5,12 @@ import {
   TextField, Button, CircularProgress, Box, Autocomplete, 
   FormControl, InputLabel, Select, MenuItem,
   Grid, InputAdornment, Tabs, Tab, Paper, Divider, IconButton,
-  Typography // <--- O ERRO ESTAVA AQUI: Faltava importar o Typography
+  Typography
 } from '@mui/material';
 import { 
     Person, Home, MedicalServices, SupervisorAccount, Close 
 } from '@mui/icons-material';
-import { IMaskInput } from 'react-imask'; // Certifique-se de ter importado isso
+import { IMaskInput } from 'react-imask';
 
 import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
@@ -25,7 +25,6 @@ const initialState = {
   contato_emergencia_nome: '', contato_emergencia_telefone: '', contato_emergencia_parentesco: '',
 };
 
-// --- CORREÇÃO: DEFINIR AQUI FORA, ANTES DO COMPONENTE ---
 const TextMaskData = React.forwardRef(function TextMaskData(props, ref) {
   const { onChange, ...other } = props;
   return (
@@ -43,20 +42,17 @@ const TextMaskData = React.forwardRef(function TextMaskData(props, ref) {
 export default function PacienteModal({ open, onClose, onSave, pacienteParaEditar, nomeInicial }) {
   const { showSnackbar } = useSnackbar();
   
-  // --- Estados ---
   const [formData, setFormData] = useState(initialState);
   const [dataNascimentoVisual, setDataNascimentoVisual] = useState('');
   const [tabIndex, setTabIndex] = useState(0); 
   const [isLoading, setIsLoading] = useState(false);
   const [isCepLoading, setIsCepLoading] = useState(false);
   
-  // --- Dados Auxiliares ---
   const [medicos, setMedicos] = useState([]);
   const [convenios, setConvenios] = useState([]);
   const [convenioSelecionado, setConvenioSelecionado] = useState(null);
   const [planosFiltrados, setPlanosFiltrados] = useState([]);
 
-  // --- Carregamento Inicial ---
   useEffect(() => {
     if (open) {
       Promise.all([
@@ -69,18 +65,16 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }
   }, [open]);
 
-  // --- Preenchimento do Form ---
   useEffect(() => {
     if (open) {
       setTabIndex(0);
       if (pacienteParaEditar) {
-        // CONVERSÃO: YYYY-MM-DD -> DD/MM/YYYY
         let dataVisual = '';
         if (pacienteParaEditar.data_nascimento) {
             const [ano, mes, dia] = pacienteParaEditar.data_nascimento.split('-');
             dataVisual = `${dia}/${mes}/${ano}`;
         }
-        setDataNascimentoVisual(dataVisual); // <--- Atualiza o visual
+        setDataNascimentoVisual(dataVisual);
         setFormData({
           nome_completo: pacienteParaEditar.nome_completo || '',
           data_nascimento: pacienteParaEditar.data_nascimento || '',
@@ -108,18 +102,17 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           contato_emergencia_parentesco: pacienteParaEditar.contato_emergencia_parentesco || '',
         });
       } else {
-        // --- ALTERAÇÃO AQUI: Se for paciente novo, mescla o estado inicial com o nome digitado ---
         setFormData({
             ...initialState,
             nome_completo: nomeInicial || '' 
         });
         setConvenioSelecionado(null);
         setPlanosFiltrados([]);
+        setDataNascimentoVisual('');
       }
     }
-  }, [pacienteParaEditar, open, nomeInicial]); // <--- Não esqueça de adicionar nomeInicial aqui!
+  }, [pacienteParaEditar, open, nomeInicial]);
 
-  // --- Lógica de Convênios ---
   useEffect(() => {
     if (pacienteParaEditar && pacienteParaEditar.plano_convenio_detalhes && convenios.length > 0) {
       const planoDoPaciente = pacienteParaEditar.plano_convenio_detalhes;
@@ -133,19 +126,11 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
 
   const handleDataNascimentoChange = (e) => {
       const valorVisual = e.target.value;
-      setDataNascimentoVisual(valorVisual); // Atualiza o input visualmente na hora
-
-      // Verifica se a data está completa (10 caracteres: DD/MM/AAAA)
+      setDataNascimentoVisual(valorVisual);
       if (valorVisual.length === 10) {
           const [dia, mes, ano] = valorVisual.split('/');
-          
-          // Validação básica de dia/mês/ano
-          const dataIso = `${ano}-${mes}-${dia}`;
-          
-          // Atualiza o formData que vai pro Backend
-          setFormData(prev => ({ ...prev, data_nascimento: dataIso }));
+          setFormData(prev => ({ ...prev, data_nascimento: `${ano}-${mes}-${dia}` }));
       } else {
-          // Se o usuário apagar um número, limpamos o formData para evitar erro de data inválida no backend
           setFormData(prev => ({ ...prev, data_nascimento: '' }));
       }
   };
@@ -224,25 +209,13 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     switch (tabIndex) {
       case 0:
         return (
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid item xs={12} sm={8}>
               <TextField name="nome_completo" label="Nome Completo" value={formData.nome_completo} onChange={handleChange} required fullWidth size="small" />
             </Grid>
             <Grid item xs={12} sm={4}>
-              <TextField
-    name="data_nascimento"
-    label="Nascimento"
-    // Removemos type="date" e InputLabelProps shrink
-    value={dataNascimentoVisual} // Usa o estado visual
-    onChange={handleDataNascimentoChange} // Usa a função nova
-    fullWidth
-    size="small"
-    placeholder="DD/MM/AAAA"
-    InputProps={{
-      inputComponent: TextMaskData // Usa o componente de máscara criado no passo 1
-    }}
-  />
-</Grid>
+              <TextField name="data_nascimento" label="Nascimento" value={dataNascimentoVisual} onChange={handleDataNascimentoChange} fullWidth size="small" placeholder="DD/MM/AAAA" InputProps={{ inputComponent: TextMaskData }} />
+            </Grid>
             <Grid item xs={12} sm={4}>
               <TextField name="cpf" label="CPF" value={formData.cpf} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskCPF }} />
             </Grid>
@@ -266,7 +239,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         );
       case 1:
         return (
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid item xs={12} sm={4}>
               <TextField 
                 name="cep" label="CEP" value={formData.cep} onChange={handleChange} onBlur={handleCepBlur} fullWidth size="small"
@@ -298,17 +271,17 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         );
       case 2:
         return (
-          <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
              <Grid item xs={12}>
-                 <Typography variant="subtitle2" color="primary" sx={{mb: 1}}>Dados Físicos</Typography>
+                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700, color: '#1C2E4A' }}>Dados Físicos</Typography>
                  <Grid container spacing={2}>
                     <Grid item xs={6}><TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth size="small" /></Grid>
                     <Grid item xs={6}><TextField name="altura" label="Altura (cm)" type="number" value={formData.altura} onChange={handleChange} fullWidth size="small" /></Grid>
                  </Grid>
              </Grid>
              <Grid item xs={12}>
-                <Divider sx={{my: 1}} />
-                <Typography variant="subtitle2" color="primary" sx={{mb: 1}}>Médico e Plano</Typography>
+                <Divider sx={{ my: 1.5 }} />
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700, color: '#1C2E4A' }}>Médico e Plano</Typography>
              </Grid>
             <Grid item xs={12}>
               <Autocomplete
@@ -339,37 +312,41 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
               />
             </Grid>
             <Grid item xs={12}>
-              <TextField name="numero_carteirinha" label="Carteirinha" value={formData.numero_carteirinha} onChange={handleChange} disabled={!formData.plano_convenio} fullWidth size="small" />
+              <TextField name="numero_carteirinha" label="Carteirinha" value={formData.numero_carteirinha} disabled={!formData.plano_convenio} fullWidth size="small" />
             </Grid>
           </Grid>
         );
       case 3:
         return (
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-             <Grid item xs={12}>
-                 {/* Bloco Responsável */}
-                 <Paper variant="outlined" sx={{p: 2, mb: 2, bgcolor: '#f8f9fa'}}>
-                    <Typography variant="subtitle2" color="primary" sx={{mb: 1}}>Responsável Legal</Typography>
-                    <Typography variant="caption" display="block" sx={{mb: 2}}>
-                        Preencha apenas se o paciente for menor de idade ou necessitar.
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+             {/* ESTRUTURA LADO A LADO PARA ELIMINAR A BARRA DE ROLAGEM */}
+             <Grid item xs={12} md={6}>
+                 <Paper variant="outlined" sx={{ p: 2, height: '100%', bgcolor: '#f8f9fa', borderRadius: 2 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700, color: '#1C2E4A' }}>Responsável Legal</Typography>
+                    <Typography variant="caption" display="block" sx={{ mb: 1.5, color: '#666' }}>
+                        Preencha se o paciente for menor de idade.
                     </Typography>
-                    <Grid container spacing={2}>
+                    <Grid container spacing={1.5}>
                         <Grid item xs={12}><TextField name="nome_responsavel" label="Nome do Responsável" value={formData.nome_responsavel} onChange={handleChange} fullWidth size="small" /></Grid>
-                        <Grid item xs={12} sm={6}><TextField name="cpf_responsavel" label="CPF Responsável" value={formData.cpf_responsavel} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskCPF }} /></Grid>
-                        <Grid item xs={12} sm={6}><TextField name="telefone_responsavel" label="Tel. Responsável" value={formData.telefone_responsavel} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskTelefone }} /></Grid>
+                        <Grid item xs={12}><TextField name="cpf_responsavel" label="CPF Responsável" value={formData.cpf_responsavel} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskCPF }} /></Grid>
+                        <Grid item xs={12}><TextField name="telefone_responsavel" label="Tel. Responsável" value={formData.telefone_responsavel} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskTelefone }} /></Grid>
                     </Grid>
                  </Paper>
+             </Grid>
 
-                 {/* NOVO: Bloco Contato de Emergência */}
-                 <Paper variant="outlined" sx={{p: 2, bgcolor: '#fff5f5', borderColor: '#ffcdd2'}}>
-                    <Typography variant="subtitle2" color="error" sx={{mb: 1}}>Contato de Emergência</Typography>
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} sm={5}><TextField name="contato_emergencia_nome" label="Nome do Contato" value={formData.contato_emergencia_nome} onChange={handleChange} fullWidth size="small" /></Grid>
-                        <Grid item xs={12} sm={4}><TextField name="contato_emergencia_telefone" label="Telefone" value={formData.contato_emergencia_telefone} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskTelefone }} /></Grid>
-                        <Grid item xs={12} sm={3}><TextField name="contato_emergencia_parentesco" label="Parentesco" placeholder="Ex: Mãe, Filho" value={formData.contato_emergencia_parentesco} onChange={handleChange} fullWidth size="small" /></Grid>
+             <Grid item xs={12} md={6}>
+                 <Paper variant="outlined" sx={{ p: 2, height: '100%', bgcolor: '#fff5f5', borderColor: '#ffcdd2', borderRadius: 2 }}>
+                    <Typography variant="subtitle2" color="error" sx={{ mb: 0.5, fontWeight: 700 }}>Contato de Emergência</Typography>
+                    <Typography variant="caption" display="block" sx={{ mb: 1.5, color: '#c62828' }}>
+                        Em caso de urgências médicas na clínica.
+                    </Typography>
+                    <Grid container spacing={1.5}>
+                        <Grid item xs={12}><TextField name="contato_emergencia_nome" label="Nome do Contato" value={formData.contato_emergencia_nome} onChange={handleChange} fullWidth size="small" /></Grid>
+                        <Grid item xs={12}><TextField name="contato_emergencia_telefone" label="Telefone de Urgência" value={formData.contato_emergencia_telefone} onChange={handleChange} fullWidth size="small" InputProps={{ inputComponent: TextMaskTelefone }} /></Grid>
+                        <Grid item xs={12}><TextField name="contato_emergencia_parentesco" label="Parentesco / Vínculo" placeholder="Ex: Cônjuge, Mãe" value={formData.contato_emergencia_parentesco} onChange={handleChange} fullWidth size="small" /></Grid>
                     </Grid>
                  </Paper>
-            </Grid>
+             </Grid>
           </Grid>
         );
       default: return null;
@@ -377,36 +354,69 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   };
 
   return (
-    <Dialog open={open} onClose={() => { onClose(); setTabIndex(0); }} fullWidth maxWidth="md" disableEscapeKeyDown={isLoading}>
-      <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5', borderBottom: '1px solid #e0e0e0' }}>
-        <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', color: '#333' }}>
-          {pacienteParaEditar ? 'Editar Paciente' : 'Novo Paciente'}
+    <Dialog 
+      open={open} 
+      onClose={() => { onClose(); setTabIndex(0); }} 
+      fullWidth 
+      maxWidth="md" 
+      disableEscapeKeyDown={isLoading}
+      PaperProps={{
+        sx: { borderRadius: 3, boxShadow: '0px 8px 24px rgba(0,0,0,0.15)' }
+      }}
+    >
+      <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#1C2E4A', color: '#fff' }}>
+        <Typography variant="h6" component="div" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+          {pacienteParaEditar ? 'Editar Cadastro do Paciente' : 'Cadastrar Novo Paciente'}
         </Typography>
-        <IconButton onClick={onClose} size="small"><Close /></IconButton>
+        <IconButton onClick={onClose} size="small" sx={{ color: '#fff' }}><Close /></IconButton>
       </DialogTitle>
-      <Box component="div" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      
+      <Box component="div" sx={{ display: 'flex', flexDirection: 'column', bgcolor: '#fff' }}>
         <Paper elevation={0} square sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs 
                 value={tabIndex} 
                 onChange={handleTabChange} 
                 variant="scrollable" 
                 scrollButtons="auto" 
-                indicatorColor="primary" 
                 textColor="primary"
+                indicatorColor="primary"
+                sx={{
+                  '& .MuiTab-root': { fontSize: '0.85rem', fontWeight: 600, textTransform: 'none', minHeight: 48 },
+                  '& .Mui-selected': { color: '#1C2E4A !important' },
+                  '& .MuiTabs-indicator': { backgroundColor: '#1C2E4A' }
+                }}
             >
-                <Tab icon={<Person />} iconPosition="start" label="Pessoais" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
-                <Tab icon={<Home />} iconPosition="start" label="Endereço" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
-                <Tab icon={<MedicalServices />} iconPosition="start" label="Convênio" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
-                <Tab icon={<SupervisorAccount />} iconPosition="start" label="Resp/Emergência" sx={{ minHeight: '50px', textTransform: 'none', fontWeight: 600 }} />
+                <Tab icon={<Person fontSize="small" />} iconPosition="start" label="Pessoais" />
+                <Tab icon={<Home fontSize="small" />} iconPosition="start" label="Endereço" />
+                <Tab icon={<MedicalServices fontSize="small" />} iconPosition="start" label="Clínicos & Convênio" />
+                <Tab icon={<SupervisorAccount fontSize="small" />} iconPosition="start" label="Contatos de Apoio" />
             </Tabs>
         </Paper>
-        <DialogContent sx={{ py: 2, px: 3, minHeight: '300px' }}>
+        
+        {/* CONTEÚDO SEM BARRA DE ROLAGEM VERTICAL */}
+        <DialogContent sx={{ py: 2.5, px: 3, overflowY: 'hidden' }}>
             {renderTabContent()}
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#fafafa' }}>
-          <Button onClick={onClose} color="inherit" sx={{ textTransform: 'none' }}>Cancelar</Button>
-          <Button onClick={handleSaveClick} variant="contained" disabled={isLoading || isCepLoading} sx={{ px: 4, textTransform: 'none', fontWeight: 'bold' }}>
-            {(isLoading || isCepLoading) ? <CircularProgress size={24} color="inherit" /> : 'Salvar Dados'}
+        
+        <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#fafafa', gap: 1 }}>
+          <Button onClick={onClose} color="inherit" sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.85rem' }}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleSaveClick} 
+            variant="contained" 
+            disabled={isLoading || isCepLoading} 
+            sx={{ 
+              px: 4, 
+              textTransform: 'none', 
+              fontWeight: 700, 
+              fontSize: '0.85rem',
+              bgcolor: '#1C2E4A', 
+              '&:hover': { bgcolor: '#16233a' },
+              borderRadius: 2
+            }}
+          >
+            {(isLoading || isCepLoading) ? <CircularProgress size={22} color="inherit" /> : 'Salvar Registro'}
           </Button>
         </DialogActions>
       </Box>
