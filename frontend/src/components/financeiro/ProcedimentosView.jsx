@@ -2,12 +2,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
     Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableFooter,
-    CircularProgress, IconButton, Button, TextField, InputAdornment, Chip, Tooltip, Stack
+    CircularProgress, IconButton, Button, TextField, InputAdornment, Chip, Tooltip, Stack,
+    Dialog, DialogTitle, DialogContent, DialogActions, FormControlLabel, Checkbox
 } from '@mui/material';
-import { Edit, CloudUpload, Add, Search, LocalHospital, MonetizationOn, FormatListNumbered } from '@mui/icons-material';
+import { 
+    Edit, CloudUpload, Add, Search, LocalHospital, MonetizationOn, FormatListNumbered, PictureAsPdf 
+} from '@mui/icons-material';
+
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 import ProcedimentoModal from './ProcedimentoModal';
+import { gerarPdfProcedimentos } from '../../utils/tabelaValoresPdfGenerator'; // Ajuste o caminho se necessário
 
 // Mapeamento de cores para categorias
 const CAT_COLORS = {
@@ -31,18 +36,24 @@ const CAT_LABELS = {
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function ProcedimentosView() {
+    // --- ESTADOS: Dados ---
     const [procedimentos, setProcedimentos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const { showSnackbar } = useSnackbar();
     
-    // Estados de Controle
+    // --- ESTADOS: Controles e Interface ---
     const [isUploading, setIsUploading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [procedimentoSelecionado, setProcedimentoSelecionado] = useState(null); 
-    
-    // Filtro
     const [searchTerm, setSearchTerm] = useState('');
 
+    // --- ESTADOS: PDF ---
+    const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+    const [pdfOptions, setPdfOptions] = useState({ showValues: true, showTuss: true });
+    const [isGerandoPdf, setIsGerandoPdf] = useState(false);
+
+    const { showSnackbar } = useSnackbar();
+
+    // --- EFEITOS E BUSCA DE DADOS ---
     const fetchProcedimentos = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -61,7 +72,7 @@ export default function ProcedimentosView() {
         fetchProcedimentos();
     }, [fetchProcedimentos]);
 
-    // Filtragem Local
+    // --- CÁLCULOS E FILTRAGEM (useMemo) ---
     const filteredList = useMemo(() => {
         if (!searchTerm) return procedimentos;
         const lowerTerm = searchTerm.toLowerCase();
@@ -71,7 +82,6 @@ export default function ProcedimentosView() {
         );
     }, [procedimentos, searchTerm]);
 
-    // KPIs Calculados
     const kpis = useMemo(() => {
         return {
             total: procedimentos.length,
@@ -80,6 +90,7 @@ export default function ProcedimentosView() {
         };
     }, [procedimentos]);
 
+    // --- HANDLERS: Interface e Lógica ---
     const handleOpenModal = (procedimento = null) => {
         setProcedimentoSelecionado(procedimento);
         setIsModalOpen(true);
@@ -103,6 +114,28 @@ export default function ProcedimentosView() {
             setIsUploading(false);
             event.target.value = null; 
         }
+    };
+
+    const handleGerarPdf = () => {
+        setIsGerandoPdf(true);
+        // Usa a lista já filtrada da tela
+        gerarPdfProcedimentos(filteredList, pdfOptions, async (blob) => {
+            try {
+                // Aqui você deve chamar seu serviço do Django que aplica a máscara
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Procedimentos_Limale.pdf';
+                a.click();
+                
+                showSnackbar('PDF gerado com sucesso!', 'success');
+                setIsPdfModalOpen(false);
+            } catch (error) {
+                showSnackbar('Erro ao processar o PDF no servidor.', 'error');
+            } finally {
+                setIsGerandoPdf(false);
+            }
+        });
     };
 
     return (
@@ -176,6 +209,16 @@ export default function ProcedimentosView() {
                     >
                         {isUploading ? '...' : 'Importar TUSS'}
                         <input type="file" accept=".csv, .txt" hidden onChange={handleFileUpload} />
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={<PictureAsPdf />}
+                        onClick={() => setIsPdfModalOpen(true)}
+                        sx={{ height: 40, textTransform: 'none', fontWeight: 'bold' }}
+                    >
+                        PDF
                     </Button>
 
                     <Button 
@@ -266,13 +309,39 @@ export default function ProcedimentosView() {
                 </TableContainer>
             </Paper>
 
-            {/* MODAL UNIFICADO */}
+            {/* MODAL UNIFICADO (PROCEDIMENTO) */}
             <ProcedimentoModal
                 open={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSave={fetchProcedimentos}
                 procedimento={procedimentoSelecionado}
             />
+
+            {/* MODAL DE PDF */}
+            <Dialog open={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Exportar Procedimentos</DialogTitle>
+                <DialogContent dividers>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Selecione quais informações devem constar no documento:
+                    </Typography>
+                    <Stack spacing={1}>
+                        <FormControlLabel
+                            control={<Checkbox checked={pdfOptions.showTuss} onChange={(e) => setPdfOptions({...pdfOptions, showTuss: e.target.checked})} />}
+                            label="Incluir Código TUSS"
+                        />
+                        <FormControlLabel
+                            control={<Checkbox checked={pdfOptions.showValues} onChange={(e) => setPdfOptions({...pdfOptions, showValues: e.target.checked})} />}
+                            label="Incluir Valores Particulares"
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setIsPdfModalOpen(false)} disabled={isGerandoPdf}>Cancelar</Button>
+                    <Button onClick={handleGerarPdf} variant="contained" color="error" startIcon={isGerandoPdf ? <CircularProgress size={20} color="inherit" /> : <PictureAsPdf />} disabled={isGerandoPdf}>
+                        {isGerandoPdf ? 'Processando...' : 'Gerar Documento'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

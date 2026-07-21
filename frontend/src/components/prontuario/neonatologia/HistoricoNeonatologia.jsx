@@ -143,12 +143,21 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
             }
         } catch (err) {
             if (err.response && err.response.status !== 404) {
-                showSnackbarRef.current('Erro ao carregar histórico neonatal.', 'error');
+                showSnackbarRef.current('Erro ao carregar histórico neonatal. Tente reabrir esta aba antes de salvar.', 'error');
             }
+            // Garante um estado limpo e consistente mesmo se o GET falhar (evita reenviar
+            // valores em branco de um mount anterior que quebrem a validação no salvamento).
+            setAnamneseData(initialState);
+            setComorbidades({});
+            setVicios({});
+            setReanimacao({});
+            setExamesHosp({});
+            setOutrosExames([]);
+            setTriagens(initialState.triagens);
         } finally {
             setIsLoading(false);
         }
-    }, [pacienteId]); 
+    }, [pacienteId]);
 
     useEffect(() => {
         fetchAnamnese();
@@ -296,6 +305,7 @@ const HistoricoNeonatologia = forwardRef(({ pacienteId }, ref) => {
         const dataToSend = { ...anamneseData };
         const camposNumericos = [
             'peso_nascimento', 'comprimento', 'pc_nascimento', 'peso_alta',
+            'apgar_1', 'apgar_5', 'apgar_10', 'gpa_g', 'gpa_p', 'gpa_a',
             'ig_semanas', 'ig_dias', 'tempo_internacao',
             'suporte_vm_d', 'suporte_cpap_d', 'suporte_o2_d',
             'fototerapia_d', 'npp_d', 'antibioticos_d'

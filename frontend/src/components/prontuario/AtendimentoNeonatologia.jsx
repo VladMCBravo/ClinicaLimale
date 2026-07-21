@@ -318,36 +318,48 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
             const evolucaoId = await handleSaveSOAP();
 
             console.log("   -> Etapa 2: Preparando salvamento das outras abas...");
-            const savePromises = [];
+            const saveTasks = [];
 
             if (historicoRef.current && historicoRef.current.saveData) {
-                savePromises.push(historicoRef.current.saveData());
+                saveTasks.push({ label: 'Histórico', promise: historicoRef.current.saveData() });
             } else {
                 console.warn("Ref do Histórico (ou .saveData) não encontrada.");
             }
             if (dnpmRef.current && dnpmRef.current.saveData) {
-                savePromises.push(dnpmRef.current.saveData());
+                saveTasks.push({ label: 'DNPM', promise: dnpmRef.current.saveData() });
             } else {
                 console.warn("Ref do DNPM (ou .saveData) não encontrada.");
             }
             if (vacinacaoRef.current && vacinacaoRef.current.saveData) {
-                savePromises.push(vacinacaoRef.current.saveData());
+                saveTasks.push({ label: 'Vacinação', promise: vacinacaoRef.current.saveData() });
             } else {
                 console.warn("Ref da Vacinação (ou .saveData) não encontrada.");
             }
 
-            await Promise.all(savePromises);
-            console.log("   -> Etapa 3: Histórico, DNPM e Vacinas salvos.");
+            // allSettled em vez de all: uma aba falhar (ex: validação) não deve mascarar
+            // o fato de que o SOAP da consulta atual (Etapa 1) já foi salvo, e permite
+            // reportar exatamente qual aba falhou em vez de um erro genérico ou silêncio.
+            const settled = await Promise.allSettled(saveTasks.map(t => t.promise));
+            const falhas = saveTasks.filter((_, index) => settled[index].status === 'rejected');
 
-            showSnackbar(
-                isSessaoIniciada
-                    ? 'Atendimento atualizado com sucesso!'
-                    : 'Atendimento salvo com sucesso!',
-                'success'
-            );
-            
+            if (falhas.length > 0) {
+                console.error("   -> Etapa 3: Falha ao salvar:", falhas.map(f => f.label).join(', '));
+                showSnackbar(
+                    `Consulta atual salva, mas houve erro ao salvar: ${falhas.map(f => f.label).join(', ')}. Verifique essas abas e tente salvar novamente.`,
+                    'error'
+                );
+            } else {
+                console.log("   -> Etapa 3: Histórico, DNPM e Vacinas salvos.");
+                showSnackbar(
+                    isSessaoIniciada
+                        ? 'Atendimento atualizado com sucesso!'
+                        : 'Atendimento salvo com sucesso!',
+                    'success'
+                );
+            }
+
             fetchStatusResumos();
-            
+
             if (onEvolucaoSalva) {
                 console.log(`   -> Etapa 4: Chamando onEvolucaoSalva com ID: ${evolucaoId}`);
                 onEvolucaoSalva(evolucaoId);
@@ -356,9 +368,9 @@ export default function AtendimentoNeonatologia({ pacienteId, onEvolucaoSalva, a
         } catch (error) {
             console.error("--- ERRO NO SALVAMENTO COMPLETO (NEO) ---", error);
             if (!error.response) {
-                // Erro pode ter vindo de um dos savePromises (ex: histórico)
-                // O snackbar de erro já foi mostrado pelo componente filho
-                // Apenas evita mostrar um snackbar genérico
+                // Erro sem resposta HTTP (ex: exceção de JS antes das saveTasks) não tem
+                // snackbar próprio de um componente filho — avisa o médico mesmo assim.
+                showSnackbar('Erro inesperado ao salvar o atendimento. Tente novamente.', 'error');
             }
         } finally {
             setIsSubmitting(false);

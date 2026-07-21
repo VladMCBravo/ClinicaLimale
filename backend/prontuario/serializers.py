@@ -1,13 +1,38 @@
 # backend/prontuario/serializers.py - VERSÃO CORRIGIDA
 
+from django.db import models as db_models
 from rest_framework import serializers
 from .models import Evolucao, Prescricao, ItemPrescricao, Anamnese, Atestado, AnamneseGinecologica, AnamneseOrtopedia, AnamneseCardiologia, AnamnesePediatria, AnamneseNeonatologia, AnamneseClinicaGeral
 from .models import DocumentoPaciente, OpcaoClinica, MarcoDNPM, VacinaPaciente
 from .models import TemplateRelatorio, RelatorioSalvo
 from .models import Laudo, ImagemLaudo # <--- Adicione Laudo e ImagemLaudo aqui
-from .models import ModeloLaudo, ModeloPrescricao 
+from .models import ModeloLaudo, ModeloPrescricao
 from pacientes.models import Paciente
 from agendamentos.models import Agendamento
+
+
+class EmptyStringToNoneMixin:
+    """
+    Converte '' em None para todo campo numérico do model antes da validação.
+
+    Selects do front (ex: Apgar 1'/5'/10') mandam '' quando o médico nunca
+    seleciona um valor; sem isso, o DRF rejeita o PATCH inteiro da anamnese
+    com "A valid integer is required." em vez de aceitar o campo como vazio,
+    mesmo o model permitindo null=True/blank=True.
+    """
+    _NUMERIC_FIELD_TYPES = (db_models.IntegerField, db_models.FloatField, db_models.DecimalField)
+
+    def to_internal_value(self, data):
+        mutable_data = data.copy() if hasattr(data, 'copy') else dict(data)
+        numeric_field_names = {
+            field.name for field in self.Meta.model._meta.get_fields()
+            if isinstance(field, self._NUMERIC_FIELD_TYPES)
+        }
+        for field_name in numeric_field_names:
+            if mutable_data.get(field_name) == '':
+                mutable_data[field_name] = None
+        return super().to_internal_value(mutable_data)
+
 
 # --- SERIALIZERS DE ESPECIALIDADES ---
 class AnamneseClinicaGeralSerializer(serializers.ModelSerializer):
@@ -35,13 +60,13 @@ class AnamneseCardiologiaSerializer(serializers.ModelSerializer):
         # exceto a chave estrangeira 'anamnese' e o 'id' padrão.
         exclude = ['anamnese', 'id']
 
-class AnamnesePediatriaSerializer(serializers.ModelSerializer):
+class AnamnesePediatriaSerializer(EmptyStringToNoneMixin, serializers.ModelSerializer):
     class Meta:
         model = AnamnesePediatria
         # Incluímos os novos campos e removemos os antigos/movidos
         exclude = ['anamnese', 'id'] # Inclui todos os campos do modelo exceto estes
 
-class AnamneseNeonatologiaSerializer(serializers.ModelSerializer):
+class AnamneseNeonatologiaSerializer(EmptyStringToNoneMixin, serializers.ModelSerializer):
     class Meta:
         model = AnamneseNeonatologia
         # Apenas os campos que existem no modelo (histórico)

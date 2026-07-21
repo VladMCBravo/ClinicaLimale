@@ -4,31 +4,43 @@ import {
     Box, Typography, Paper, Table, TableBody, TableCell, 
     TableContainer, TableHead, TableRow, CircularProgress, Button, IconButton,
     Dialog, DialogTitle, DialogContent, DialogActions, TextField, InputAdornment,
-    FormControl, InputLabel, Select, MenuItem, List, ListItem, ListItemText, Divider
+    FormControl, InputLabel, Select, MenuItem, List, ListItem, ListItemText, Divider,
+    FormControlLabel, Checkbox, Stack 
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { 
+    Edit as EditIcon, 
+    Delete as DeleteIcon, 
+    PictureAsPdf as PictureAsPdfIcon 
+} from '@mui/icons-material';
+
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { configuracoesService } from '../services/configuracoesService';
-import { faturamentoService } from '../services/faturamentoService'; // Import para pegar os planos
+import { faturamentoService } from '../services/faturamentoService';
+import { gerarPdfEspecialidades } from '../utils/tabelaValoresPdfGenerator'; // Ajuste o caminho se necessário
 
 export default function EspecialidadesPage() {
+    // --- ESTADOS: Dados ---
     const [especialidades, setEspecialidades] = useState([]);
     const [planosDisponiveis, setPlanosDisponiveis] = useState([]);
+    const [valoresConvenio, setValoresConvenio] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const { showSnackbar } = useSnackbar();
 
-    // Estados para o Modal de edição/criação
+    // --- ESTADOS: Interface e Formulários ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [itemParaEditar, setItemParaEditar] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({ nome: '', valor_consulta: '' });
-
-    // Estados para preificação de convênio
-    const [valoresConvenio, setValoresConvenio] = useState([]);
     const [planoSelecionadoId, setPlanoSelecionadoId] = useState('');
     const [valorConvenio, setValorConvenio] = useState('');
 
+    // --- ESTADOS: PDF ---
+    const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+    const [pdfOptions, setPdfOptions] = useState({ showValues: true });
+    const [isGerandoPdf, setIsGerandoPdf] = useState(false);
+
+    const { showSnackbar } = useSnackbar();
+
+    // --- EFEITOS E BUSCA DE DADOS ---
     const fetchDados = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -45,8 +57,11 @@ export default function EspecialidadesPage() {
         }
     }, [showSnackbar]);
 
-    useEffect(() => { fetchDados(); }, [fetchDados]);
+    useEffect(() => { 
+        fetchDados(); 
+    }, [fetchDados]);
 
+    // --- HANDLERS: Interface ---
     const handleOpenModal = (item = null) => {
         setItemParaEditar(item);
         if (item) {
@@ -67,6 +82,7 @@ export default function EspecialidadesPage() {
         setValorConvenio('');
     };
 
+    // --- HANDLERS: CRUD ---
     const handleSave = async () => {
         if (!formData.nome.trim()) return showSnackbar('O nome não pode estar vazio.', 'warning');
         setIsSubmitting(true);
@@ -81,8 +97,11 @@ export default function EspecialidadesPage() {
             showSnackbar('Especialidade salva com sucesso!', 'success');
             handleCloseModal();
             fetchDados();
-        } catch (error) { showSnackbar('Erro ao salvar.', 'error'); } 
-        finally { setIsSubmitting(false); }
+        } catch (error) { 
+            showSnackbar('Erro ao salvar.', 'error'); 
+        } finally { 
+            setIsSubmitting(false); 
+        }
     };
     
     const handleAddPrecoConvenio = async () => {
@@ -94,29 +113,68 @@ export default function EspecialidadesPage() {
                 valor: valorConvenio 
             });
             showSnackbar('Preço de convênio adicionado!', 'success');
-            setPlanoSelecionadoId(''); setValorConvenio('');
-            fetchDados(); // Recarrega para atualizar a lista
-            handleCloseModal(); // Fecha para forçar reabertura limpa (opcional)
-        } catch (error) { showSnackbar('Erro ao salvar preço.', 'error'); } 
-        finally { setIsSubmitting(false); }
+            setPlanoSelecionadoId(''); 
+            setValorConvenio('');
+            fetchDados();
+            handleCloseModal();
+        } catch (error) { 
+            showSnackbar('Erro ao salvar preço.', 'error'); 
+        } finally { 
+            setIsSubmitting(false); 
+        }
     };
 
     const handleDelete = async (id) => {
         if (window.confirm('Deseja deletar esta especialidade?')) {
-            try { await configuracoesService.deleteEspecialidade(id); fetchDados(); } 
-            catch { showSnackbar('Erro ao deletar.', 'error'); }
+            try { 
+                await configuracoesService.deleteEspecialidade(id); 
+                fetchDados(); 
+            } catch { 
+                showSnackbar('Erro ao deletar.', 'error'); 
+            }
         }
+    };
+
+    // --- HANDLERS: PDF ---
+    const handleGerarPdf = () => {
+        setIsGerandoPdf(true);
+        gerarPdfEspecialidades(especialidades, pdfOptions, async (blob) => {
+            try {
+                // Aqui você deve chamar seu serviço do Django que aplica a máscara
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Especialidades_Limale.pdf';
+                a.click();
+                
+                showSnackbar('PDF gerado com sucesso!', 'success');
+                setIsPdfModalOpen(false);
+            } catch (error) {
+                showSnackbar('Erro ao gerar PDF.', 'error');
+            } finally {
+                setIsGerandoPdf(false);
+            }
+        });
     };
 
     if (isLoading) return <CircularProgress />;
 
     return (
         <Paper sx={{ p: 2, margin: 'auto' }}>
+            {/* CABEÇALHO */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                 <Typography variant="h5">Especialidades e Consultas</Typography>
-                <Button variant="contained" onClick={() => handleOpenModal()}>Nova Especialidade</Button>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button variant="outlined" color="error" startIcon={<PictureAsPdfIcon />} onClick={() => setIsPdfModalOpen(true)}>
+                        PDF
+                    </Button>
+                    <Button variant="contained" onClick={() => handleOpenModal()}>
+                        Nova Especialidade
+                    </Button>
+                </Box>
             </Box>
             
+            {/* TABELA PRINCIPAL */}
             <TableContainer>
                 <Table size="small">
                     <TableHead>
@@ -141,6 +199,7 @@ export default function EspecialidadesPage() {
                 </Table>
             </TableContainer>
 
+            {/* MODAL DE EDIÇÃO/CRIAR ESPECIALIDADE */}
             <Dialog open={isModalOpen} onClose={handleCloseModal} maxWidth="sm" fullWidth>
                 <DialogTitle>{itemParaEditar ? 'Gerenciar Especialidade' : 'Nova Especialidade'}</DialogTitle>
                 <DialogContent dividers>
@@ -180,6 +239,28 @@ export default function EspecialidadesPage() {
                     <Button onClick={handleCloseModal}>Cancelar</Button>
                     <Button onClick={handleSave} variant="contained" disabled={isSubmitting}>
                         {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Especialidade'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* MODAL DE PDF */}
+            <Dialog open={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Exportar Especialidades</DialogTitle>
+                <DialogContent dividers>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Selecione quais informações devem constar no documento:
+                    </Typography>
+                    <Stack spacing={1}>
+                        <FormControlLabel
+                            control={<Checkbox checked={pdfOptions.showValues} onChange={(e) => setPdfOptions({...pdfOptions, showValues: e.target.checked})} />}
+                            label="Incluir Valores Particulares"
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setIsPdfModalOpen(false)} disabled={isGerandoPdf}>Cancelar</Button>
+                    <Button onClick={handleGerarPdf} variant="contained" color="error" startIcon={isGerandoPdf ? <CircularProgress size={20} color="inherit" /> : <PictureAsPdfIcon />} disabled={isGerandoPdf}>
+                        {isGerandoPdf ? 'Processando...' : 'Gerar Documento'}
                     </Button>
                 </DialogActions>
             </Dialog>

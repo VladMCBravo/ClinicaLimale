@@ -351,6 +351,10 @@ class AnamnesePediatria(models.Model):
         help_text="JSON com chaves: sono_diurno (Adequado/Alterado), sono_noturno (Adequado/Alterado), colica (Adequado/Alterado), choro (Adequado/Alterado), vinculo (Adequado/Alterado)")
     sono_comportamento_obs = models.TextField(blank=True, null=True, verbose_name="Observações Sono/Comportamento")
 
+    # --- Triagens Neonatais (aba Histórico do front já envia isso e não tinha onde salvar) ---
+    triagens = models.JSONField(default=dict, blank=True, null=True,
+        help_text="JSON com chaves: pezinho_status/desc, orelhinha_eoat_status/desc, orelhinha_bera_status/desc, olhinho_status/desc, coracaozinho_status/desc, linguinha_status/desc")
+
     # --- CAMPOS REMOVIDOS (Agora pertencem à Evolucao/SOAP Pediátrico) ---
     # sintomas = models.JSONField(...) <-- REMOVIDO (Fica na consulta atual)
     # peso = models.DecimalField(...) <-- REMOVIDO (Peso atual fica na evolução)
@@ -411,6 +415,58 @@ class AnamneseNeonatologia(models.Model):
     exames_realizados = models.JSONField(default=dict, blank=True, null=True, verbose_name="Exames Hospitalares (US-TF, Eco, etc.)")
     outros_exames = models.JSONField(default=list, blank=True, verbose_name="Lista de Outros Exames")
     # --- FIM DAS NOVAS ADIÇÕES ---
+
+    # --- ★ CAMPOS QUE O FORMULÁRIO (HistoricoNeonatologia.jsx) JÁ ENVIAVA MAS NÃO ---
+    # --- EXISTIAM AQUI: o DRF ignora silenciosamente chave que não é campo do   ---
+    # --- serializer, então esses dados eram descartados no salvamento sem erro. ---
+    gpa_g = models.PositiveIntegerField(null=True, blank=True, verbose_name="Gesta (G)")
+    gpa_p = models.PositiveIntegerField(null=True, blank=True, verbose_name="Para (P)")
+    gpa_a = models.PositiveIntegerField(null=True, blank=True, verbose_name="Aborto (A)")
+
+    condicoes_maternas = models.CharField(max_length=10, blank=True, null=True, verbose_name="Condições Maternas (Sim/Não)")
+    comorbidades_detalhes = models.JSONField(default=dict, blank=True, null=True, verbose_name="Comorbidades Maternas (JSON)")
+    comorbidades_outras_desc = models.TextField(blank=True, null=True, verbose_name="Descrição de Outras Comorbidades")
+
+    vicios = models.CharField(max_length=10, blank=True, null=True, verbose_name="Vícios Maternos (Sim/Não)")
+    vicios_detalhes = models.JSONField(default=dict, blank=True, null=True, verbose_name="Vícios Maternos (JSON)")
+    vicios_outros_desc = models.TextField(blank=True, null=True, verbose_name="Descrição de Outros Vícios")
+
+    rh_mae = models.CharField(max_length=5, blank=True, null=True, verbose_name="Rh Mãe")
+    anti_d = models.CharField(max_length=20, blank=True, null=True, verbose_name="Recebeu Anti-D")
+    tipo_sanguineo_rn = models.CharField(max_length=5, blank=True, null=True, verbose_name="Tipo Sanguíneo RN")
+    rh_rn = models.CharField(max_length=5, blank=True, null=True, verbose_name="Rh RN")
+    coombs_direto_rn = models.CharField(max_length=50, blank=True, null=True, verbose_name="Coombs Direto RN")
+    eluato = models.CharField(max_length=50, blank=True, null=True, verbose_name="Eluato")
+
+    profilaxia_bolsa = models.CharField(max_length=20, blank=True, null=True, verbose_name="Profilaxia Adequada (Bolsa Rota)")
+
+    apgar_1 = models.PositiveIntegerField(null=True, blank=True, verbose_name="APGAR 1º Min")
+    apgar_5 = models.PositiveIntegerField(null=True, blank=True, verbose_name="APGAR 5º Min")
+    apgar_10 = models.PositiveIntegerField(null=True, blank=True, verbose_name="APGAR 10º Min")
+
+    reanimacao_status = models.CharField(max_length=10, blank=True, null=True, verbose_name="Houve Reanimação (Sim/Não)")
+    reanimacao_opcoes = models.JSONField(default=dict, blank=True, null=True, verbose_name="Manobras de Reanimação (JSON)")
+    reanimacao_obs = models.TextField(blank=True, null=True, verbose_name="Observações da Reanimação")
+
+    ig_semanas = models.PositiveIntegerField(null=True, blank=True, verbose_name="IG na Alta (Semanas)")
+    ig_dias = models.PositiveIntegerField(null=True, blank=True, verbose_name="IG na Alta (Dias)")
+    peso_adequacao = models.CharField(max_length=20, blank=True, null=True, verbose_name="Adequação Peso/IG (PIG/AIG/GIG)")
+    peso_alta = models.PositiveIntegerField(null=True, blank=True, verbose_name="Peso na Alta (g)")
+
+    suporte_vm_d = models.PositiveIntegerField(null=True, blank=True, verbose_name="Ventilação Mecânica (dias)")
+    suporte_cpap_d = models.PositiveIntegerField(null=True, blank=True, verbose_name="CPAP (dias)")
+    suporte_o2_d = models.PositiveIntegerField(null=True, blank=True, verbose_name="O2 Suplementar (dias)")
+    fototerapia_d = models.PositiveIntegerField(null=True, blank=True, verbose_name="Fototerapia (dias)")
+    npp_d = models.PositiveIntegerField(null=True, blank=True, verbose_name="NPP (dias)")
+    antibioticos_d = models.PositiveIntegerField(null=True, blank=True, verbose_name="Antibióticos (dias)")
+    antibioticos_esquema = models.CharField(max_length=255, blank=True, null=True, verbose_name="Esquema Antibiótico")
+
+    us_tf_data = models.DateField(null=True, blank=True, verbose_name="US Transfontanelar (Data)")
+    us_tf_resultado = models.CharField(max_length=255, blank=True, null=True, verbose_name="US Transfontanelar (Resultado)")
+    eco_data = models.DateField(null=True, blank=True, verbose_name="Ecocardiograma (Data)")
+    eco_resultado = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ecocardiograma (Resultado)")
+    fundo_olho_data = models.DateField(null=True, blank=True, verbose_name="Fundo de Olho (Data)")
+    fundo_olho_resultado = models.CharField(max_length=255, blank=True, null=True, verbose_name="Fundo de Olho (Resultado)")
 
     def __str__(self):
         return f"Dados Neonatais de {self.anamnese.paciente.nome_completo}"

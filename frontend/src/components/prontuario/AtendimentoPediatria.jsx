@@ -314,22 +314,34 @@ export default function AtendimentoPediatria({ pacienteId, agendamentoId, onEvol
 
         try {
             const evolucaoId = await handleSaveSOAPAndVitals();
-            const savePromises = [];
+            const saveTasks = [];
 
-            if (historicoRef.current) savePromises.push(historicoRef.current.saveData());
-            if (dnpmRef.current) savePromises.push(dnpmRef.current.saveData());
-            if (vacinacaoRef.current) savePromises.push(vacinacaoRef.current.saveData());
+            if (historicoRef.current) saveTasks.push({ label: 'Histórico', promise: historicoRef.current.saveData() });
+            if (dnpmRef.current) saveTasks.push({ label: 'DNPM', promise: dnpmRef.current.saveData() });
+            if (vacinacaoRef.current) saveTasks.push({ label: 'Vacinação', promise: vacinacaoRef.current.saveData() });
 
-            await Promise.all(savePromises);
-            showSnackbar(isSessaoIniciada ? 'Atendimento atualizado com sucesso!' : 'Atendimento salvo com sucesso!', 'success');
-            
+            // allSettled em vez de all: uma aba falhar (ex: validação) não deve mascarar
+            // o fato de que o SOAP da consulta atual já foi salvo, e permite reportar
+            // exatamente qual aba falhou em vez de um erro genérico ou silêncio.
+            const settled = await Promise.allSettled(saveTasks.map(t => t.promise));
+            const falhas = saveTasks.filter((_, index) => settled[index].status === 'rejected');
+
+            if (falhas.length > 0) {
+                showSnackbar(
+                    `Consulta atual salva, mas houve erro ao salvar: ${falhas.map(f => f.label).join(', ')}. Verifique essas abas e tente salvar novamente.`,
+                    'error'
+                );
+            } else {
+                showSnackbar(isSessaoIniciada ? 'Atendimento atualizado com sucesso!' : 'Atendimento salvo com sucesso!', 'success');
+            }
+
             fetchStatusResumos();
-            
+
             if(onEvolucaoSalva) {
-                onEvolucaoSalva(evolucaoId); 
+                onEvolucaoSalva(evolucaoId);
             }
         } catch (error) {
-            if (!error.response) { 
+            if (!error.response) {
                  showSnackbar('Ocorreu um erro ao orquestrar o salvamento.', 'error');
             }
         } finally {
