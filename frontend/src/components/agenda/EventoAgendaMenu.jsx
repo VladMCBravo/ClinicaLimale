@@ -1,6 +1,6 @@
 // src/components/agenda/EventoAgendaMenu.jsx
 import React, { useState } from 'react';
-import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Select, FormControl } from '@mui/material';
+import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Select, FormControl, Snackbar, Alert } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useNavigate } from 'react-router-dom';
 import { FaEdit, FaFileMedical, FaStethoscope, FaWhatsapp, FaUserEdit } from 'react-icons/fa';
@@ -18,17 +18,16 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
     const [documentoAberto, setDocumentoAberto] = useState(false);
     const [documentoDados, setDocumentoDados] = useState(null);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    
+    // NOVO: Estado para o aviso de segurança
+    const [alertaAuthOpen, setAlertaAuthOpen] = useState(false);
 
-    // --- CORREÇÃO: FUNÇÃO DE ALTERAÇÃO DE STATUS BLINDADA ---
     const handleStatusChange = async (event) => {
         const novoStatus = event.target.value;
         if (!selectedEvent) return;
 
         setIsUpdatingStatus(true);
         try {
-            // O Backend possui validações que exigem os campos principais mesmo num PATCH.
-            // Como no AgendaPrincipal nós espalhamos os dados do backend no extendedProps,
-            // podemos puxá-los diretamente daqui para montar um pacote "à prova de erros".
             const dadosOriginais = selectedEvent.extendedProps;
             
             const payload = {
@@ -36,8 +35,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                 paciente: dadosOriginais.paciente_id || dadosOriginais.paciente,
                 data_hora_inicio: dadosOriginais.data_hora_inicio || selectedEvent.startStr,
                 data_hora_fim: dadosOriginais.data_hora_fim || selectedEvent.endStr,
-                
-                // Enviamos sala e médico por precaução (caso as regras do backend exijam)
                 sala: dadosOriginais.sala,
                 medico: dadosOriginais.medico
             };
@@ -80,17 +77,29 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         onClose();
     };
 
+    // CORREÇÃO 1: Mapeamento inteligente para evitar a tela branca no laudo
     const handleActionLaudo = () => {
         const dados = selectedEvent?.extendedProps;
         if (!dados || !dados.paciente_id) {
             alert("Erro: Este agendamento não tem um paciente vinculado.");
             return;
         }
+
+        // Garante que o LaudosPage.jsx receba a chave exata da aba, senão ele não desenha nada
+        const rawProc = (dados.tipo_procedimento || dados.procedimento_descricao || '').toUpperCase();
+        let tipoSeguro = 'OBSTETRICO'; // Padrão seguro (Medicina Fetal)
+
+        if (rawProc.includes('TRANSVAGINAL') || rawProc.includes('TV')) tipoSeguro = 'TRANSVAGINAL';
+        else if (rawProc.includes('ABDOME') || rawProc.includes('ABDOMINAL')) tipoSeguro = 'ABDOME';
+        else if (rawProc.includes('ECOCARDIOGRAMA') || rawProc.includes('CARDIO')) tipoSeguro = 'ECOCARDIOGRAMA';
+        else if (rawProc.includes('CAROTIDA')) tipoSeguro = 'DOPPLER_CAROTIDAS';
+        else if (rawProc.includes('ELETRO')) tipoSeguro = 'ELETROCARDIOGRAMA';
+
         const draftLaudo = {
             paciente: { id: dados.paciente_id, nome_completo: selectedEvent.title },
             medicoNome: dados.medico_nome,
             medicoCrm: dados.medico_crm,
-            tipoExame: dados.tipo_procedimento !== 'CONSULTA' ? dados.tipo_procedimento : 'OBSTETRICO',
+            tipoExame: tipoSeguro,
             textoFinal: '',
             dadosEstruturados: {}
         };
@@ -99,12 +108,35 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         navigate('/laudos');
     };
 
+    // CORREÇÃO 2: Trava de segurança com alerta elegante
     const handleActionOriginalConsulta = () => {
         const dados = selectedEvent?.extendedProps;
         if (!dados?.paciente_id) {
             alert("Erro: Paciente não identificado.");
             return;
         }
+
+        // Verifica o perfil de quem está usando o sistema agora
+        let temAcessoMedico = false;
+        try {
+            const userStorage = localStorage.getItem('user') || localStorage.getItem('usuario');
+            if (userStorage) {
+                const userObj = JSON.parse(userStorage);
+                // Permite apenas médicos (e admins, caso o dono da clínica queira testar)
+                if (userObj.cargo === 'medico' || userObj.cargo === 'admin') {
+                    temAcessoMedico = true;
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao verificar acesso", error);
+        }
+
+        if (!temAcessoMedico) {
+            setAlertaAuthOpen(true); // Mostra o pop-up bonitinho
+            onClose();               // Fecha o menu da agenda
+            return;                  // Cancela a navegação
+        }
+
         navigate('/painel-medico', {
             state: {
                 agendamentoId: selectedEvent.id,
@@ -265,6 +297,23 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                     horaFimInicial={documentoDados?.horaFimInicial}
                 />
             )}
+
+            {/* AVISO ELEGANTE DE ACESSO NEGADO */}
+            <Snackbar 
+                open={alertaAuthOpen} 
+                autoHideDuration={4000} 
+                onClose={() => setAlertaAuthOpen(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert 
+                    onClose={() => setAlertaAuthOpen(false)} 
+                    severity="warning" 
+                    variant="filled" 
+                    sx={{ width: '100%', fontWeight: 600, borderRadius: 2, fontSize: '0.9rem' }}
+                >
+                    Acesso Restrito: O atendimento iniciará após o login médico.
+                </Alert>
+            </Snackbar>
         </>
     );
 }
