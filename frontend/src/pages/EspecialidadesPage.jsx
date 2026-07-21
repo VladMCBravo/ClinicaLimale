@@ -137,35 +137,34 @@ export default function EspecialidadesPage() {
 
     // --- HANDLERS: PDF ---
     const handleGerarPdf = () => {
-    setIsGerandoPdf(true);
-    
-    gerarPdfProcedimentos(filteredList, pdfOptions, async (blob) => {
-        try {
-            const formData = new FormData();
-            // Verifique se o seu Django espera o nome 'pdf_file', 'arquivo', etc.
-            formData.append('pdf_file', blob, 'procedimentos_raw.pdf'); 
-            
-            // Chama a nova função do serviço:
-            const response = await faturamentoService.mascararPdfProcedimentos(formData);
-            
-            // Cria um URL com o Blob MASCRADO devolvido pelo Django
-            const maskedBlob = new Blob([response.data], { type: 'application/pdf' });
-            const url = URL.createObjectURL(maskedBlob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'Procedimentos_Limale.pdf';
-            a.click();
-            
-            showSnackbar('PDF gerado com sucesso!', 'success');
-            setIsPdfModalOpen(false);
-        } catch (error) {
-            showSnackbar('Erro ao processar o PDF no servidor.', 'error');
-        } finally {
-            setIsGerandoPdf(false);
-        }
-    });
-};
+        setIsGerandoPdf(true);
+        
+        // CORREÇÃO 1: Usamos 'gerarPdfEspecialidades' e a lista 'especialidades'
+        gerarPdfEspecialidades(especialidades, pdfOptions, async (blob) => {
+            try {
+                const formData = new FormData();
+                formData.append('pdf_file', blob, 'especialidades_raw.pdf'); 
+                
+                // CORREÇÃO 2: Chamamos o serviço de configurações que criamos
+                const response = await configuracoesService.mascararPdfEspecialidades(formData);
+                
+                const maskedBlob = new Blob([response.data], { type: 'application/pdf' });
+                const url = URL.createObjectURL(maskedBlob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Especialidades_Limale.pdf';
+                a.click();
+                
+                showSnackbar('PDF gerado com sucesso!', 'success');
+                setIsPdfModalOpen(false);
+            } catch (error) {
+                showSnackbar('Erro ao processar o PDF no servidor.', 'error');
+            } finally {
+                setIsGerandoPdf(false);
+            }
+        });
+    };
     if (isLoading) return <CircularProgress />;
 
     return (
