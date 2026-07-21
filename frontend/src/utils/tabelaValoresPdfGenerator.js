@@ -31,7 +31,7 @@ const getBase64FromUrl = async (url) => {
 };
 
 // ==========================================
-// GERADOR: PROCEDIMENTOS (COM MÁSCARA FRONTEND)
+// GERADOR: PROCEDIMENTOS (CORRIGIDO A QUEBRA DE PÁGINA)
 // ==========================================
 export const gerarPdfProcedimentos = async (procedimentos, options, onPdfGerado) => {
     try {
@@ -82,16 +82,18 @@ export const gerarPdfProcedimentos = async (procedimentos, options, onPdfGerado)
                 bodyProcs.push(row);
             });
 
+            // CORREÇÃO AQUI: Título livre e tabela quebrando organicamente entre páginas.
+            // Apenas a linha individual da tabela está protegida com dontBreakRows.
+            content.push({ text: nomeCategoria.toUpperCase(), style: 'subHeader', margin: [0, 10, 0, 5] });
             content.push({
-                unbreakable: true, 
-                stack: [
-                    { text: nomeCategoria.toUpperCase(), style: 'subHeader', margin: [0, 10, 0, 5] },
-                    {
-                        table: { headerRows: 1, dontBreakRows: true, widths: tableWidths, body: bodyProcs },
-                        layout: 'lightHorizontalLines',
-                        margin: [0, 0, 0, 15]
-                    }
-                ]
+                table: { 
+                    headerRows: 1, 
+                    dontBreakRows: true, // Impede de cortar um exame no meio, mas deixa a tabela quebrar
+                    widths: tableWidths, 
+                    body: bodyProcs 
+                },
+                layout: 'lightHorizontalLines',
+                margin: [0, 0, 0, 15]
             });
         });
 
@@ -119,7 +121,7 @@ export const gerarPdfProcedimentos = async (procedimentos, options, onPdfGerado)
 };
 
 // ==========================================
-// GERADOR: ESPECIALIDADES (COM MÁSCARA FRONTEND)
+// GERADOR: ESPECIALIDADES 
 // ==========================================
 export const gerarPdfEspecialidades = async (especialidades, options, onPdfGerado) => {
     try {
