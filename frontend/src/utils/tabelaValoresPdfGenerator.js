@@ -17,7 +17,7 @@ const defaultStyles = {
 };
 
 // ==========================================
-// GERADOR: PROCEDIMENTOS
+// GERADOR: PROCEDIMENTOS (Elegante)
 // ==========================================
 export const gerarPdfProcedimentos = (procedimentos, options, onPdfGerado) => {
     const dataFormatada = new Date().toLocaleDateString('pt-BR');
@@ -43,15 +43,13 @@ export const gerarPdfProcedimentos = (procedimentos, options, onPdfGerado) => {
         return acc;
     }, {});
 
-    // Definição dinâmica de colunas
     const tableWidths = [];
-    if (options.showTuss) tableWidths.push(60);
+    if (options.showTuss) tableWidths.push(65);
     tableWidths.push('*');
     if (options.showValues) tableWidths.push(100);
 
     Object.entries(procsPorCategoria).forEach(([categoria, procs]) => {
         const nomeCategoria = CAT_LABELS[categoria] || categoria.replace('_', ' ');
-        content.push({ text: nomeCategoria.toUpperCase(), style: 'subHeader', margin: [0, 10, 0, 5] });
 
         const headerRow = [];
         if (options.showTuss) headerRow.push({ text: 'CÓD. TUSS', style: 'tableHeader', fillColor: '#F5F5F5', border: [false, false, false, true] });
@@ -68,16 +66,28 @@ export const gerarPdfProcedimentos = (procedimentos, options, onPdfGerado) => {
             bodyProcs.push(row);
         });
 
+        // A MÁGICA DA ELEGÂNCIA ESTÁ AQUI: "unbreakable: true" agrupa o Título e a Tabela
         content.push({
-            table: { headerRows: 1, widths: tableWidths, body: bodyProcs },
-            layout: 'lightHorizontalLines',
-            margin: [0, 0, 0, 15]
+            unbreakable: true, 
+            stack: [
+                { text: nomeCategoria.toUpperCase(), style: 'subHeader', margin: [0, 10, 0, 5] },
+                {
+                    table: { 
+                        headerRows: 1, 
+                        dontBreakRows: true, // Impede que uma linha rache no meio entre as páginas
+                        widths: tableWidths, 
+                        body: bodyProcs 
+                    },
+                    layout: 'lightHorizontalLines',
+                    margin: [0, 0, 0, 15]
+                }
+            ]
         });
     });
 
     const docDefinition = {
         pageSize: 'A4',
-        pageMargins: [40, 170, 40, 60], // Margens exatas do Django
+        pageMargins: [40, 170, 40, 60],
         content: content,
         styles: defaultStyles,
         defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.2 }
@@ -87,7 +97,7 @@ export const gerarPdfProcedimentos = (procedimentos, options, onPdfGerado) => {
 };
 
 // ==========================================
-// GERADOR: ESPECIALIDADES
+// GERADOR: ESPECIALIDADES (Elegante)
 // ==========================================
 export const gerarPdfEspecialidades = (especialidades, options, onPdfGerado) => {
     const dataFormatada = new Date().toLocaleDateString('pt-BR');
@@ -112,14 +122,19 @@ export const gerarPdfEspecialidades = (especialidades, options, onPdfGerado) => 
     });
 
     content.push({
-        table: { headerRows: 1, widths: tableWidths, body: bodyConsultas },
+        table: { 
+            headerRows: 1, 
+            dontBreakRows: true, // Mesma correção aqui
+            widths: tableWidths, 
+            body: bodyConsultas 
+        },
         layout: 'lightHorizontalLines',
         margin: [0, 0, 0, 20]
     });
 
     const docDefinition = {
         pageSize: 'A4',
-        pageMargins: [40, 170, 40, 60], // Margens exatas do Django
+        pageMargins: [40, 170, 40, 60], 
         content: content,
         styles: defaultStyles,
         defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.2 }
