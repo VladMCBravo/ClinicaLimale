@@ -199,6 +199,7 @@ export default function AgendaPrincipal({
     kpis = {},
     loadingKpis = false,
     onNovoPaciente,
+    onEditarPaciente,
     onBuscarHorario,
     onTabelaPrecos,
     onStatusWhatsapp
@@ -718,6 +719,7 @@ useEffect(() => {
                 selectedEvent={selectedEvent}
                 onClose={handleCloseMenu}
                 onEditar={onEventClick}
+                onEditarPaciente={onEditarPaciente}
             />
         </Box>
     );
