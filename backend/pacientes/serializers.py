@@ -49,6 +49,10 @@ class PacienteSerializer(serializers.ModelSerializer):
             'nome_responsavel',
             'cpf_responsavel',
             'telefone_responsavel',
+            # --- NOVOS CAMPOS: EMERGÊNCIA ---
+            'contato_emergencia_nome',
+            'contato_emergencia_telefone',
+            'contato_emergencia_parentesco',
 
             # Dados do Convênio
             'plano_convenio',

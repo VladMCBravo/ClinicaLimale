@@ -49,6 +49,10 @@ class Paciente(models.Model):
     nome_responsavel = models.CharField(max_length=255, blank=True, help_text="Nome do responsável (se o paciente for menor)")
     cpf_responsavel = models.CharField(max_length=14, blank=True, help_text="CPF do responsável")
     telefone_responsavel = models.CharField(max_length=20, blank=True, help_text="Telefone do responsável (se diferente do principal)")
+    # --- NOVOS CAMPOS: EMERGÊNCIA ---
+    contato_emergencia_nome = models.CharField(max_length=255, blank=True, help_text="Nome do contato de emergência")
+    contato_emergencia_telefone = models.CharField(max_length=20, blank=True, help_text="Telefone do contato de emergência")
+    contato_emergencia_parentesco = models.CharField(max_length=50, blank=True, help_text="Grau de parentesco (Ex: Mãe, Cônjuge)")
     
     # Usamos uma string para referenciar o modelo de outro app
     plano_convenio = models.ForeignKey(
