@@ -15,13 +15,7 @@ export const faturamentoService = {
         });
     },
 
-    // --- NOVA FUNÇÃO PARA APLICAR MÁSCARA NO PDF ---
-    mascararPdfProcedimentos: (formData) => {
-        return apiClient.post('/faturamento/procedimentos/mascarar-pdf/', formData, {
-            responseType: 'blob', // Crucial para receber o PDF corretamente
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-    },
+    
 
     definirPrecoConvenio: (procedimentoId, data) => apiClient.post(`/faturamento/procedimentos/${procedimentoId}/definir-preco-convenio/`, data),
     getPlanosConvenio: () => apiClient.get('/faturamento/planos/'),
