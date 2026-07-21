@@ -135,36 +135,28 @@ export default function EspecialidadesPage() {
         }
     };
 
-    // --- HANDLERS: PDF ---
+    /// --- HANDLERS: PDF ---
     const handleGerarPdf = () => {
         setIsGerandoPdf(true);
         
-        // CORREÇÃO 1: Usamos 'gerarPdfEspecialidades' e a lista 'especialidades'
-        gerarPdfEspecialidades(especialidades, pdfOptions, async (blob) => {
+        gerarPdfEspecialidades(especialidades, pdfOptions, (blob) => {
             try {
-                const formData = new FormData();
-                formData.append('pdf_file', blob, 'especialidades_raw.pdf'); 
-                
-                // CORREÇÃO 2: Chamamos o serviço de configurações que criamos
-                const response = await configuracoesService.mascararPdfEspecialidades(formData);
-                
-                const maskedBlob = new Blob([response.data], { type: 'application/pdf' });
-                const url = URL.createObjectURL(maskedBlob);
-                
+                const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = 'Especialidades_Limale.pdf';
                 a.click();
                 
                 showSnackbar('PDF gerado com sucesso!', 'success');
-                setIsPdfModalOpen(false);
             } catch (error) {
-                showSnackbar('Erro ao processar o PDF no servidor.', 'error');
+                showSnackbar('Erro ao processar o PDF.', 'error');
             } finally {
+                setIsPdfModalOpen(false);
                 setIsGerandoPdf(false);
             }
         });
     };
+    
     if (isLoading) return <CircularProgress />;
 
     return (

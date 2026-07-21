@@ -21,14 +21,6 @@ const deleteEspecialidade = (id) => {
     return apiClient.delete(`/usuarios/especialidades/${id}/`);
 };
 
-// --- NOVA FUNÇÃO PARA APLICAR MÁSCARA NO PDF ---
-const mascararPdfEspecialidades = (formData) => {
-    return apiClient.post('/usuarios/especialidades/mascarar-pdf/', formData, {
-        responseType: 'blob', // Crucial para receber o PDF corretamente
-        headers: { 'Content-Type': 'multipart/form-data' }
-    });
-};
-
 // --- ADICIONE AS FUNÇÕES ABAIXO ---
 
 const getJornadas = (medicoId = null) => {
@@ -65,7 +57,6 @@ export const configuracoesService = {
     createEspecialidade,
     updateEspecialidade,
     deleteEspecialidade,
-    mascararPdfEspecialidades, // <-- Função adicionada aqui
     getJornadas,
     createJornada,
     updateJornada,
