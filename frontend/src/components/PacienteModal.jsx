@@ -18,7 +18,7 @@ import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from './common/MaskedInput
 
 const initialState = {
   nome_completo: '', data_nascimento: '', email: '', telefone_celular: '', cpf: '', genero: '',
-  peso: '', altura: '', medico_responsavel: null,
+  peso: '', altura: '', dum: '', medico_responsavel: null,
   plano_convenio: null, numero_carteirinha: '',
   cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
   nome_responsavel: '', cpf_responsavel: '', telefone_responsavel: '',
@@ -44,6 +44,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   
   const [formData, setFormData] = useState(initialState);
   const [dataNascimentoVisual, setDataNascimentoVisual] = useState('');
+  const [dumVisual, setDumVisual] = useState(''); // <--- NOVO: Estado visual da DUM
   const [tabIndex, setTabIndex] = useState(0); 
   const [isLoading, setIsLoading] = useState(false);
   const [isCepLoading, setIsCepLoading] = useState(false);
@@ -69,12 +70,22 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     if (open) {
       setTabIndex(0);
       if (pacienteParaEditar) {
+        // Formata Nascimento
         let dataVisual = '';
         if (pacienteParaEditar.data_nascimento) {
             const [ano, mes, dia] = pacienteParaEditar.data_nascimento.split('-');
             dataVisual = `${dia}/${mes}/${ano}`;
         }
         setDataNascimentoVisual(dataVisual);
+
+        // Formata DUM
+        let dumVisualValue = '';
+        if (pacienteParaEditar.dum) {
+            const [ano, mes, dia] = pacienteParaEditar.dum.split('-');
+            dumVisualValue = `${dia}/${mes}/${ano}`;
+        }
+        setDumVisual(dumVisualValue);
+
         setFormData({
           nome_completo: pacienteParaEditar.nome_completo || '',
           data_nascimento: pacienteParaEditar.data_nascimento || '',
@@ -84,6 +95,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           genero: pacienteParaEditar.genero || '',
           peso: pacienteParaEditar.peso || '',
           altura: pacienteParaEditar.altura || '',
+          dum: pacienteParaEditar.dum || '',
           medico_responsavel: pacienteParaEditar.medico_responsavel || null,
           plano_convenio: pacienteParaEditar.plano_convenio || null,
           numero_carteirinha: pacienteParaEditar.numero_carteirinha || '',
@@ -109,6 +121,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         setConvenioSelecionado(null);
         setPlanosFiltrados([]);
         setDataNascimentoVisual('');
+        setDumVisual('');
       }
     }
   }, [pacienteParaEditar, open, nomeInicial]);
@@ -132,6 +145,17 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           setFormData(prev => ({ ...prev, data_nascimento: `${ano}-${mes}-${dia}` }));
       } else {
           setFormData(prev => ({ ...prev, data_nascimento: '' }));
+      }
+  };
+
+  const handleDumChange = (e) => {
+      const valorVisual = e.target.value;
+      setDumVisual(valorVisual);
+      if (valorVisual.length === 10) {
+          const [dia, mes, ano] = valorVisual.split('/');
+          setFormData(prev => ({ ...prev, dum: `${ano}-${mes}-${dia}` }));
+      } else {
+          setFormData(prev => ({ ...prev, dum: '' }));
       }
   };
 
@@ -183,6 +207,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
       ...formData,
       peso: formData.peso === '' ? null : formData.peso,
       altura: formData.altura === '' ? null : formData.altura,
+      dum: formData.dum === '' ? null : formData.dum, // Garante que DUM vazio vire null
       cpf: formData.cpf === '' ? null : formData.cpf,
       email: formData.email === '' ? null : formData.email
     }; 
@@ -273,10 +298,12 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         return (
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
              <Grid item xs={12}>
-                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700, color: '#1C2E4A' }}>Dados Físicos</Typography>
+                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700, color: '#1C2E4A' }}>Dados Físicos & Obstétricos</Typography>
                  <Grid container spacing={2}>
-                    <Grid item xs={6}><TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth size="small" /></Grid>
-                    <Grid item xs={6}><TextField name="altura" label="Altura (cm)" type="number" value={formData.altura} onChange={handleChange} fullWidth size="small" /></Grid>
+                    {/* ADICIONADO AQUI: DUM dividindo espaço com Peso e Altura */}
+                    <Grid item xs={4}><TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={4}><TextField name="altura" label="Altura (cm)" type="number" value={formData.altura} onChange={handleChange} fullWidth size="small" /></Grid>
+                    <Grid item xs={4}><TextField name="dum" label="DUM" value={dumVisual} onChange={handleDumChange} fullWidth size="small" placeholder="DD/MM/AAAA" InputProps={{ inputComponent: TextMaskData }} /></Grid>
                  </Grid>
              </Grid>
              <Grid item xs={12}>
@@ -319,7 +346,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
       case 3:
         return (
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
-             {/* ESTRUTURA LADO A LADO PARA ELIMINAR A BARRA DE ROLAGEM */}
              <Grid item xs={12} md={6}>
                  <Paper variant="outlined" sx={{ p: 2, height: '100%', bgcolor: '#f8f9fa', borderRadius: 2 }}>
                     <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700, color: '#1C2E4A' }}>Responsável Legal</Typography>
@@ -393,7 +419,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
             </Tabs>
         </Paper>
         
-        {/* CONTEÚDO SEM BARRA DE ROLAGEM VERTICAL */}
         <DialogContent sx={{ py: 2.5, px: 3, overflowY: 'hidden' }}>
             {renderTabContent()}
         </DialogContent>

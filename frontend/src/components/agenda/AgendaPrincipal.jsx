@@ -720,6 +720,7 @@ useEffect(() => {
                 onClose={handleCloseMenu}
                 onEditar={onEventClick}
                 onEditarPaciente={onEditarPaciente}
+                onStatusUpdated={() => calendarRef.current?.getApi().refetchEvents()} 
             />
         </Box>
     );
