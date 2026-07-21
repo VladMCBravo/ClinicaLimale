@@ -46,7 +46,12 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const fetchTemplates = useCallback(async () => {
         setIsLoadingTemplates(true);
         try {
-            const res = await apiClient.get(`/prontuario/templates/?especialidade=${especialidade}`);
+            // Sem especialidade (ex: paciente aberto via "Meus Pacientes", sem agendamento
+            // ativo), busca todos os modelos em vez de mandar "especialidade=undefined".
+            const url = especialidade
+                ? `/prontuario/templates/?especialidade=${especialidade}`
+                : `/prontuario/templates/`;
+            const res = await apiClient.get(url);
             setTemplates(res.data);
         } catch (err) {
             showSnackbar('Erro ao carregar modelos de relatório.', 'error');
@@ -68,7 +73,11 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     }, [pacienteId, showSnackbar]);
 
     useEffect(() => {
-        if (pacienteId && especialidade) {
+        // 'especialidade' NÃO é obrigatória aqui: paciente aberto via "Meus Pacientes"
+        // (sem agendamento ativo) chega com especialidade undefined, mas o médico ainda
+        // precisa ver os modelos 'geral' (Comparecimento, Afastamento, etc.) e o
+        // histórico de relatórios já salvos.
+        if (pacienteId) {
             fetchTemplates();
             fetchSavedReports();
         }

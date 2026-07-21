@@ -138,10 +138,19 @@ export default function EspecialidadesPage() {
     // --- HANDLERS: PDF ---
     const handleGerarPdf = () => {
         setIsGerandoPdf(true);
+        
+        // CORREÇÃO 1: Usamos 'gerarPdfEspecialidades' e a lista 'especialidades'
         gerarPdfEspecialidades(especialidades, pdfOptions, async (blob) => {
             try {
-                // Aqui você deve chamar seu serviço do Django que aplica a máscara
-                const url = URL.createObjectURL(blob);
+                const formData = new FormData();
+                formData.append('pdf_file', blob, 'especialidades_raw.pdf'); 
+                
+                // CORREÇÃO 2: Chamamos o serviço de configurações que criamos
+                const response = await configuracoesService.mascararPdfEspecialidades(formData);
+                
+                const maskedBlob = new Blob([response.data], { type: 'application/pdf' });
+                const url = URL.createObjectURL(maskedBlob);
+                
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = 'Especialidades_Limale.pdf';
@@ -150,13 +159,12 @@ export default function EspecialidadesPage() {
                 showSnackbar('PDF gerado com sucesso!', 'success');
                 setIsPdfModalOpen(false);
             } catch (error) {
-                showSnackbar('Erro ao gerar PDF.', 'error');
+                showSnackbar('Erro ao processar o PDF no servidor.', 'error');
             } finally {
                 setIsGerandoPdf(false);
             }
         });
     };
-
     if (isLoading) return <CircularProgress />;
 
     return (
