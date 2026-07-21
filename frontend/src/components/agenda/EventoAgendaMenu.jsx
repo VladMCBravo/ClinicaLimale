@@ -1,11 +1,11 @@
 // src/components/agenda/EventoAgendaMenu.jsx
 import React, { useState } from 'react';
-import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Select, FormControl, CircularProgress } from '@mui/material';
+import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Select, FormControl } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useNavigate } from 'react-router-dom';
 import { FaEdit, FaFileMedical, FaStethoscope, FaWhatsapp, FaUserEdit } from 'react-icons/fa';
 import AtestadoModal from '../laudos/AtestadoModal';
-import apiClient from '../../api/axiosConfig'; // <-- Adicionado para a chamada de API
+import apiClient from '../../api/axiosConfig'; 
 
 const CLINICA_ENDERECO = 'Rua Orense, 41 - Sala 512, Centro - Diadema/SP';
 const CLINICA_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('Rua Orense, 41 - Centro, Diadema - SP')}`;
@@ -19,22 +19,38 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
     const [documentoDados, setDocumentoDados] = useState(null);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-    // FUNÇÃO QUE FAZ A MÁGICA DE ALTERAR O STATUS
+    // --- CORREÇÃO: FUNÇÃO DE ALTERAÇÃO DE STATUS BLINDADA ---
     const handleStatusChange = async (event) => {
         const novoStatus = event.target.value;
         if (!selectedEvent) return;
 
         setIsUpdatingStatus(true);
         try {
-            await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, { status: novoStatus });
-            // Se o pai passou a função, manda a agenda dar "refresh" para o evento mudar de cor
+            // O Backend possui validações que exigem os campos principais mesmo num PATCH.
+            // Como no AgendaPrincipal nós espalhamos os dados do backend no extendedProps,
+            // podemos puxá-los diretamente daqui para montar um pacote "à prova de erros".
+            const dadosOriginais = selectedEvent.extendedProps;
+            
+            const payload = {
+                status: novoStatus,
+                paciente: dadosOriginais.paciente_id || dadosOriginais.paciente,
+                data_hora_inicio: dadosOriginais.data_hora_inicio || selectedEvent.startStr,
+                data_hora_fim: dadosOriginais.data_hora_fim || selectedEvent.endStr,
+                
+                // Enviamos sala e médico por precaução (caso as regras do backend exijam)
+                sala: dadosOriginais.sala,
+                medico: dadosOriginais.medico
+            };
+
+            await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, payload);
+            
             if (onStatusUpdated) {
                 onStatusUpdated();
             }
             onClose();
         } catch (error) {
-            console.error("Erro ao atualizar status", error);
-            alert("Erro ao atualizar o status do agendamento.");
+            console.error("Erro ao atualizar status", error.response?.data || error);
+            alert("Erro ao atualizar o status. Os campos exigidos não puderam ser processados.");
         } finally {
             setIsUpdatingStatus(false);
         }
@@ -180,7 +196,7 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                     )}
                 </Box>
 
-                {/* NOVO: SELETOR DE STATUS EXPRESSO */}
+                {/* SELETOR DE STATUS EXPRESSO */}
                 <Box sx={{ p: 1.5, bgcolor: '#f8f9fa', borderBottom: '1px solid #e0e0e0' }}>
                     <FormControl fullWidth size="small">
                         <Select
