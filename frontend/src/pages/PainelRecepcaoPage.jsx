@@ -166,6 +166,11 @@ export default function PainelRecepcaoPage() {
                         onBuscarHorario={() => setIsDispoOpen(true)}
                         onTabelaPrecos={() => setIsValoresModalOpen(true)}
                         onStatusWhatsapp={() => setIsChatbotModalOpen(true)}
+                        onEditarPaciente={(pacienteId) => {
+                            // Lógica para abrir o seu PacienteModal em modo de edição
+                            setPacienteSelecionadoId(pacienteId);
+                            setOpenPacienteModal(true);
+                        }}
                     />
                 </Box>
             </Box>
