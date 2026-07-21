@@ -76,6 +76,11 @@ class EvolucaoListCreateAPIView(generics.ListCreateAPIView):
             evolucao_existente = Evolucao.objects.filter(agendamento_id=agendamento_id).first()
             
             if evolucao_existente:
+                # Mesma trava de autoria do EvolucaoDetailAPIView.perform_update: sem isso,
+                # esse caminho de upsert (por agendamento) deixava qualquer usuário com
+                # CanViewProntuario sobrescrever a evolução de outro médico sem checagem.
+                if evolucao_existente.medico != request.user:
+                    raise PermissionDenied("Acesso Negado: Apenas o médico autor pode alterar esta evolução.")
                 serializer = self.get_serializer(evolucao_existente, data=request.data, partial=True)
                 
                 # 📢 MEGAFONE AQUI: Se der erro na atualização, printa no terminal
@@ -1351,7 +1356,7 @@ def buscar_credenciais_ativas(request):
             'link': 'https://clinica-limale.vercel.app/resultados'
         })
     else:
-        print("[DEBUG] Falha: Paciente tem laudos, mas nenhum possui 'codigo_acesso' preenchido.")
+        print(f"[DEBUG] Falha: paciente tem {total_laudos} laudo(s), mas nenhum possui 'codigo_acesso' preenchido.")
         return Response({'erro': 'Nenhum laudo encontrado com código de acesso'}, status=404)
 
 class AplicarMascaraPDFView(APIView):
