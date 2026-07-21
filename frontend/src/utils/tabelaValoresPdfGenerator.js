@@ -35,7 +35,6 @@ const getBase64FromUrl = async (url) => {
 // ==========================================
 export const gerarPdfProcedimentos = async (procedimentos, options, onPdfGerado) => {
     try {
-        // Busca a imagem do public
         const mascaraBase64 = await getBase64FromUrl('/Receituario_v2.jpg');
         const dataFormatada = new Date().toLocaleDateString('pt-BR');
         
@@ -99,12 +98,11 @@ export const gerarPdfProcedimentos = async (procedimentos, options, onPdfGerado)
         const docDefinition = {
             pageSize: 'A4',
             pageMargins: [40, 170, 40, 60],
-            // APLICANDO A MÁSCARA EM TODAS AS PÁGINAS
             background: [
                 {
                     image: mascaraBase64,
-                    width: 595.28, // Largura padrão A4 em pontos
-                    height: 841.89 // Altura padrão A4 em pontos
+                    width: 595.28, 
+                    height: 841.89 
                 }
             ],
             content: content,
@@ -156,7 +154,6 @@ export const gerarPdfEspecialidades = async (especialidades, options, onPdfGerad
         const docDefinition = {
             pageSize: 'A4',
             pageMargins: [40, 170, 40, 60],
-            // APLICANDO A MÁSCARA EM TODAS AS PÁGINAS
             background: [
                 {
                     image: mascaraBase64,
@@ -175,4 +172,29 @@ export const gerarPdfEspecialidades = async (especialidades, options, onPdfGerad
         console.error("Erro ao carregar a máscara:", error);
         alert("Erro ao carregar a imagem de fundo do PDF.");
     }
+};
+
+// ==========================================
+// GERADOR: ANTIGO (UNIFICADO) 
+// Mantido EXCLUSIVAMENTE para o Vercel não quebrar o Build
+// ==========================================
+export const gerarPdfTabelaValores = (especialidades, procedimentos, onPdfGerado) => {
+    const dataFormatada = new Date().toLocaleDateString('pt-BR');
+
+    const content = [
+        { text: 'TABELA DE VALORES - CLÍNICA', style: 'mainHeader', alignment: 'center', margin: [0, 0, 0, 5] },
+        { text: `Atualizado em: ${dataFormatada}`, alignment: 'center', fontSize: 10, color: '#666', margin: [0, 0, 0, 20] }
+    ];
+
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 170, 40, 60],
+        content: content,
+        styles: defaultStyles,
+        defaultStyle: { font: 'Roboto', fontSize: 10, lineHeight: 1.2 }
+    };
+
+    pdfMake.createPdf(docDefinition).getBlob((blob) => {
+        if (onPdfGerado) onPdfGerado(blob);
+    });
 };
