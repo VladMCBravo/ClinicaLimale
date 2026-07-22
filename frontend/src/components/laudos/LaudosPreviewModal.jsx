@@ -15,7 +15,8 @@ const LaudosPreviewModal = ({
     textoInicial, 
     imagensIniciais, 
     onFinalizar,
-    onAbrirNuvem // <--- NOVA PROP: Função que chama o modal da nuvem
+    onAbrirNuvem, // <--- NOVA PROP: Função que chama o modal da nuvem
+    nomePaciente
 }) => {
     const [textoEditado, setTextoEditado] = useState('');
     const [imagens, setImagens] = useState([]);
@@ -55,8 +56,13 @@ const LaudosPreviewModal = ({
     return (
         <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
             {/* CABEÇALHO */}
-            <DialogTitle style={{ background: '#1C2E4A', color: 'white', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6">Revisão e Finalização</Typography>
+            <DialogTitle style={{ background: '#b71c1c', color: 'white', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box>
+                    <Typography variant="subtitle2" style={{ opacity: 0.8 }}>Revisão e Finalização</Typography>
+                    <Typography variant="h6" style={{ fontWeight: 'bold' }}>
+                        PACIENTE: {nomePaciente ? nomePaciente.toUpperCase() : 'DESCONHECIDO'}
+                    </Typography>
+                </Box>
                 <FaTimes onClick={onClose} style={{ cursor: 'pointer' }} />
             </DialogTitle>
 
