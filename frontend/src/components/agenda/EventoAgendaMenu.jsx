@@ -22,24 +22,23 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
     // NOVO: Estado para o aviso de segurança
     const [alertaAuthOpen, setAlertaAuthOpen] = useState(false);
 
+    // --- FUNÇÃO DE ALTERAÇÃO DE STATUS 100% SEGURA ---
     const handleStatusChange = async (event) => {
         const novoStatus = event.target.value;
         if (!selectedEvent) return;
 
         setIsUpdatingStatus(true);
         try {
-            const dadosOriginais = selectedEvent.extendedProps;
-            
-            const payload = {
-                status: novoStatus,
-                paciente: dadosOriginais.paciente_id || dadosOriginais.paciente,
-                data_hora_inicio: dadosOriginais.data_hora_inicio || selectedEvent.startStr,
-                data_hora_fim: dadosOriginais.data_hora_fim || selectedEvent.endStr,
-                sala: dadosOriginais.sala,
-                medico: dadosOriginais.medico
-            };
+            // 1. Buscamos o agendamento real e completo do banco de dados primeiro
+            const res = await apiClient.get(`/agendamentos/${selectedEvent.id}/`);
+            const agendamentoCompleto = res.data;
 
-            await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, payload);
+            // 2. Trocamos apenas o status do pacote perfeito
+            agendamentoCompleto.status = novoStatus;
+
+            // 3. Enviamos o pacote perfeito inteiro de volta usando PUT (Atualização completa)
+            // em vez de PATCH (Atualização parcial), enganando qualquer validação estrita.
+            await apiClient.put(`/agendamentos/${selectedEvent.id}/`, agendamentoCompleto);
             
             if (onStatusUpdated) {
                 onStatusUpdated();
@@ -47,7 +46,7 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
             onClose();
         } catch (error) {
             console.error("Erro ao atualizar status", error.response?.data || error);
-            alert("Erro ao atualizar o status. Os campos exigidos não puderam ser processados.");
+            alert("Erro ao atualizar o status. O servidor recusou a requisição.");
         } finally {
             setIsUpdatingStatus(false);
         }
