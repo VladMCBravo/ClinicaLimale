@@ -32,7 +32,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
             const ag = res.data;
 
             // 2. Extrator de IDs: Garante que chaves estrangeiras ricas (objetos) virem IDs numéricos limpos
-            // Isso resolve o erro 400 que o Django joga quando recebe um dicionário em vez de número.
             const extrairId = (campo) => (campo && typeof campo === 'object' && 'id' in campo) ? campo.id : campo;
 
             const pacienteId = extrairId(ag.paciente);
@@ -57,15 +56,13 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
             await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, payloadSeguro);
 
             // 5. REGRA OPERACIONAL FINANCEIRA INTEGRADA:
-            // Se o status mudou para 'Realizado' ou 'Confirmado', precisamos verificar se há 
-            // um pagamento pendente atrelado a este agendamento para atualizar o caixa operacional
             if (novoStatus === 'Realizado' && ag.pagamento_detalhes?.status === 'Pendente') {
                 try {
-                    // Dá a baixa automática no pagamento associado se a regra da clínica permitir
+                    // CORREÇÃO: Utilizando a função nativa do JS para pegar a data atual no formato YYYY-MM-DD
                     const pagamentoId = ag.pagamento_detalhes.id;
                     await apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, {
                         status: 'Pago',
-                        data_pagamento: timezone.now().date(),
+                        data_pagamento: formatarDataYYYYMMDD(new Date()), 
                         forma_pagamento: ag.pagamento_detalhes.forma_pagamento || 'Dinheiro'
                     });
                 } catch (finErr) {
