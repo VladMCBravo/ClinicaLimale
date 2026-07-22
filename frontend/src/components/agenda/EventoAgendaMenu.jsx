@@ -18,51 +18,69 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
     const [documentoAberto, setDocumentoAberto] = useState(false);
     const [documentoDados, setDocumentoDados] = useState(null);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-    
-    // NOVO: Estado para o aviso de segurança
     const [alertaAuthOpen, setAlertaAuthOpen] = useState(false);
 
-    // --- FUNÇÃO DE ALTERAÇÃO DE STATUS BLINDADA ---
+    // --- FUNÇÃO DE ALTERAÇÃO DE STATUS BLINDADA E INTEGRADA AO FINANCEIRO ---
     const handleStatusChange = async (event) => {
         const novoStatus = event.target.value;
         if (!selectedEvent) return;
 
         setIsUpdatingStatus(true);
         try {
-            // 1. Buscamos o agendamento fresco do banco de dados
+            // 1. Buscamos o agendamento fresco do banco de dados para ler o estado atual completo
             const res = await apiClient.get(`/agendamentos/${selectedEvent.id}/`);
             const ag = res.data;
 
-            // 2. EXTRATOR INTELIGENTE: O Django manda objetos (ex: paciente: {id: 1, nome: "Maria"})
-            // Mas na hora de salvar, ele só aceita o número (paciente: 1).
+            // 2. Extrator de IDs: Garante que chaves estrangeiras ricas (objetos) virem IDs numéricos limpos
+            // Isso resolve o erro 400 que o Django joga quando recebe um dicionário em vez de número.
             const extrairId = (campo) => (campo && typeof campo === 'object' && 'id' in campo) ? campo.id : campo;
 
-            // 3. Montamos o pacote perfeito com as chaves obrigatórias e os IDs limpos
+            const pacienteId = extrairId(ag.paciente);
+            const medicoId = extrairId(ag.medico);
+            const salaId = extrairId(ag.sala);
+            const procedimentoId = extrairId(ag.procedimento);
+
+            // 3. Montamos o pacote de dados perfeitamente limpo exigido pelo Django Rest Framework
             const payloadSeguro = {
                 status: novoStatus,
-                paciente: extrairId(ag.paciente),
+                paciente: pacienteId,
                 data_hora_inicio: ag.data_hora_inicio,
                 data_hora_fim: ag.data_hora_fim,
-                medico: extrairId(ag.medico),
-                sala: extrairId(ag.sala),
-                procedimento: extrairId(ag.procedimento),
-                especialidade: extrairId(ag.especialidade),
-                convenio: extrairId(ag.convenio),
-                plano_convenio: extrairId(ag.plano_convenio)
+                medico: medicoId,
+                sala: salaId,
+                procedimento: procedimentoId,
+                tipo_atendimento: ag.tipo_atendimento || 'Particular',
+                plano_utilizado: extrairId(ag.plano_utilizado)
             };
 
-            // 4. Enviamos a atualização (usando PATCH para alterar só o necessário)
+            // 4. Executa a atualização parcial sanitizada do agendamento
             await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, payloadSeguro);
+
+            // 5. REGRA OPERACIONAL FINANCEIRA INTEGRADA:
+            // Se o status mudou para 'Realizado' ou 'Confirmado', precisamos verificar se há 
+            // um pagamento pendente atrelado a este agendamento para atualizar o caixa operacional
+            if (novoStatus === 'Realizado' && ag.pagamento_detalhes?.status === 'Pendente') {
+                try {
+                    // Dá a baixa automática no pagamento associado se a regra da clínica permitir
+                    const pagamentoId = ag.pagamento_detalhes.id;
+                    await apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, {
+                        status: 'Pago',
+                        data_pagamento: timezone.now().date(),
+                        forma_pagamento: ag.pagamento_detalhes.forma_pagamento || 'Dinheiro'
+                    });
+                } catch (finErr) {
+                    console.warn("Agendamento atualizado, mas houve restrição na baixa automática do financeiro:", finErr);
+                }
+            }
             
             if (onStatusUpdated) {
                 onStatusUpdated();
             }
             onClose();
         } catch (error) {
-            // Se o Django reclamar, agora veremos EXATAMENTE qual campo deu erro na tela!
             const erroBackend = error.response?.data ? JSON.stringify(error.response.data) : error.message;
-            console.error("Erro detalhado do backend:", erroBackend);
-            alert(`O servidor recusou a atualização.\nMotivo detalhado: ${erroBackend}`);
+            console.error("Erro detalhado do faturamento/agendamento:", erroBackend);
+            alert(`O servidor recusou a atualização rápida.\nMotivo: ${erroBackend.replace(/[\[\]"{}]/g, '')}`);
         } finally {
             setIsUpdatingStatus(false);
         }
@@ -92,7 +110,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         onClose();
     };
 
-    // CORREÇÃO 1: Mapeamento inteligente para evitar a tela branca no laudo
     const handleActionLaudo = () => {
         const dados = selectedEvent?.extendedProps;
         if (!dados || !dados.paciente_id) {
@@ -100,9 +117,8 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
             return;
         }
 
-        // Garante que o LaudosPage.jsx receba a chave exata da aba, senão ele não desenha nada
         const rawProc = (dados.tipo_procedimento || dados.procedimento_descricao || '').toUpperCase();
-        let tipoSeguro = 'OBSTETRICO'; // Padrão seguro (Medicina Fetal)
+        let tipoSeguro = 'OBSTETRICO'; 
 
         if (rawProc.includes('TRANSVAGINAL') || rawProc.includes('TV')) tipoSeguro = 'TRANSVAGINAL';
         else if (rawProc.includes('ABDOME') || rawProc.includes('ABDOMINAL')) tipoSeguro = 'ABDOME';
@@ -123,7 +139,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         navigate('/laudos');
     };
 
-    // CORREÇÃO 2: Trava de segurança com alerta elegante
     const handleActionOriginalConsulta = () => {
         const dados = selectedEvent?.extendedProps;
         if (!dados?.paciente_id) {
@@ -131,13 +146,11 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
             return;
         }
 
-        // Verifica o perfil de quem está usando o sistema agora
         let temAcessoMedico = false;
         try {
             const userStorage = localStorage.getItem('user') || localStorage.getItem('usuario');
             if (userStorage) {
                 const userObj = JSON.parse(userStorage);
-                // Permite apenas médicos (e admins, caso o dono da clínica queira testar)
                 if (userObj.cargo === 'medico' || userObj.cargo === 'admin') {
                     temAcessoMedico = true;
                 }
@@ -147,9 +160,9 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         }
 
         if (!temAcessoMedico) {
-            setAlertaAuthOpen(true); // Mostra o pop-up bonitinho
-            onClose();               // Fecha o menu da agenda
-            return;                  // Cancela a navegação
+            setAlertaAuthOpen(true); 
+            onClose();               
+            return;                  
         }
 
         navigate('/painel-medico', {
@@ -313,7 +326,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                 />
             )}
 
-            {/* AVISO ELEGANTE DE ACESSO NEGADO */}
             <Snackbar 
                 open={alertaAuthOpen} 
                 autoHideDuration={4000} 
