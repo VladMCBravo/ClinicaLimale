@@ -22,31 +22,47 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
     // NOVO: Estado para o aviso de segurança
     const [alertaAuthOpen, setAlertaAuthOpen] = useState(false);
 
-    // --- FUNÇÃO DE ALTERAÇÃO DE STATUS 100% SEGURA ---
+    // --- FUNÇÃO DE ALTERAÇÃO DE STATUS BLINDADA ---
     const handleStatusChange = async (event) => {
         const novoStatus = event.target.value;
         if (!selectedEvent) return;
 
         setIsUpdatingStatus(true);
         try {
-            // 1. Buscamos o agendamento real e completo do banco de dados primeiro
+            // 1. Buscamos o agendamento fresco do banco de dados
             const res = await apiClient.get(`/agendamentos/${selectedEvent.id}/`);
-            const agendamentoCompleto = res.data;
+            const ag = res.data;
 
-            // 2. Trocamos apenas o status do pacote perfeito
-            agendamentoCompleto.status = novoStatus;
+            // 2. EXTRATOR INTELIGENTE: O Django manda objetos (ex: paciente: {id: 1, nome: "Maria"})
+            // Mas na hora de salvar, ele só aceita o número (paciente: 1).
+            const extrairId = (campo) => (campo && typeof campo === 'object' && 'id' in campo) ? campo.id : campo;
 
-            // 3. Enviamos o pacote perfeito inteiro de volta usando PUT (Atualização completa)
-            // em vez de PATCH (Atualização parcial), enganando qualquer validação estrita.
-            await apiClient.put(`/agendamentos/${selectedEvent.id}/`, agendamentoCompleto);
+            // 3. Montamos o pacote perfeito com as chaves obrigatórias e os IDs limpos
+            const payloadSeguro = {
+                status: novoStatus,
+                paciente: extrairId(ag.paciente),
+                data_hora_inicio: ag.data_hora_inicio,
+                data_hora_fim: ag.data_hora_fim,
+                medico: extrairId(ag.medico),
+                sala: extrairId(ag.sala),
+                procedimento: extrairId(ag.procedimento),
+                especialidade: extrairId(ag.especialidade),
+                convenio: extrairId(ag.convenio),
+                plano_convenio: extrairId(ag.plano_convenio)
+            };
+
+            // 4. Enviamos a atualização (usando PATCH para alterar só o necessário)
+            await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, payloadSeguro);
             
             if (onStatusUpdated) {
                 onStatusUpdated();
             }
             onClose();
         } catch (error) {
-            console.error("Erro ao atualizar status", error.response?.data || error);
-            alert("Erro ao atualizar o status. O servidor recusou a requisição.");
+            // Se o Django reclamar, agora veremos EXATAMENTE qual campo deu erro na tela!
+            const erroBackend = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+            console.error("Erro detalhado do backend:", erroBackend);
+            alert(`O servidor recusou a atualização.\nMotivo detalhado: ${erroBackend}`);
         } finally {
             setIsUpdatingStatus(false);
         }
