@@ -877,6 +877,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
           imagensIniciais={imagens} 
           onFinalizar={handleFinalizacaoAssincrona}
           onAbrirNuvem={() => setModalNuvemOpen(true)} // <--- Conecta o botão azul
+          nomePaciente={paciente?.nome_completo} // <--- CORRIGIDO
       />
       {/* ADICIONE ESTE COMPONENTE NOVO */}
       <ImagensNuvemModal
