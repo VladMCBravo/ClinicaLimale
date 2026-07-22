@@ -24,67 +24,88 @@ from agendamentos.models import Agendamento
 class UploadExameView(APIView):
     """
     Recebe arquivos da máquina de USG ou Recepção.
-    Vincula automaticamente ao Paciente e ao Ciclo do CRM (Gestação).
+    Vincula automaticamente ao Paciente com Tríplice Trava de Segurança.
     """
     parser_classes = (MultiPartParser, FormParser)
     
     def post(self, request, *args, **kwargs):
-        # 1. RECEBE AS VARIÁVEIS (Agora incluindo o ID do Agendamento)
         nome_pasta = request.data.get('nome_pasta_original')
-        nome_paciente_enviado = request.data.get('nome_paciente') 
+        nome_paciente_enviado = request.data.get('nome_paciente', '').strip() 
         data_str = request.data.get('data_exame') 
-        agendamento_id_enviado = request.data.get('agendamento_id') # <--- O NOVO PARÂMETRO SALVADOR
+        id_enviado = request.data.get('agendamento_id') # Pode ser ID do Paciente ou ID do Agendamento
         files = request.FILES.getlist('arquivos') 
 
         if not nome_pasta or not data_str or not nome_paciente_enviado:
             return Response({'erro': 'Dados incompletos'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2. BUSCA BLINDADA DA PACIENTE (Com Tripla Verificação)
         paciente_encontrado = None
-        
-        # A) Busca Absoluta pelo ID do Agendamento (Perfeição do Worklist)
-        if agendamento_id_enviado:
+
+        # -----------------------------------------------------------------
+        # TRAVA 1: BUSCA DIRETA PELO ID DO PACIENTE (Novo Formato Samsung)
+        # Ex: "181_FERNANDA DE OLIVEIRA" -> ID enviado = 181
+        # -----------------------------------------------------------------
+        if id_enviado and str(id_enviado).isdigit():
+            paciente_por_id = Paciente.objects.filter(id=id_enviado).first()
+            if paciente_por_id:
+                # Validação de segurança extra: confere se o primeiro nome bate para evitar erro humano de digitação
+                primeiro_nome_enviado = nome_paciente_enviado.split()[0].upper() if nome_paciente_enviado else ""
+                primeiro_nome_banco = paciente_por_id.nome_completo.split()[0].upper()
+                
+                # Se o ID bater E pelo menos o primeiro nome tiver semelhança, confirma!
+                if primeiro_nome_enviado in primeiro_nome_banco or primeiro_nome_banco in primeiro_nome_enviado:
+                    paciente_encontrado = paciente_por_id
+
+        # -----------------------------------------------------------------
+        # TRAVA 2: BUSCA PELO AGENDAMENTO (Formato Antigo Samsung)
+        # Confere se o agendamento pertence REALMENTE à paciente da pasta
+        # -----------------------------------------------------------------
+        if not paciente_encontrado and id_enviado and str(id_enviado).isdigit():
             try:
-                from agendamentos.models import Agendamento
-                # Procura a ficha de agendamento 344 e pega a paciente exata dela
-                agendamento = Agendamento.objects.select_related('paciente').filter(id=agendamento_id_enviado).first()
+                agendamento = Agendamento.objects.select_related('paciente').filter(id=id_enviado).first()
                 if agendamento and agendamento.paciente:
-                    paciente_encontrado = agendamento.paciente
+                    # Confere se o nome da paciente do agendamento é compatível com o nome da pasta
+                    nome_agendamento = agendamento.paciente.nome_completo.upper()
+                    primeiro_nome_pasta = nome_paciente_enviado.split()[0].upper()
+                    
+                    if primeiro_nome_pasta in nome_agendamento:
+                        paciente_encontrado = agendamento.paciente
+                    else:
+                        print(f"⚠️ AVISO: Agendamento {id_enviado} pertence a {nome_agendamento}, mas pasta veio como {nome_paciente_enviado}. Vínculo por agendamento rejeitado por segurança!")
             except Exception as e:
-                print(f"Erro ao buscar agendamento: {e}")
+                print(f"Erro ao validar agendamento: {e}")
 
-        # B) Fallback: Tenta achar o ID digitado manualmente no nome (Ex: "145 RAFAELA")
+        # -----------------------------------------------------------------
+        # TRAVA 3: BUSCA RIGOROSA POR NOME COMPLETO (Último Recurso)
+        # -----------------------------------------------------------------
         if not paciente_encontrado and nome_paciente_enviado:
-            id_match = re.search(r'^(\d+)[\s_]', nome_paciente_enviado)
-            if id_match:
-                paciente_encontrado = Paciente.objects.filter(id=id_match.group(1)).first()
-
-        # C) Último Recurso: Busca por texto cega (O que causou o problema com a Naline)
-        if not paciente_encontrado and nome_paciente_enviado:
+            # Limpa números e traços do início (Ex: "08072026-1_DE ARAUJO_TATIANE APARECIDA" -> "DE ARAUJO TATIANE APARECIDA")
             nome_limpo = re.sub(r'^[0-9-]+\s*_?', '', nome_paciente_enviado).replace('_', ' ').strip()
+            
+            # 1. Tenta nome exato (Iexact)
             pacientes = Paciente.objects.filter(nome_completo__iexact=nome_limpo)
-            
-            if not pacientes.exists():
-                termos = nome_limpo.split()
-                if len(termos) >= 1:
-                    query = Paciente.objects.filter(nome_completo__icontains=termos[0])
-                    if len(termos) > 1:
-                        query = query.filter(nome_completo__icontains=termos[-1])
-                    pacientes = query
-            
             if pacientes.exists():
                 paciente_encontrado = pacientes.first()
+            else:
+                # 2. Se for nome invertido (Ex: "DE ARAUJO TATIANE APARECIDA" vs "TATIANE APARECIDA DE ARAUJO")
+                termos = [t for t in nome_limpo.split() if len(t) > 2] # Ignora de, da, do
+                if len(termos) >= 2:
+                    query = Paciente.objects.all()
+                    for termo in termos:
+                        query = query.filter(nome_completo__icontains=termo)
+                    
+                    if query.count() == 1: # Só aceita se a combinação dos termos achar EXATAMENTE 1 paciente único!
+                        paciente_encontrado = query.first()
 
-        # 2. BUSCA DO CICLO ATIVO NO CRM
+        # -----------------------------------------------------------------
+        # PROCESSAMENTO DO EXAME E CRIAÇÃO DO REGISTRO
+        # -----------------------------------------------------------------
         ciclo_ativo = None
         if paciente_encontrado:
-            from crm.models import Ciclo
             ciclo_ativo = Ciclo.objects.filter(
                 paciente=paciente_encontrado, 
                 status='ativo'
             ).order_by('-data_inicio').first()
 
-        # 3. CRIAÇÃO OU RECUPERAÇÃO DO EXAME (Escudo Antiduplicação)
         exame, created = Exame.objects.get_or_create(
             nome_paciente_pasta=nome_pasta,
             data_exame=data_str,
@@ -95,18 +116,6 @@ class UploadExameView(APIView):
             }
         )
 
-        # 4. VÍNCULO COM LAUDO (Escudo contra o IntegrityError)
-        """ if paciente_encontrado:
-            Laudo.objects.get_or_create(
-                exame=exame,
-                defaults={
-                    'paciente': paciente_encontrado,
-                    'titulo_exame': f"Exames Anexados (Auto): {paciente_encontrado.nome_completo}",
-                    'status': 'FINALIZADO'
-                }
-            ) """
-
-        # 5. SALVAMENTO DOS ARQUIVOS SEM DUPLICAR
         count_imgs = 0
         for f in files:
             ext = f.name.lower().split('.')[-1]
@@ -123,7 +132,7 @@ class UploadExameView(APIView):
             'exame_id': exame.id,
             'acao': 'criado' if created else 'atualizado',
             'arquivos_novos': count_imgs,
-            'paciente_vinculado': paciente_encontrado.nome_completo if paciente_encontrado else "NÃO VINCULADO"
+            'paciente_vinculado': paciente_encontrado.nome_completo if paciente_encontrado else "PENDENTE_VINCULO_MANUAL"
         }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 class AcessarResultadosView(APIView):
