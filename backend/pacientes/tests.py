@@ -81,24 +81,18 @@ class PacienteVisibilidadeMedicoTests(APITestCase):
         )
         self.url = reverse('lista-pacientes')
 
-    def test_medico_so_ve_seus_proprios_pacientes(self):
+    def test_medico_ve_todos_os_pacientes_para_laudo(self):
         """
         Cenário: Médico logado acessa a lista de pacientes.
-        Resultado: Deve ver apenas os seus. Os pacientes de outros médicos devem ser omitidos.
+        Resultado: Deve ver todos os pacientes para conseguir puxar o cadastro e fazer o Laudo.
         """
-        # Forçamos o login com o Dr. Alberto
         self.client.force_authenticate(user=self.medico_a)
         response = self.client.get(self.url)
         
-        # Garante que a requisição deu sucesso (200 OK)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # O assertContains verifica magicamente se o texto existe dentro da resposta da API
-        # Garante que o paciente A está na tela
+        # Agora o Dr. Alberto consegue ver tanto o paciente dele quanto o do Dr. Bruno
         self.assertContains(response, "Carlos (Paciente do Dr. Alberto)")
-        
-        # Garante que a regra de segurança funcionou e o paciente B está invisível!
-        self.assertNotContains(response, "Marcos (Paciente do Dr. Bruno)")
+        self.assertContains(response, "Marcos (Paciente do Dr. Bruno)")
 
     def test_recepcao_ve_todos_os_pacientes(self):
         """

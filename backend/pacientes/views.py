@@ -22,13 +22,10 @@ class PacienteListCreateAPIView(generics.ListCreateAPIView):
         
         base_queryset = Paciente.objects.all()
 
-        # 🛡️ CORREÇÃO CRÍTICA 1: Separação de Poderes!
-        if user.cargo in ['admin', 'recepcao']:
-            # Recepção e Admin veem a clínica inteira
+        # 🛡️ CORREÇÃO CRÍTICA 1: Separação de Poderes Ajustada!
+        # Agora Admin, Recepção E Médico veem a clínica inteira para poder gerar Laudos.
+        if user.cargo in ['admin', 'recepcao', 'medico']:
             qs = base_queryset 
-        elif user.cargo == 'medico':
-            # Médico só vê os pacientes atrelados a ele
-            qs = base_queryset.filter(medico_responsavel=user) 
         else:
             qs = Paciente.objects.none()
 
@@ -56,12 +53,9 @@ class PacienteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         base_queryset = Paciente.objects.annotate(total_consultas=Count('agendamentos', distinct=True))
         
-        # Aplicamos a mesma trava de segurança aqui!
-        if user.cargo in ['admin', 'recepcao']:
+        # Aplicamos a mesma liberação de segurança aqui!
+        # O médico precisa acessar a URL de detalhes para gerar os laudos corretamente.
+        if user.cargo in ['admin', 'recepcao', 'medico']:
             return base_queryset
-        elif user.cargo == 'medico':
-            # Se ele tentar acessar a URL com o ID de um paciente de outro médico,
-            # o Django vai retornar 404 Not Found (Ocultando a existência do paciente)
-            return base_queryset.filter(medico_responsavel=user)
             
         return Paciente.objects.none()
