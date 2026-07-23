@@ -221,17 +221,19 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
 
     try {
       if (pacienteParaEditar && pacienteParaEditar.id) { 
-        // Tem certeza que é PUT (Atualizar)
         await apiClient.put(`/pacientes/${pacienteParaEditar.id}/`, dataToSend);
         showSnackbar('Paciente atualizado!', 'success');
       } else {
-        // Tem certeza que é POST (Criar)
         await apiClient.post('/pacientes/', dataToSend);
         showSnackbar('Paciente criado!', 'success');
       }
       
-      // Limpeza brutal do estado logo após o sucesso para garantir que o próximo clique comece zerado
+      // Limpeza brutal de TUDO logo após o sucesso
       setFormData(getInitialState());
+      setDataNascimentoVisual('');
+      setDumVisual('');
+      setConvenioSelecionado(null);
+      setPlanosFiltrados([]);
       
       if (onSave) onSave();
       onClose();
@@ -245,7 +247,14 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   
   // Função de fechamento com reset garantido
   const handleClose = () => {
-      setFormData(getInitialState()); // Mata os rastros
+      setFormData(getInitialState()); // Mata os rastros do formulário principal
+      
+      // Limpe também os estados visuais e auxiliares!
+      setDataNascimentoVisual('');
+      setDumVisual('');
+      setConvenioSelecionado(null);
+      setPlanosFiltrados([]);
+      
       setTabIndex(0);
       onClose();
   }

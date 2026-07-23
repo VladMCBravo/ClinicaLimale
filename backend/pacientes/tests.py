@@ -100,6 +100,22 @@ class PacienteVisibilidadeMedicoTests(APITestCase):
         # Garante que a regra de segurança funcionou e o paciente B está invisível!
         self.assertNotContains(response, "Marcos (Paciente do Dr. Bruno)")
 
+    def test_recepcao_ve_todos_os_pacientes(self):
+        """
+        Cenário: Uma recepcionista acessa a lista de pacientes.
+        Resultado Esperado: Diferente do médico, ela deve enxergar TODOS os pacientes da clínica.
+        """
+        # Vamos criar uma recepcionista na hora
+        user_recepcao = User.objects.create_user(username='recepcao_visao', password='123', cargo='recepcao')
+        self.client.force_authenticate(user=user_recepcao)
+        
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # A recepção DEVE ver tanto o Carlos (do Dr. Alberto) quanto o Marcos (do Dr. Bruno)
+        self.assertContains(response, "Carlos (Paciente do Dr. Alberto)")
+        self.assertContains(response, "Marcos (Paciente do Dr. Bruno)")
+
 
 class PacienteValidacaoTests(APITestCase):
     
@@ -154,3 +170,53 @@ class PacienteValidacaoTests(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('email', response.data)
+
+    def test_bloqueio_atualizacao_cpf_duplicado_state_leak(self):
+        """
+        Cenário Crítico (State Leak Guard): A recepção abre um paciente existente 
+        para editar, mas tenta salvar usando o CPF de OUTRO paciente.
+        Resultado: Erro 400. O Django não pode permitir roubo de CPF via método PUT.
+        """
+        # 1. Criamos a "Vítima" (já existe o "Paciente Original" do setUp)
+        paciente_vitima = Paciente.objects.create(
+            nome_completo="Vítima da Sobrescrita",
+            data_nascimento="1995-05-05",
+            telefone_celular="11922222222",
+            cpf="99988877766" # O CPF que tentaremos roubar
+        )
+
+        self.client.force_authenticate(user=self.user_recepcao)
+        
+        # A URL para editar o 'Paciente Original'
+        url_detalhe = reverse('detalhe-paciente', kwargs={'pk': self.paciente_existente.id})
+        
+        # Tentamos atualizar o Paciente Original injetando o CPF da Vítima
+        dados_maliciosos = {
+            "nome_completo": "Nome Alterado",
+            "cpf": "99988877766" # Roubando o CPF da Vítima!
+        }
+        
+        # Fazemos um PATCH (Atualização parcial)
+        response = self.client.patch(url_detalhe, dados_maliciosos)
+        
+        # O sistema DEVE barrar
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('cpf', response.data)
+
+    def test_permite_atualizacao_com_o_proprio_cpf(self):
+        """
+        Cenário: A recepção abre o paciente e salva sem mudar o CPF.
+        Resultado: Sucesso (200 OK). O sistema não pode dizer "CPF duplicado" 
+        se o CPF já pertence a ele mesmo.
+        """
+        self.client.force_authenticate(user=self.user_recepcao)
+        url_detalhe = reverse('detalhe-paciente', kwargs={'pk': self.paciente_existente.id})
+        
+        # Atualiza o telefone, mas mantém o mesmo CPF
+        dados = {
+            "telefone_celular": "11933334444",
+            "cpf": "11122233344" # O CPF que já é dele no setUp
+        }
+        
+        response = self.client.patch(url_detalhe, dados)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
