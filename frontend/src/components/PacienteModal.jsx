@@ -16,14 +16,17 @@ import apiClient from '../api/axiosConfig';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from './common/MaskedInput';
 
-const initialState = {
+// 🛑 CORREÇÃO CRÍTICA: initialState agora é uma FUNÇÃO.
+// Isso impede o vazamento de memória (State Leak) entre pacientes.
+// Cada vez que é chamada, devolve um objeto 100% limpo e desvinculado.
+const getInitialState = () => ({
   nome_completo: '', data_nascimento: '', email: '', telefone_celular: '', cpf: '', genero: '',
   peso: '', altura: '', dum: '', medico_responsavel: null,
   plano_convenio: null, numero_carteirinha: '',
   cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
   nome_responsavel: '', cpf_responsavel: '', telefone_responsavel: '',
   contato_emergencia_nome: '', contato_emergencia_telefone: '', contato_emergencia_parentesco: '',
-};
+});
 
 const TextMaskData = React.forwardRef(function TextMaskData(props, ref) {
   const { onChange, ...other } = props;
@@ -42,9 +45,10 @@ const TextMaskData = React.forwardRef(function TextMaskData(props, ref) {
 export default function PacienteModal({ open, onClose, onSave, pacienteParaEditar, nomeInicial }) {
   const { showSnackbar } = useSnackbar();
   
-  const [formData, setFormData] = useState(initialState);
+  // O estado inicia sempre com a fábrica limpa
+  const [formData, setFormData] = useState(getInitialState());
   const [dataNascimentoVisual, setDataNascimentoVisual] = useState('');
-  const [dumVisual, setDumVisual] = useState(''); // <--- NOVO: Estado visual da DUM
+  const [dumVisual, setDumVisual] = useState(''); 
   const [tabIndex, setTabIndex] = useState(0); 
   const [isLoading, setIsLoading] = useState(false);
   const [isCepLoading, setIsCepLoading] = useState(false);
@@ -69,8 +73,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   useEffect(() => {
     if (open) {
       setTabIndex(0);
-      if (pacienteParaEditar) {
-        // Formata Nascimento
+      if (pacienteParaEditar && pacienteParaEditar.id) { // Trava de segurança extra
         let dataVisual = '';
         if (pacienteParaEditar.data_nascimento) {
             const [ano, mes, dia] = pacienteParaEditar.data_nascimento.split('-');
@@ -78,7 +81,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         }
         setDataNascimentoVisual(dataVisual);
 
-        // Formata DUM
         let dumVisualValue = '';
         if (pacienteParaEditar.dum) {
             const [ano, mes, dia] = pacienteParaEditar.dum.split('-');
@@ -86,6 +88,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         }
         setDumVisual(dumVisualValue);
 
+        // Preenche com os dados do paciente existente, garantindo valores default vazios para nulls
         setFormData({
           nome_completo: pacienteParaEditar.nome_completo || '',
           data_nascimento: pacienteParaEditar.data_nascimento || '',
@@ -114,8 +117,9 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
           contato_emergencia_parentesco: pacienteParaEditar.contato_emergencia_parentesco || '',
         });
       } else {
+        // Se for NOVO PACIENTE, usamos a fábrica limpa e apenas anexamos o nome inicial
         setFormData({
-            ...initialState,
+            ...getInitialState(),
             nome_completo: nomeInicial || '' 
         });
         setConvenioSelecionado(null);
@@ -126,6 +130,8 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
     }
   }, [pacienteParaEditar, open, nomeInicial]);
 
+  // ... (o resto das funções do useEffect, handleDataNascimentoChange, handleCepBlur ficam IGUAIS)
+  
   useEffect(() => {
     if (pacienteParaEditar && pacienteParaEditar.plano_convenio_detalhes && convenios.length > 0) {
       const planoDoPaciente = pacienteParaEditar.plano_convenio_detalhes;
@@ -207,20 +213,26 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
       ...formData,
       peso: formData.peso === '' ? null : formData.peso,
       altura: formData.altura === '' ? null : formData.altura,
-      dum: formData.dum === '' ? null : formData.dum, // Garante que DUM vazio vire null
+      dum: formData.dum === '' ? null : formData.dum, 
       cpf: formData.cpf === '' ? null : formData.cpf,
       email: formData.email === '' ? null : formData.email,
       data_nascimento: formData.data_nascimento === '' ? null : formData.data_nascimento,
     }; 
 
     try {
-      if (pacienteParaEditar) {
+      if (pacienteParaEditar && pacienteParaEditar.id) { 
+        // Tem certeza que é PUT (Atualizar)
         await apiClient.put(`/pacientes/${pacienteParaEditar.id}/`, dataToSend);
         showSnackbar('Paciente atualizado!', 'success');
       } else {
+        // Tem certeza que é POST (Criar)
         await apiClient.post('/pacientes/', dataToSend);
         showSnackbar('Paciente criado!', 'success');
       }
+      
+      // Limpeza brutal do estado logo após o sucesso para garantir que o próximo clique comece zerado
+      setFormData(getInitialState());
+      
       if (onSave) onSave();
       onClose();
     } catch (error) {
@@ -230,6 +242,18 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
       setIsLoading(false);
     }
   };
+  
+  // Função de fechamento com reset garantido
+  const handleClose = () => {
+      setFormData(getInitialState()); // Mata os rastros
+      setTabIndex(0);
+      onClose();
+  }
+
+  // O bloco renderTabContent e o Return principal ficam exatamente iguais, só 
+  // precisamos garantir que os botões chamem o novo handleClose.
+  
+  // ... (pulei a função renderTabContent pois ela é longa e não mudou nada)
 
   const renderTabContent = () => {
     switch (tabIndex) {
@@ -301,7 +325,6 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
              <Grid item xs={12}>
                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700, color: '#1C2E4A' }}>Dados Físicos & Obstétricos</Typography>
                  <Grid container spacing={2}>
-                    {/* ADICIONADO AQUI: DUM dividindo espaço com Peso e Altura */}
                     <Grid item xs={4}><TextField name="peso" label="Peso (kg)" type="number" value={formData.peso} onChange={handleChange} fullWidth size="small" /></Grid>
                     <Grid item xs={4}><TextField name="altura" label="Altura (cm)" type="number" value={formData.altura} onChange={handleChange} fullWidth size="small" /></Grid>
                     <Grid item xs={4}><TextField name="dum" label="DUM" value={dumVisual} onChange={handleDumChange} fullWidth size="small" placeholder="DD/MM/AAAA" InputProps={{ inputComponent: TextMaskData }} /></Grid>
@@ -383,7 +406,8 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
   return (
     <Dialog 
       open={open} 
-      onClose={() => { onClose(); setTabIndex(0); }} 
+      // TROCADO AQUI: apontando para a nova função segura de fechar
+      onClose={handleClose} 
       fullWidth 
       maxWidth="md" 
       disableEscapeKeyDown={isLoading}
@@ -395,7 +419,8 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         <Typography variant="h6" component="div" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
           {pacienteParaEditar ? 'Editar Cadastro do Paciente' : 'Cadastrar Novo Paciente'}
         </Typography>
-        <IconButton onClick={onClose} size="small" sx={{ color: '#fff' }}><Close /></IconButton>
+        {/* TROCADO AQUI: também chamando a função segura no X do modal */}
+        <IconButton onClick={handleClose} size="small" sx={{ color: '#fff' }}><Close /></IconButton>
       </DialogTitle>
       
       <Box component="div" sx={{ display: 'flex', flexDirection: 'column', bgcolor: '#fff' }}>
@@ -425,7 +450,7 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         </DialogContent>
         
         <DialogActions sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: '#fafafa', gap: 1 }}>
-          <Button onClick={onClose} color="inherit" sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.85rem' }}>
+          <Button onClick={handleClose} color="inherit" sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.85rem' }}>
             Cancelar
           </Button>
           <Button 
