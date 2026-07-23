@@ -202,7 +202,8 @@ export default function AgendaPrincipal({
     onEditarPaciente,
     onBuscarHorario,
     onTabelaPrecos,
-    onStatusWhatsapp
+    onStatusWhatsapp,
+    onStatusUpdated
 }) {
     const calendarRef = useRef(null);
 
@@ -720,7 +721,12 @@ useEffect(() => {
                 onClose={handleCloseMenu}
                 onEditar={onEventClick}
                 onEditarPaciente={onEditarPaciente}
-                onStatusUpdated={() => calendarRef.current?.getApi().refetchEvents()} 
+                onStatusUpdated={() => {
+                    // Recarrega o grid da própria agenda E avisa a página pai (sidebar,
+                    // lista de espera, KPIs) que algo mudou.
+                    calendarRef.current?.getApi().refetchEvents();
+                    onStatusUpdated?.();
+                }}
             />
         </Box>
     );

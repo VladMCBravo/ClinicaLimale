@@ -49,27 +49,18 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                 sala: salaId,
                 procedimento: procedimentoId,
                 tipo_atendimento: ag.tipo_atendimento || 'Particular',
-                plano_utilizado: extrairId(ag.plano_utilizado)
+                plano_utilizado: extrairId(ag.plano_utilizado),
+                // Preserva o encaixe já existente: sala/horário não mudam nesta troca de
+                // status, então uma sobreposição já tolerada não pode virar bloqueio.
+                is_encaixe: ag.is_encaixe
             };
 
             // 4. Executa a atualização parcial sanitizada do agendamento
+            // OBS: a troca de status NUNCA quita o financeiro. O status do agendamento só
+            // é exibido no financeiro; a baixa de pagamento só acontece por ação manual do
+            // usuário nas telas do Financeiro (Receber Pagamento / editar pagamento).
             await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, payloadSeguro);
 
-            // 5. REGRA OPERACIONAL FINANCEIRA INTEGRADA:
-            if (novoStatus === 'Realizado' && ag.pagamento_detalhes?.status === 'Pendente') {
-                try {
-                    // CORREÇÃO: Utilizando a função nativa do JS para pegar a data atual no formato YYYY-MM-DD
-                    const pagamentoId = ag.pagamento_detalhes.id;
-                    await apiClient.patch(`/faturamento/pagamentos/${pagamentoId}/`, {
-                        status: 'Pago',
-                        data_pagamento: formatarDataYYYYMMDD(new Date()), 
-                        forma_pagamento: ag.pagamento_detalhes.forma_pagamento || 'Dinheiro'
-                    });
-                } catch (finErr) {
-                    console.warn("Agendamento atualizado, mas houve restrição na baixa automática do financeiro:", finErr);
-                }
-            }
-            
             if (onStatusUpdated) {
                 onStatusUpdated();
             }
