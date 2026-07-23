@@ -32,7 +32,7 @@ export default function SecaoIdentificacaoPaciente({
                         ListboxProps={{ style: { maxHeight: 200 } }}
                         getOptionLabel={(option) => option.nome_completo || ''}
                         value={paciente}
-                        isOptionEqualToValue={(o, v) => o.id === v.id}
+                        isOptionEqualToValue={(o, v) => o?.id === v?.id}
                         onChange={onPacienteChange}
                         onInputChange={(event, newInputValue) => setInputValuePaciente(newInputValue || '')}
                         noOptionsText={
@@ -59,11 +59,25 @@ export default function SecaoIdentificacaoPaciente({
                         }}
                         renderOption={(props, option) => {
                             const { key, ...optionProps } = props;
+                            
+                            // Formata a data de nascimento para visualização (se existir)
+                            let dataNasc = 'Sem data';
+                            if (option.data_nascimento) {
+                                const partes = option.data_nascimento.split('-');
+                                if (partes.length === 3) {
+                                    dataNasc = `${partes[2]}/${partes[1]}/${partes[0]}`;
+                                }
+                            }
+
                             return (
                                 <li key={key} {...optionProps} style={{ padding: 0 }}>
                                     <Box sx={{ p: 1, width: '100%', display: 'flex', flexDirection: 'column' }}>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#333' }}>{option.nome_completo}</Typography>
-                                        <Typography variant="caption" sx={{ color: '#757575' }}>{option.cpf ? `CPF: ${option.cpf}` : 'Sem CPF'}</Typography>
+                                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#333' }}>
+                                            {option.nome_completo}
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ color: '#757575' }}>
+                                            {option.cpf ? `CPF: ${option.cpf}` : 'Sem CPF'} • Nasc: {dataNasc}
+                                        </Typography>
                                     </Box>
                                 </li>
                             );

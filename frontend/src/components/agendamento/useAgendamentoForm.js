@@ -444,6 +444,7 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
             paciente: formData.paciente?.id || null,
             medico: formData.medico?.id || null,
             plano_utilizado: formData.plano_utilizado?.id || null,
+            especialidade: formData.especialidade?.id || null,
             data_hora_inicio: formData.data_hora_inicio ? formData.data_hora_inicio.toISOString() : null,
             data_hora_fim: formData.data_hora_fim ? formData.data_hora_fim.toISOString() : null,
             is_encaixe: isEncaixe,
@@ -464,8 +465,8 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
             }
         } else if (tipoAgendamento === 'Consulta') {
             submissionData.procedimento = null;
-            delete submissionData.procedimentos_ids; // <--- DELETA A VARIÁVEL AQUI
-            submissionData.especialidade = formData.especialidade?.id || null;
+            delete submissionData.procedimentos_ids; 
+            // O valor de especialidade já foi tratado acima, não precisa mexer mais aqui.
         }
 
         if (formData.isento_cobranca) {
