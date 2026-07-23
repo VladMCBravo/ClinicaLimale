@@ -185,71 +185,92 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
                 else:
                     raise serializers.ValidationError({"sala": "⚠️ O sistema não encontrou uma Sala de Exames cadastrada.\n👉 O que fazer: Vá no painel Admin e crie uma Sala marcando a opção 'É sala de exames?'."})
 
-        # 3. Validação de Conflito de Sala (Mensagem Inteligente)
-        # O conflito é sempre calculado (mesmo com is_encaixe=True) para sabermos,
-        # ao final, se este agendamento realmente sobrepôs outro — é isso que vira
-        # o valor persistido de "is_encaixe", não a flag crua da requisição.
+        # --- Detecta se algo que afeta a agenda (sala/horário/tipo/médico) realmente mudou.
+        # Uma troca isolada de status (ex: Confirmado -> Realizado, Agendado -> Não Compareceu)
+        # não pode reabrir a validação de conflito de sala/capacidade: nada do agendamento em
+        # si mudou, então um "Choque de Horário" pré-existente e já tolerado (ex: um encaixe
+        # dividindo a mesma sala/horário) não pode voltar a bloquear a gravação.
+        medico_do_agendamento = data.get('medico') or getattr(instance, 'medico', None)
+        agenda_mudou = instance is None or (
+            sala_selecionada != getattr(instance, 'sala', None)
+            or inicio != instance.data_hora_inicio
+            or fim != instance.data_hora_fim
+            or tipo_agendamento != instance.tipo_agendamento
+            or medico_do_agendamento != instance.medico
+        )
+
         conflito_sala_existe = False
-        if sala_selecionada:
-            conflito_sala = Agendamento.objects.filter(
-                sala=sala_selecionada,
+        limite_excedido = False
+
+        if agenda_mudou:
+            # 3. Validação de Conflito de Sala (Mensagem Inteligente)
+            # O conflito é sempre calculado (mesmo com is_encaixe=True) para sabermos,
+            # ao final, se este agendamento realmente sobrepôs outro — é isso que vira
+            # o valor persistido de "is_encaixe", não a flag crua da requisição.
+            if sala_selecionada:
+                conflito_sala = Agendamento.objects.filter(
+                    sala=sala_selecionada,
+                    data_hora_inicio__lt=fim_tolerancia,
+                    data_hora_fim__gt=inicio_tolerancia
+                ).exclude(status__in=['Cancelado', 'Não Compareceu'])
+
+                if agendamento_id:
+                    conflito_sala = conflito_sala.exclude(pk=agendamento_id)
+                if ids_ignorar_conflito:
+                    conflito_sala = conflito_sala.exclude(pk__in=ids_ignorar_conflito)
+
+                conflito_sala_existe = conflito_sala.exists()
+
+                if conflito_sala_existe and not is_encaixe:
+                    raise serializers.ValidationError({
+                        "sala": f"⚠️ Choque de Horário: A sala '{sala_selecionada.nome}' já tem um paciente neste mesmo horário.\n👉 O que fazer: Mude o horário do agendamento ou ligue a chave 'Forçar Encaixe' no formulário para sobrepor."
+                    })
+
+            # 4. Validação de Limite Global (Mensagem Inteligente)
+            # Mesma lógica: calculamos sempre, e só bloqueamos se not is_encaixe.
+            conflitos_globais = Agendamento.objects.filter(
                 data_hora_inicio__lt=fim_tolerancia,
-                data_hora_fim__gt=inicio_tolerancia
+                data_hora_fim__gt=inicio_tolerancia,
+                tipo_agendamento=tipo_agendamento
             ).exclude(status__in=['Cancelado', 'Não Compareceu'])
 
             if agendamento_id:
-                conflito_sala = conflito_sala.exclude(pk=agendamento_id)
+                conflitos_globais = conflitos_globais.exclude(pk=agendamento_id)
             if ids_ignorar_conflito:
-                conflito_sala = conflito_sala.exclude(pk__in=ids_ignorar_conflito)
+                conflitos_globais = conflitos_globais.exclude(pk__in=ids_ignorar_conflito)
 
-            conflito_sala_existe = conflito_sala.exists()
+            qtd_existente = conflitos_globais.count()
 
-            if conflito_sala_existe and not is_encaixe:
-                raise serializers.ValidationError({
-                    "sala": f"⚠️ Choque de Horário: A sala '{sala_selecionada.nome}' já tem um paciente neste mesmo horário.\n👉 O que fazer: Mude o horário do agendamento ou ligue a chave 'Forçar Encaixe' no formulário para sobrepor."
-                })
-
-        # 4. Validação de Limite Global (Mensagem Inteligente)
-        # Mesma lógica: calculamos sempre, e só bloqueamos se not is_encaixe.
-        conflitos_globais = Agendamento.objects.filter(
-            data_hora_inicio__lt=fim_tolerancia,
-            data_hora_fim__gt=inicio_tolerancia,
-            tipo_agendamento=tipo_agendamento
-        ).exclude(status__in=['Cancelado', 'Não Compareceu'])
-
-        if agendamento_id:
-            conflitos_globais = conflitos_globais.exclude(pk=agendamento_id)
-        if ids_ignorar_conflito:
-            conflitos_globais = conflitos_globais.exclude(pk__in=ids_ignorar_conflito)
-
-        qtd_existente = conflitos_globais.count()
-
-        if tipo_agendamento == 'Consulta':
-            limite_excedido = qtd_existente >= LIMITE_GLOBAL_CONSULTAS
-        elif tipo_agendamento == 'Procedimento':
-            limite_excedido = qtd_existente >= LIMITE_GLOBAL_PROCEDIMENTOS
-        else:
-            limite_excedido = False
-
-        if limite_excedido and not is_encaixe:
             if tipo_agendamento == 'Consulta':
-                raise serializers.ValidationError({
-                    "non_field_errors": f"⚠️ Fila Cheia: O médico já possui {LIMITE_GLOBAL_CONSULTAS} consultas marcadas neste exato momento.\n👉 O que fazer: Agende para o próximo horário disponível ou ative a chave 'Forçar Encaixe' se for urgência."
-                })
+                limite_excedido = qtd_existente >= LIMITE_GLOBAL_CONSULTAS
             elif tipo_agendamento == 'Procedimento':
-                raise serializers.ValidationError({
-                    "non_field_errors": f"⚠️ Fila Cheia: Já existe {LIMITE_GLOBAL_PROCEDIMENTOS} procedimento sendo realizado neste momento.\n👉 O que fazer: Selecione outro horário livre na agenda ou ative a chave 'Forçar Encaixe'."
-                })
+                limite_excedido = qtd_existente >= LIMITE_GLOBAL_PROCEDIMENTOS
+            else:
+                limite_excedido = False
 
-        # O agendamento também conta como encaixe quando cai fora da jornada de trabalho
-        # cadastrada do médico (ex: horário/dia em que ele teoricamente não está na clínica).
-        medico_do_agendamento = data.get('medico') or getattr(instance, 'medico', None)
-        fora_jornada = _esta_fora_da_jornada(medico_do_agendamento, inicio, fim)
+            if limite_excedido and not is_encaixe:
+                if tipo_agendamento == 'Consulta':
+                    raise serializers.ValidationError({
+                        "non_field_errors": f"⚠️ Fila Cheia: O médico já possui {LIMITE_GLOBAL_CONSULTAS} consultas marcadas neste exato momento.\n👉 O que fazer: Agende para o próximo horário disponível ou ative a chave 'Forçar Encaixe' se for urgência."
+                    })
+                elif tipo_agendamento == 'Procedimento':
+                    raise serializers.ValidationError({
+                        "non_field_errors": f"⚠️ Fila Cheia: Já existe {LIMITE_GLOBAL_PROCEDIMENTOS} procedimento sendo realizado neste momento.\n👉 O que fazer: Selecione outro horário livre na agenda ou ative a chave 'Forçar Encaixe'."
+                    })
 
-        # O valor salvo reflete se este agendamento REALMENTE sobrepôs sala/capacidade ou caiu
-        # fora da jornada — não apenas se a flag "is_encaixe" veio marcada na requisição (que
-        # também é forçada para True silenciosamente quando o usuário é admin, ver acima).
-        data['is_encaixe'] = conflito_sala_existe or limite_excedido or fora_jornada
+            # O agendamento também conta como encaixe quando cai fora da jornada de trabalho
+            # cadastrada do médico (ex: horário/dia em que ele teoricamente não está na clínica).
+            fora_jornada = _esta_fora_da_jornada(medico_do_agendamento, inicio, fim)
+
+            # O valor salvo reflete se este agendamento REALMENTE sobrepôs sala/capacidade ou caiu
+            # fora da jornada — não apenas se a flag "is_encaixe" veio marcada na requisição (que
+            # também é forçada para True silenciosamente quando o usuário é admin, ver acima).
+            data['is_encaixe'] = conflito_sala_existe or limite_excedido or fora_jornada
+        else:
+            # Nada de sala/horário/tipo/médico mudou (ex: só o status foi alterado) — preserva
+            # o "is_encaixe" já persistido em vez de recalcular do zero, senão um agendamento
+            # que já era um encaixe legítimo perderia essa marcação numa simples troca de status.
+            data['is_encaixe'] = getattr(instance, 'is_encaixe', False)
 
         return data
 

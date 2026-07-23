@@ -169,6 +169,7 @@ export default function PainelRecepcaoPage() {
                         onBuscarHorario={() => setIsDispoOpen(true)}
                         onTabelaPrecos={() => setIsValoresModalOpen(true)}
                         onStatusWhatsapp={() => setIsChatbotModalOpen(true)}
+                        onStatusUpdated={forceRefresh}
                         // <--- 3. CORRIGIDO: Agora busca o paciente real na API e abre o modal
                         onEditarPaciente={(pacienteId) => {
                             apiClient.get(`/pacientes/${pacienteId}/`)
