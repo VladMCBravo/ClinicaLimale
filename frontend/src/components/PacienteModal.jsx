@@ -209,7 +209,8 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
       altura: formData.altura === '' ? null : formData.altura,
       dum: formData.dum === '' ? null : formData.dum, // Garante que DUM vazio vire null
       cpf: formData.cpf === '' ? null : formData.cpf,
-      email: formData.email === '' ? null : formData.email
+      email: formData.email === '' ? null : formData.email,
+      data_nascimento: formData.data_nascimento === '' ? null : formData.data_nascimento,
     }; 
 
     try {

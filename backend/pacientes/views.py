@@ -56,7 +56,7 @@ class PacienteListCreateAPIView(generics.ListCreateAPIView):
 # --- 3. CORREÇÃO DA VIEW DE DETALHE (QUE CAUSOU O ERRO 403) ---
 # Esta view é usada para 'Editar' (PATCH) e 'Deletar' (DELETE)
 class PacienteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Paciente.objects.annotate(total_consultas=Count('agendamentos'))
+    queryset = Paciente.objects.annotate(total_consultas=Count('agendamentos', distinct=True))
     serializer_class = PacienteSerializer
     
     # --- CORREÇÃO DO ERRO 403 ---
