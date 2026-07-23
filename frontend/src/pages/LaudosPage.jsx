@@ -595,8 +595,14 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                         placeholder="Buscar Paciente..."
                         value={paciente ? `${paciente.id}_${paciente.nome_completo}` : termoBusca}
                         onChange={(e) => { 
-                            if (paciente) setPaciente(null); 
-                            handleBuscaPacienteChange(e); 
+                            if (paciente) {
+                                setPaciente(null);
+                                // Se ela tentar digitar sobre um paciente já selecionado, limpa tudo para ela recomeçar
+                                setTermoBusca('');
+                                setPacientesEncontrados([]);
+                            } else {
+                                handleBuscaPacienteChange(e); 
+                            }
                         }}
                     />
                     <div style={{position:'absolute', right:'8px', cursor:'pointer'}}>
