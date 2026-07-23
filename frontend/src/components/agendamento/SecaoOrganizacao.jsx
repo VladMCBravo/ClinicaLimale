@@ -7,7 +7,7 @@ import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlin
 import { TextMaskDateTime } from './agendamentoHelpers';
 
 export default function SecaoOrganizacao({
-    dataInicioVisual, dataFimVisual, onDataInicioChange, onDataFimChange,
+    dataInicioVisual = '', dataFimVisual = '', onDataInicioChange, onDataFimChange,
     formData, setFormData
 }) {
     return (
@@ -18,24 +18,50 @@ export default function SecaoOrganizacao({
             </Box>
             <Grid container spacing={1}>
                 <Grid item xs={12} sm={6}>
-                    <TextField label="Início *" value={dataInicioVisual} onChange={onDataInicioChange} fullWidth size="small" placeholder="DD/MM/AAAA HH:MM" InputProps={{ inputComponent: TextMaskDateTime }} />
+                    <TextField
+                        label="Início *"
+                        value={dataInicioVisual || ''}
+                        onChange={onDataInicioChange}
+                        fullWidth
+                        size="small"
+                        placeholder="DD/MM/AAAA HH:MM"
+                        InputProps={{ inputComponent: TextMaskDateTime }}
+                    />
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                    <TextField label="Fim *" value={dataFimVisual} onChange={onDataFimChange} fullWidth size="small" placeholder="DD/MM/AAAA HH:MM" InputProps={{ inputComponent: TextMaskDateTime }} />
+                    <TextField
+                        label="Fim *"
+                        value={dataFimVisual || ''}
+                        onChange={onDataFimChange}
+                        fullWidth
+                        size="small"
+                        placeholder="DD/MM/AAAA HH:MM"
+                        InputProps={{ inputComponent: TextMaskDateTime }}
+                    />
                 </Grid>
             </Grid>
 
             <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }, mt: 1 }}>
                 <FormControl fullWidth size="small">
                     <InputLabel>Modalidade</InputLabel>
-                    <Select name="modalidade" value={formData.modalidade} label="Modalidade" onChange={(e) => setFormData({ ...formData, modalidade: e.target.value })}>
+                    <Select
+                        name="modalidade"
+                        value={formData?.modalidade || 'Presencial'}
+                        label="Modalidade"
+                        onChange={(e) => setFormData({ ...formData, modalidade: e.target.value })}
+                    >
                         <MenuItem value="Presencial">Presencial</MenuItem>
                         <MenuItem value="Telemedicina">Telemedicina</MenuItem>
                     </Select>
                 </FormControl>
                 <FormControl fullWidth size="small">
                     <InputLabel>Status</InputLabel>
-                    <Select name="status" value={formData.status} label="Status" onChange={(e) => setFormData({ ...formData, status: e.target.value })}>
+                    <Select
+                        name="status"
+                        value={formData?.status || 'Agendado'}
+                        label="Status"
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    >
                         <MenuItem value="Agendado">Agendado</MenuItem>
                         <MenuItem value="Confirmado">Confirmado</MenuItem>
                         <MenuItem value="Realizado">Realizado</MenuItem>

@@ -76,7 +76,7 @@ export const traduzirErroBackend = (errorData) => {
         const msgOriginal = Array.isArray(detalhes) ? detalhes[0] : detalhes;
         const msgString = String(msgOriginal).toLowerCase();
 
-        // 1. Mensagens Inteligentes (Como a sua trava de 48h ou conflito de sala)
+        // 1. Mensagens Inteligentes (Como a trava de 48h ou conflito de sala)
         if (String(msgOriginal).includes('⚠️')) {
             mensagens.push(msgOriginal);
         }
@@ -84,7 +84,7 @@ export const traduzirErroBackend = (errorData) => {
         else if (msgString.includes('obrigatório') || msgString.includes('required') || msgString.includes('null') || msgString.includes('em branco')) {
             mensagens.push(`⚠️ O campo "${nomeCampo}" é obrigatório. Por favor, preencha-o antes de salvar.`);
         }
-        // 3. Erros de ID ou Tipo Inválido (O famoso erro da PK ou texto incorreto)
+        // 3. Erros de ID ou Tipo Inválido (Erro da PK ou texto incorreto)
         else if (msgString.includes('pk') || msgString.includes('incorrect_type') || msgString.includes('inválida') || msgString.includes('does not exist')) {
             mensagens.push(`⚠️ Por favor, apague e selecione uma opção válida na lista de "${nomeCampo}".`);
         }
@@ -98,6 +98,6 @@ export const traduzirErroBackend = (errorData) => {
         }
     }
 
-    // Retorna a primeira mensagem de erro encontrada para não poluir a tela inteira
-    return mensagens.length > 0 ? mensagens[0] : "Erro ao processar a requisição no servidor.";
+    // Unifica todas as mensagens encontradas separadas por linha para informar tudo ao usuário
+    return mensagens.length > 0 ? mensagens.join('\n') : "Erro ao processar a requisição no servidor.";
 };
