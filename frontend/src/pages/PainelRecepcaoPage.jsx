@@ -128,8 +128,9 @@ export default function PainelRecepcaoPage() {
     };
 
     const handleAbrirNovoPaciente = (nomeDigitado) => {
-    setNomeNovoPaciente(nomeDigitado);
-    setIsPacienteModalOpen(true);
+        setPacienteParaEditar(null); // 🔥 DESTRÓI O ID ANTIGO (A SALVAÇÃO AQUI)
+        setNomeNovoPaciente(nomeDigitado);
+        setIsPacienteModalOpen(true);
     };
 
     return (
@@ -165,7 +166,10 @@ export default function PainelRecepcaoPage() {
                         onFiltroChange={handleFiltroChange}
                         kpis={kpis}
                         loadingKpis={loadingKpis}
-                        onNovoPaciente={() => setIsPacienteModalOpen(true)}
+                        onNovoPaciente={() => {
+                            setPacienteParaEditar(null); // 🔥 GARANTE O CADASTRO VIRGEM PELA BARRA DO TOPO
+                            setIsPacienteModalOpen(true);
+                        }}
                         onBuscarHorario={() => setIsDispoOpen(true)}
                         onTabelaPrecos={() => setIsValoresModalOpen(true)}
                         onStatusWhatsapp={() => setIsChatbotModalOpen(true)}
@@ -196,10 +200,15 @@ export default function PainelRecepcaoPage() {
                 open={isPacienteModalOpen} 
                 onClose={() => {
                     setIsPacienteModalOpen(false);
-                    setNomeNovoPaciente(''); // Limpa o nome ao fechar
+                    setNomeNovoPaciente(''); 
+                    setPacienteParaEditar(null); // 🔥 FAXINA COMPLETA AO FECHAR
                 }} 
-                onSave={() => { setIsPacienteModalOpen(false); forceRefresh(); setNomeNovoPaciente(''); }} 
-                // <--- 4. CORRIGIDO: Passa o paciente que foi puxado da API para o Modal
+                onSave={() => { 
+                    setIsPacienteModalOpen(false); 
+                    forceRefresh(); 
+                    setNomeNovoPaciente(''); 
+                    setPacienteParaEditar(null); // 🔥 FAXINA COMPLETA AO SALVAR
+                }} 
                 pacienteParaEditar={pacienteParaEditar} 
                 nomeInicial={nomeNovoPaciente} 
             />
