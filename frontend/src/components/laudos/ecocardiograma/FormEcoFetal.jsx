@@ -3,6 +3,8 @@ import React from 'react';
 import '../Laudos.css';
 
 import useEcoFetalForm from './hooks/useEcoFetalForm';
+import { parseIgParaSemanas } from './logic/ecoFetalCalculations';
+import CalculadoraCrescimento from '../shared/CalculadoraCrescimento';
 
 import SecaoGestacaoBiometria from './sections_eco_fetal/SecaoGestacaoBiometria';
 import SecaoBibliotecaDiagnosticos from './sections_eco_fetal/SecaoBibliotecaDiagnosticos';
@@ -13,6 +15,15 @@ import SecaoComentariosConduta from './sections_eco_fetal/SecaoComentariosCondut
 
 const FormEcoFetal = ({ onUpdate, initialValues }) => {
   const { data, handleChange, selecionarDiagnostico } = useEcoFetalForm(onUpdate, initialValues);
+
+  // Idade gestacional (semanas) parseada do texto do laudo, para pré-preencher
+  // a calculadora de biometria fetal.
+  const gaSemanas = parseIgParaSemanas(data.idadeGestacional);
+  const inserirComentario = (texto) => {
+    if (!texto) return;
+    const novo = data.comentarios ? `${data.comentarios}\n${texto}` : texto;
+    handleChange({ target: { name: 'comentarios', value: novo } });
+  };
 
   return (
     <div className="laudo-container">
@@ -28,6 +39,11 @@ const FormEcoFetal = ({ onUpdate, initialValues }) => {
 
             <div style={{flex:'1', minWidth:'350px'}}>
                 <SecaoRitmoArritmia data={data} handleChange={handleChange} />
+                <CalculadoraCrescimento
+                    padraoInicial="ig_fetal"
+                    idadeFixa={gaSemanas}
+                    onInserir={inserirComentario}
+                />
                 <SecaoScoreHidropsia data={data} handleChange={handleChange} />
                 <SecaoComentariosConduta data={data} handleChange={handleChange} />
             </div>

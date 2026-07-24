@@ -120,3 +120,23 @@ const formatarZManual = (raw) => {
     if (isNaN(n)) return raw; // devolve como digitado se não for número
     return formatarZ(n);
 };
+
+/**
+ * Converte idade gestacional em texto para semanas decimais.
+ * Aceita "24s3d", "24s", "24+3", "24 3", "24" e "24,3"/"24.3" (semanas decimais).
+ * Retorna número (semanas, fracionário) ou null se não reconhecer.
+ */
+export const parseIgParaSemanas = (str) => {
+    if (str == null) return null;
+    const s = String(str).trim().toLowerCase();
+    if (!s) return null;
+    let m = s.match(/^(\d+)\s*s(?:em|emanas)?\s*(?:(\d+)\s*d?)?$/); // 24s3d, 24s
+    if (m) return Number(m[1]) + (m[2] ? Number(m[2]) / 7 : 0);
+    m = s.match(/^(\d+)\s*\+\s*(\d+)$/); // 24+3
+    if (m) return Number(m[1]) + Number(m[2]) / 7;
+    m = s.match(/^(\d+)\s+(\d+)$/); // 24 3
+    if (m) return Number(m[1]) + Number(m[2]) / 7;
+    m = s.match(/^(\d+(?:[.,]\d+)?)$/); // 24 ou 24,3 (semanas decimais)
+    if (m) return parseFloat(m[1].replace(',', '.'));
+    return null;
+};

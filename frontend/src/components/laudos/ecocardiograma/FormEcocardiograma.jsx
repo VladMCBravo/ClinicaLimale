@@ -9,13 +9,16 @@ import '../Laudos.css';
 
 import FormEcoAdulto from './FormEcoAdulto';
 import FormEcoFetal from './FormEcoFetal';
+import FormEcoCongenito from './FormEcoCongenito';
 
 const FormEcocardiograma = ({ onUpdate, initialValues }) => {
   // Deriva a categoria inicial dos valores recebidos (retomada de rascunho).
   const categoriaInicial =
     (initialValues && (initialValues.subtipoFetal === 'ECO_FETAL' || initialValues.__tipo === 'ECO_FETAL'))
       ? 'FETAL'
-      : 'ADULTO';
+      : (initialValues && initialValues.__tipo === 'ECO_CONGENITO')
+        ? 'CONGENITO'
+        : 'ADULTO';
 
   const [categoria, setCategoria] = useState(categoriaInicial);
 
@@ -37,12 +40,13 @@ const FormEcocardiograma = ({ onUpdate, initialValues }) => {
              >
                  <option value="ADULTO">Ecocardiograma (Adulto / Transtorácico)</option>
                  <option value="FETAL">Ecocardiograma Fetal</option>
+                 <option value="CONGENITO">Ecocardiograma Congênito / Pediátrico</option>
              </select>
         </div>
 
-        {categoria === 'FETAL'
-            ? <FormEcoFetal onUpdate={onUpdate} initialValues={initialValues} />
-            : <FormEcoAdulto onUpdate={onUpdate} initialValues={initialValues} />}
+        {categoria === 'FETAL' && <FormEcoFetal onUpdate={onUpdate} initialValues={initialValues} />}
+        {categoria === 'CONGENITO' && <FormEcoCongenito onUpdate={onUpdate} initialValues={initialValues} />}
+        {categoria === 'ADULTO' && <FormEcoAdulto onUpdate={onUpdate} initialValues={initialValues} />}
     </div>
   );
 };
