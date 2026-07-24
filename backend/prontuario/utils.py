@@ -144,6 +144,12 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
 def gerar_pdf_laudo_backend(context):
     laudo = context.get('laudo')
     paciente = context.get('paciente')
+    # >>> ADICIONE ESTE LOG AQUI <<<
+    print("\n=== DEBUG BACKEND 3: RENDERIZADOR HTML ===")
+    nome = paciente.nome_completo if paciente else 'NENHUM PACIENTE'
+    id_laudo = laudo.id if laudo else 'SEM LAUDO'
+    print(f"Renderizando Laudo ID {id_laudo} para o paciente: {nome}")
+    print("==========================================\n")
     medico = context.get('medico')
     idade_formatada = context.get('idade_formatada', '')
     data_exame = context.get('data_exame')
