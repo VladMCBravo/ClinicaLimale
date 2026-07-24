@@ -368,9 +368,17 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
 
     const validarFormulario = () => {
         if (!formData.paciente) return "Selecione um paciente.";
-        if (!formData.data_hora_inicio || typeof formData.data_hora_inicio.isValid !== 'function' || !formData.data_hora_inicio.isValid()) return "Verifique o formato da hora de início.";
-        if (!formData.data_hora_fim || typeof formData.data_hora_fim.isValid !== 'function' || !formData.data_hora_fim.isValid()) return "Verifique o formato da hora de fim.";
+        if (!formData.data_hora_inicio || !formData.data_hora_inicio.isValid()) return "Verifique o formato da hora de início.";
+        if (!formData.data_hora_fim || !formData.data_hora_fim.isValid()) return "Verifique o formato da hora de fim.";
         if (formData.data_hora_inicio.isAfter(formData.data_hora_fim)) return "A data de fim deve ser posterior à data de início.";
+        
+        // >>> NOVA TRAVA DE SEGURANÇA <<<
+        const duracaoMinutos = formData.data_hora_fim.diff(formData.data_hora_inicio, 'minute');
+        if (duracaoMinutos > 120) {
+            return "Erro de Segurança: O agendamento ultrapassa 2 horas. Isso pode sobrescrever outros pacientes na grade. Reduza o tempo.";
+        }
+        // >>> FIM DA NOVA TRAVA <<<
+
         if (!formData.sala) return "Selecione uma sala/consultório.";
 
         // UX FIX: O ADMIN IGNORA A TRAVA DO TEMPO E PODE AGENDAR NO PASSADO

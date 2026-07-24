@@ -103,17 +103,22 @@ export default function SecaoDadosClinicos({
 
                 {tipoAgendamento === 'Procedimento' && (
                     <Autocomplete
-                        multiple
+                        multiple={!editingEvent} // A TRAVA VOLTOU: Se estiver editando, só pode 1.
                         options={procedimentos}
                         getOptionLabel={(p) => p?.descricao || ''}
-                        value={formData?.procedimentos || []}
+                        // Garante que o valor se adapta se for array (múltiplo) ou objeto único (edição)
+                        value={editingEvent ? (formData?.procedimentos[0] || formData?.procedimento || null) : (formData?.procedimentos || [])}
                         isOptionEqualToValue={(o, v) => o?.id === v?.id}
-                        onChange={onProcedimentosChange}
-                        disableCloseOnSelect
+                        onChange={(event, values) => {
+                            // Se for edição, o Autocomplete devolve um objeto único, então transformamos em array para manter compatibilidade
+                            const arrayValues = Array.isArray(values) ? values : (values ? [values] : []);
+                            onProcedimentosChange(event, arrayValues);
+                        }}
+                        disableCloseOnSelect={!editingEvent}
                         renderInput={(params) => (
                             <TextField
                                 {...params}
-                                label={editingEvent ? "Procedimento *" : "Procedimentos *"}
+                                label={editingEvent ? "Procedimento (Apenas 1 na edição) *" : "Procedimentos *"}
                                 size="small"
                                 placeholder={(formData?.procedimentos?.length || 0) > 0 ? "" : "Selecione..."}
                             />
