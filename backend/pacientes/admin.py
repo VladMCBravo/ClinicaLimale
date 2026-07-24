@@ -1,22 +1,18 @@
-# backend/pacientes/admin.py - VERSÃO FINAL E CORRIGIDA
+# backend/pacientes/admin.py - VERSÃO COM RESGATE DE PACIENTES
 
 from django.contrib import admin
 from .models import Paciente
 
 @admin.register(Paciente)
 class PacienteAdmin(admin.ModelAdmin):
-    # Campos que aparecerão na lista de pacientes
-    list_display = ('nome_completo', 'cpf', 'telefone_celular', 'plano_convenio')
+    # 1. Mostra o status visualmente na lista
+    list_display = ('nome_completo', 'cpf', 'telefone_celular', 'plano_convenio', 'ativo')
     
-    # Adiciona filtros úteis
-    list_filter = ('plano_convenio__convenio', 'data_cadastro')
+    # 2. Permite filtrar para ver apenas os "apagados" (ativo=False)
+    list_filter = ('ativo', 'plano_convenio__convenio', 'data_cadastro')
     
-    # Permite a busca por nome ou CPF
     search_fields = ('nome_completo', 'cpf')
     
-    # --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
-    # Organizamos a página de edição em seções (fieldsets)
-    # e removemos a referência ao campo antigo 'convenio'
     fieldsets = (
         ('Informações Pessoais', {
             'fields': ('nome_completo', 'data_nascimento', 'cpf', 'genero')
@@ -24,14 +20,22 @@ class PacienteAdmin(admin.ModelAdmin):
         ('Informações de Contato', {
             'fields': ('telefone_celular', 'email', 'cep', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado')
         }),
-        # Usamos os novos campos corretos aqui
         ('Dados do Convênio', {
             'fields': ('plano_convenio', 'numero_carteirinha')
         }),
         ('Outras Informações', {
-            'fields': ('medico_responsavel',)
+            # 3. Permite marcar/desmarcar na edição manual
+            'fields': ('medico_responsavel', 'ativo')
         }),
     )
 
-    # Para melhorar a performance, usamos raw_id_fields para ForeignKeys com muitos itens
     raw_id_fields = ('plano_convenio', 'medico_responsavel')
+
+    # 4. A MÁGICA: Ação em lote para ressuscitar pacientes apagados acidentalmente
+    actions = ['restaurar_pacientes_apagados']
+
+    @admin.action(description='🟢 Restaurar Pacientes Selecionados')
+    def restaurar_pacientes_apagados(self, request, queryset):
+        # Atualiza todos os pacientes selecionados de volta para ativo=True
+        queryset.update(ativo=True)
+        self.message_user(request, "Os pacientes foram restaurados e voltarão a aparecer no sistema!")
