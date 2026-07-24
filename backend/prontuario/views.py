@@ -1446,6 +1446,12 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
         
         paciente_id = self.request.data.get('paciente')
         paciente = get_object_or_404(Paciente, id=paciente_id)
+
+        # >>> ADICIONE ESTE LOG AQUI <<<
+        print("\n=== DEBUG BACKEND 1: RECEBIMENTO DO POST ===")
+        print(f"ID do Paciente recebido: {paciente_id}")
+        print(f"Nome do Paciente no Banco: {paciente.nome_completo}")
+        print("===========================================\n")
         
         # 1. Tratar dados estruturados
         dados_raw = self.request.data.get('dados_estruturados', '{}')
@@ -1672,6 +1678,12 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                     'imagens': imagens_lista
                 }
 
+                # >>> ADICIONE ESTE LOG AQUI <<<
+                print("\n=== DEBUG BACKEND 2: PREPARANDO CONTEXTO DO PDF ===")
+                print(f"Laudo ID salvo: {laudo.id}")
+                print(f"Paciente injetado no PDF: {paciente.nome_completo}")
+                print("====================================================\n")
+
                 pdf_bytes = gerar_pdf_laudo_backend(contexto)
                 
                 if pdf_bytes:
@@ -1698,6 +1710,13 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             ).start())
             
             print(f"[API] Laudo {laudo.id} programado para Thread em background.")
+
+            # >>> ADICIONE ESTES LOGS DE CREDENCIAIS <<<
+            print("\n=== DEBUG CREDENCIAIS (BACKEND) ===")
+            print(f"Laudo ID: {laudo.id} | Paciente: {paciente.nome_completo}")
+            print(f"Código Gerado: {laudo.codigo_acesso}")
+            print(f"Senha Gerada: {laudo.senha_acesso}")
+            print("=====================================\n")
 
             # --- PREPARANDO RESPOSTA PRO FRONTEND ---
             # Devolvemos as credenciais NA HORA para o React não quebrar o WhatsApp

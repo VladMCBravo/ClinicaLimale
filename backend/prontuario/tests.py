@@ -64,7 +64,14 @@ def evolucao_clinica(db, medico_titular, paciente_padrao):
 @pytest.fixture(autouse=True)
 def disable_external_storage(settings):
     """Força o Django a usar o armazenamento local durante os testes."""
-    settings.DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+    settings.STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 
 # ==========================================
@@ -272,6 +279,34 @@ class TestLaudoAsyncView:
         
         assert bool(laudo_criado.arquivo_pdf) is True, "O Fallback do backend falhou em gerar o PDF!"
         assert laudo_criado.status == 'PROCESSANDO'
+
+    @patch('django.db.transaction.on_commit') 
+    @patch('prontuario.utils.gerar_pdf_laudo_backend')
+    def test_criacao_laudo_gera_credenciais_corretas(self, mock_gerar_pdf, mock_on_commit, client, medico_titular, paciente_padrao):
+        """Garante que a criação assíncrona devolva credenciais únicas atreladas ao paciente correto."""
+        mock_gerar_pdf.return_value = b"PDF_FALSO"
+        client.force_authenticate(user=medico_titular)
+        url = reverse('laudo-create-async')
+        
+        payload = {
+            'paciente': paciente_padrao.id,
+            'titulo': 'USG Geral',
+        }
+        
+        response = client.post(url, payload, format='multipart')
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        
+        # Verifica se a resposta contém o bloco de credenciais
+        assert 'credenciais' in response.data, "Credenciais não foram devolvidas ao frontend!"
+        credenciais = response.data['credenciais']
+        
+        assert credenciais['codigo'].startswith('PCT-'), "O formato do código de acesso está incorreto!"
+        assert len(credenciais['senha']) == 6, "A senha gerada não possui 6 caracteres!"
+        
+        # Confirma no banco se pertencem ao laudo do paciente certo
+        laudo_salvo = Laudo.objects.get(paciente=paciente_padrao)
+        assert laudo_salvo.codigo_acesso == credenciais['codigo']
+        assert laudo_salvo.senha_acesso == credenciais['senha']
     
 @pytest.mark.django_db
 class TestAtualizacaoAutomaticaPaciente:

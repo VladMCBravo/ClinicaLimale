@@ -435,6 +435,12 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         
         // A ausência do formData.append('arquivo_pdf', ...) acionará o gerador do Django!
 
+        // ADICIONE ESTES LOGS AQUI:
+        console.log("=== DEBUG LAUDO ===");
+        console.log("ID do Paciente enviado no FormData:", paciente.id);
+        console.log("Nome do Paciente no estado atual:", paciente.nome_completo);
+        console.log("===================");
+
         // 4. Envia para a NOVA ROTA ASSÍNCRONA
         let response = await apiClient.post('/prontuario/laudos-async/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         const laudoProcessandoId = response.data.id;
@@ -448,6 +454,13 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
 
                 if (statusAtual === 'FINALIZADO') {
                     setIsPolling(false);
+
+                    // >>> ADICIONE ESTES LOGS DE CREDENCIAIS <<<
+                    console.log("=== DEBUG CREDENCIAIS (FRONTEND) ===");
+                    console.log("Status recebido:", statusAtual);
+                    console.log("Credenciais recebidas do backend:", res.data.credenciais);
+                    console.log("Paciente atual no estado do React:", paciente?.nome_completo);
+                    console.log("======================================");
 
                     // Alimenta os dados exatos para o WhatsApp e E-mail funcionarem
                     if (res.data.credenciais) setCredenciais(res.data.credenciais);
