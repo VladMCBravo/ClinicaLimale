@@ -97,7 +97,7 @@ class UploadExameView(APIView):
                         paciente_encontrado = query.first()
 
         # -----------------------------------------------------------------
-        # PROCESSAMENTO DO EXAME E CRIAÇÃO DO REGISTRO
+        # PROCESSAMENTO DO EXAME E CRIAÇÃO DO REGISTRO (CORRIGIDO)
         # -----------------------------------------------------------------
         ciclo_ativo = None
         if paciente_encontrado:
@@ -106,15 +106,38 @@ class UploadExameView(APIView):
                 status='ativo'
             ).order_by('-data_inicio').first()
 
-        exame, created = Exame.objects.get_or_create(
-            nome_paciente_pasta=nome_pasta,
-            data_exame=data_str,
-            defaults={
-                'paciente': paciente_encontrado,
-                'status': 'DISPONIVEL' if paciente_encontrado else 'PENDENTE',
-                'ciclo': ciclo_ativo
-            }
-        )
+        exame = None
+        created = False
+
+        if paciente_encontrado:
+            # 1. INTELIGÊNCIA DE DEDUPLICAÇÃO: 
+            # Verifica se já existe um exame para esse paciente HOJE 
+            # (Isso captura o exame "Vazio" gerado pelo Laudo do médico)
+            exame_existente = Exame.objects.filter(
+                paciente=paciente_encontrado,
+                data_exame=data_str
+            ).first()
+
+            if exame_existente:
+                exame = exame_existente
+                
+                # Se o exame reaproveitado for o "Vazio" do Laudo, 
+                # atualizamos o nome para o nome real da pasta para manter integridade com o S3
+                if "- L" in exame.nome_paciente_pasta:
+                    exame.nome_paciente_pasta = nome_pasta
+                    exame.save()
+
+        # 2. Se não encontrou nenhum exame para o paciente hoje (ou se ainda não achou paciente)
+        if not exame:
+            exame, created = Exame.objects.get_or_create(
+                nome_paciente_pasta=nome_pasta,
+                data_exame=data_str,
+                defaults={
+                    'paciente': paciente_encontrado,
+                    'status': 'DISPONIVEL' if paciente_encontrado else 'PENDENTE',
+                    'ciclo': ciclo_ativo
+                }
+            )
 
         count_imgs = 0
         for f in files:

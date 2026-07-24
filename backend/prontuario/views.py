@@ -1100,22 +1100,31 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                 ).exclude(status='CANCELADO_POR_RETIFICACAO').values_list('exame_id', flat=True)
 
                 if exame_id_front:
-                    # Trava afrouxada para permitir que 2 laudos no mesmo dia compartilhem as fotos da Samsung
                     exame = Exame.objects.filter(id=exame_id_front).first()
                 
                 if not exame:
-                    # Limite de dias baseado na data do exame (retroativo)
+                    # 💡 NOVIDADE 1: Tenta achar o exame EXATO do dia (Compartilhamento)
+                    # Sem ".exclude()", permitindo que 2 laudos no mesmo dia usem as mesmas fotos!
+                    exame = Exame.objects.filter(
+                        paciente=paciente, data_exame=data_retroativa
+                    ).order_by('-criado_em').first()
+
+                if not exame:
+                    # 💡 NOVIDADE 2: O Fallback dos 15 dias 
+                    # Aqui usamos o exclude para não "roubar" exames de outras semanas sem querer
                     limite_dias = data_retroativa - timedelta(days=15)
                     exame = Exame.objects.filter(
                         paciente=paciente, data_exame__gte=limite_dias
                     ).exclude(id__in=exames_usados_ids).order_by('-data_exame', '-criado_em').first()
                 
                 if not exame:
+                    # 💡 NOVIDADE 3: Cria o Vazio (Âncora) APENAS se realmente não tiver nada
                     nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
                     exame = Exame.objects.create(
                         paciente=paciente, 
-                        data_exame=data_retroativa, # <--- DATA CORRETA NO BANCO E NO PORTAL
-                        nome_paciente_pasta=nome_unico_pasta, status='DISPONIVEL'
+                        data_exame=data_retroativa, 
+                        nome_paciente_pasta=nome_unico_pasta, 
+                        status='DISPONIVEL'
                     )
 
             # Salva o vínculo final
@@ -1599,37 +1608,39 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             exame = None
             
             if exame_herdado:
-                # O laudo novo assume a mesma pasta e a mesma senha do antigo!
                 exame = exame_herdado 
             else:
-                # Se for um laudo totalmente novo (não retificado), roda a lógica original
                 exame_id_front = request.data.get('exame')
-                
-                # Ignoramos os cancelados na hora de procurar contêineres ocupados
                 exames_usados_ids = Laudo.objects.filter(
                     exame__isnull=False
                 ).exclude(status='CANCELADO_POR_RETIFICACAO').values_list('exame_id', flat=True)
 
                 if exame_id_front:
-                    # CORRIGIDO: Removido o .exclude para permitir múltiplos laudos no mesmo exame_id via Async
                     exame = Exame.objects.filter(id=exame_id_front).first()
                 
                 if not exame:
-                    # Limite de dias baseado na data do exame (retroativo)
+                    # 💡 NOVIDADE 1: Compartilhamento de Exame no mesmo dia
+                    exame = Exame.objects.filter(
+                        paciente=paciente, data_exame=data_retroativa
+                    ).order_by('-criado_em').first()
+
+                if not exame:
+                    # 💡 NOVIDADE 2: Fallback 15 dias
                     limite_dias = data_retroativa - timedelta(days=15)
                     exame = Exame.objects.filter(
                         paciente=paciente, data_exame__gte=limite_dias
                     ).exclude(id__in=exames_usados_ids).order_by('-data_exame', '-criado_em').first()
                 
                 if not exame:
-                    import uuid # <-- Importamos o gerador de IDs únicos
+                    # 💡 NOVIDADE 3: Geração do exame vazio com UUID (Específico da AsyncView)
+                    import uuid
                     nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
                     exame = Exame.objects.create(
                         paciente=paciente, 
                         data_exame=data_retroativa,
                         nome_paciente_pasta=nome_unico_pasta, 
                         status='DISPONIVEL',
-                        codigo_acesso=f"EX-{uuid.uuid4().hex[:8].upper()}" # <-- FORÇA UM CÓDIGO ÚNICO AQUI
+                        codigo_acesso=f"EX-{uuid.uuid4().hex[:8].upper()}" 
                     )
 
             # Salva o vínculo final
