@@ -990,7 +990,7 @@ class LaudoListCreateView(generics.ListCreateAPIView):
         laudo = serializer.save(
             medico=self.request.user, 
             paciente=paciente,
-            tipo_exame=self.request.data.get('titulo', 'EXAME'),
+            tipo_exame=self.request.data.get('titulo', 'EXAME')[:50],
             dados_estruturados=dados_dict
         )
 
@@ -1517,7 +1517,7 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
         laudo = serializer.save(
             medico=self.request.user, 
             paciente=paciente,
-            tipo_exame=self.request.data.get('titulo', 'EXAME'),
+            tipo_exame=self.request.data.get('titulo', 'EXAME')[:50],
             dados_estruturados=dados_dict,
             status='PROCESSANDO'
         )
