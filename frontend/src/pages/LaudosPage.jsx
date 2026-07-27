@@ -416,6 +416,11 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         setTextoFinal(textoCorrigido);
         setImagens(imagensOtimizadas);
 
+        // 👇 ADICIONE ESTE LOG AQUI 👇
+        console.log("🛑 TRACER ENVIO API: O que a LaudosPage está mandando pro Django?");
+        console.log("-> Sexo dentro do dadosEstruturados:", dadosEstruturados.sexo);
+        // ----------------------------
+
         // ===============================================================
         // 🚀 TRANSIÇÃO: O FRONTEND NÃO GERA MAIS O PDF!
         // Removemos o gerarPDFLaudo(). O Backend fará o trabalho pesado.
@@ -669,6 +674,12 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                                 } else {
                                     sexoMapeado = rawSexo; // Se já vier correto do banco, mantém
                                 }
+
+                                // 👇 ADICIONE ESTE LOG AQUI 👇
+                                console.log("🛑 TRACER SELEÇÃO: Paciente selecionado na busca!");
+                                console.log("-> Gênero vindo da API:", rawSexo);
+                                console.log("-> Gênero mapeado pelo React:", sexoMapeado);
+                                // ----------------------------
 
                                 setPaciente(p);
                                 setDadosEstruturados(prev => ({

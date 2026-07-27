@@ -30,6 +30,12 @@ export const gerarPDFLaudo = async ({
     comTimbre = true, usaAssinaturaDigital = false, retornarBlob = false 
 }) => {
 
+    // 👇 ADICIONE ESTE LOG AQUI 👇
+    console.log("🛑 TRACER PDF: O que chegou no gerador PDF?");
+    console.log("-> pacienteNome:", pacienteNome);
+    console.log("-> dadosEstruturados recebidos:", JSON.parse(JSON.stringify(dadosEstruturados || {})));
+    // ----------------------------
+
     const formatarLinhaNormal = (line, isRodape = false) => {
         if (isRodape) {
             return { text: line, fontSize: 8, color: '#555', alignment: 'justify', lineHeight: 1.1, margin: [0, 0, 0, 1] };
