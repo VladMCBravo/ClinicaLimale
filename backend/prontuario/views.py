@@ -957,9 +957,16 @@ class LaudoListCreateView(generics.ListCreateAPIView):
 
         # Se o médico selecionou o Sexo no Laudo e o cadastro estava vazio
         sexo_laudo = dados_dict.get('sexo')
-        if sexo_laudo and not paciente.genero: # Se sua API usar 'sexo', mude aqui
-            novo_sexo = 'M' if sexo_laudo.lower() == 'masculino' else 'F'
-            paciente.genero = novo_sexo # Ou paciente.sexo = novo_sexo
+        if sexo_laudo and not paciente.genero:
+            clean_sexo = str(sexo_laudo).strip().lower()
+            if clean_sexo in ['masculino', 'm']:
+                paciente.genero = 'Masculino'
+            elif clean_sexo in ['feminino', 'f']:
+                paciente.genero = 'Feminino'
+            elif clean_sexo in ['outro', 'o']:
+                paciente.genero = 'Outro'
+            else:
+                paciente.genero = sexo_laudo # Mantém a string enviada
             paciente_atualizado = True
 
         # Se o médico digitou a Idade no Laudo e a Data de Nascimento estava vazia
@@ -1481,8 +1488,15 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
 
         sexo_laudo = dados_dict.get('sexo')
         if sexo_laudo and not paciente.genero:
-            novo_sexo = 'M' if sexo_laudo.lower() == 'masculino' else 'F'
-            paciente.genero = novo_sexo 
+            clean_sexo = str(sexo_laudo).strip().lower()
+            if clean_sexo in ['masculino', 'm']:
+                paciente.genero = 'Masculino'
+            elif clean_sexo in ['feminino', 'f']:
+                paciente.genero = 'Feminino'
+            elif clean_sexo in ['outro', 'o']:
+                paciente.genero = 'Outro'
+            else:
+                paciente.genero = sexo_laudo # Mantém a string enviada
             paciente_atualizado = True
 
         idade_laudo = dados_dict.get('idade')

@@ -330,7 +330,7 @@ class TestAtualizacaoAutomaticaPaciente:
         client.post(url, payload, format='multipart')
         paciente_incompleto.refresh_from_db()
         
-        assert paciente_incompleto.genero == 'F'
+        assert paciente_incompleto.genero == 'Feminino'
         assert paciente_incompleto.data_nascimento is not None
         assert paciente_incompleto.data_nascimento.year == date.today().year - 30
 
