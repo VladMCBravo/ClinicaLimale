@@ -219,6 +219,10 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
       data_nascimento: formData.data_nascimento === '' ? null : formData.data_nascimento,
     }; 
 
+    // Coloque isso antes do axios/apiClient.put
+    console.log("🛑 TRACER 1 - MODAL PACIENTE: O que estou mandando salvar no banco?");
+    console.log("Payload:", dataToSend);
+
     try {
       if (pacienteParaEditar && pacienteParaEditar.id) { 
         await apiClient.put(`/pacientes/${pacienteParaEditar.id}/`, dataToSend);
