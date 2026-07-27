@@ -664,9 +664,13 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                                     sexoMapeado = 'Masculino';
                                 } else if (cleanSexo === 'F' || cleanSexo === 'FEMININO') {
                                     sexoMapeado = 'Feminino';
+                                } else if (cleanSexo === 'O' || cleanSexo === 'OUTRO') {
+                                    sexoMapeado = 'Outro';
+                                } else {
+                                    // Fallback: garante que, se for uma string válida do BD, ele use.
+                                    sexoMapeado = rawSexo; 
                                 }
 
-                                // Injeta a Data de Nascimento crua e o Sexo!
                                 setDadosEstruturados({
                                     dataNascimento: p.data_nascimento || '',
                                     sexo: sexoMapeado
