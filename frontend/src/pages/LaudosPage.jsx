@@ -655,26 +655,27 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                                 sessionStorage.removeItem('laudos_rascunho_auto_save');
 
                                 // 3. Define o novo paciente
-                                // Verificação à prova de balas para o Sexo/Gênero
-                                const rawSexo = p.sexo || p.genero || '';
-                                const cleanSexo = rawSexo.toUpperCase();
-                                let sexoMapeado = '';
+                                // Puxa 'genero' ou 'sexo' vindo da API
+                                const rawSexo = p.genero || p.sexo || '';
+                                const cleanSexo = rawSexo.toString().trim().toUpperCase();
+                                let sexoMapeado = 'Masculino'; // Padrão caso não identifique
 
-                                if (cleanSexo === 'M' || cleanSexo === 'MASCULINO') {
-                                    sexoMapeado = 'Masculino';
-                                } else if (cleanSexo === 'F' || cleanSexo === 'FEMININO') {
+                                if (cleanSexo === 'F' || cleanSexo === 'FEMININO') {
                                     sexoMapeado = 'Feminino';
                                 } else if (cleanSexo === 'O' || cleanSexo === 'OUTRO') {
                                     sexoMapeado = 'Outro';
+                                } else if (cleanSexo === 'M' || cleanSexo === 'MASCULINO') {
+                                    sexoMapeado = 'Masculino';
                                 } else {
-                                    // Fallback: garante que, se for uma string válida do BD, ele use.
-                                    sexoMapeado = rawSexo; 
+                                    sexoMapeado = rawSexo; // Se já vier correto do banco, mantém
                                 }
 
-                                setDadosEstruturados({
+                                setPaciente(p);
+                                setDadosEstruturados(prev => ({
+                                    ...prev,
                                     dataNascimento: p.data_nascimento || '',
                                     sexo: sexoMapeado
-                                });
+                                }));
 
                                 setPaciente(p); 
                                 setTermoBusca(''); 
@@ -765,21 +766,22 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
 
         {/* 2. ÁREA DO FORMULÁRIO DINÂMICO */}
         <div style={styles.formScrollArea}> 
+            {/* Exemplo no FormObstetrico */}
             {tipoExame === 'OBSTETRICO' && (
                 <FormObstetrico 
-                    key={`${paciente?.id || 'novo'}-${tipoExame}`} 
+                    key={`${paciente?.id || 'novo'}-${dadosEstruturados?.sexo || ''}-${tipoExame}`} 
                     onUpdate={handleFormUpdate} 
                     initialValues={dadosEstruturados} 
                 />
             )}
 
             {tipoExame === 'ABDOME' && (
-    <FormAbdome 
-        key={`${paciente?.id || 'novo'}-${tipoExame}`} 
-        onUpdate={handleFormUpdate} 
-        initialValues={dadosEstruturados} 
-    />
-)}
+                <FormAbdome 
+                    key={`${paciente?.id || 'novo'}-${dadosEstruturados?.sexo || ''}-${tipoExame}`} 
+                    onUpdate={handleFormUpdate} 
+                    initialValues={dadosEstruturados} 
+                />
+            )}
             
             {tipoExame === 'TRANSVAGINAL' && (
                 <FormTransvaginal 
