@@ -672,7 +672,7 @@ class Laudo(models.Model):
 
     # --- CAMPOS DE DADOS ---
     titulo_exame = models.CharField(max_length=255) # O Front chama de 'titulo', o Serializer mapeia.
-    tipo_exame = models.CharField(max_length=50, default='OBSTETRICO') 
+    tipo_exame = models.CharField(max_length=255, default='OBSTETRICO') 
     
     # Assinatura (Snapshot do momento)
     medico_responsavel = models.CharField(max_length=255, blank=True, null=True)
