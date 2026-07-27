@@ -288,7 +288,7 @@ def gerar_pdf_laudo_backend(context):
             <div class="header-text">
                 <div><span style="font-weight: bold;">PACIENTE:</span> {paciente.nome_completo.upper() if paciente else 'NÃO INFORMADO'}</div>
                 <div><span style="font-weight: bold;">NASC.:</span> {paciente.data_nascimento.strftime('%d/%m/%Y') if paciente and paciente.data_nascimento else 'N/A'} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> {idade_formatada}</div>
-                <div><span style="font-weight: bold;">SEXO:</span> {'MASCULINO' if paciente and paciente.genero == 'M' else 'FEMININO'} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> {data_formatada}</div>
+                <div><span style="font-weight: bold;">SEXO:</span> {(paciente.genero.upper() if paciente.genero else 'NÃO INFORMADO') if paciente else 'NÃO INFORMADO'} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> {data_formatada}</div>
                 <div><span style="font-weight: bold;">SOLICITANTE:</span> {medico_solicitante}</div>
             </div>
         </div>
