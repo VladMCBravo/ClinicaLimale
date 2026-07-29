@@ -5,7 +5,7 @@ const FormAbdome = ({ onUpdate, initialValues }) => {
     // 1. CARREGAMENTO INTELIGENTE: Puxa direto no useState.
     // Assim que a tela Pai seleciona o paciente, ela monta o componente 
     // já com a Data de Nascimento e Sexo corretos sem causar Loop!
-    const [tituloExame, setTituloExame] = useState(initialValues?.tituloExame || 'ULTRASSONOGRAFIA GERAL');
+    const [tituloExame, setTituloExame] = useState(initialValues?.tituloExame || '');
     const [textoLivre, setTextoLivre] = useState(initialValues?.textoLivre || '');
     const [dadosPaciente, setDadosPaciente] = useState({
         dataNascimento: initialValues?.dataNascimento || '',
