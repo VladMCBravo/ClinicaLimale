@@ -13,7 +13,7 @@ import { Editor } from '@tinymce/tinymce-react';
 const LaudosPreviewModalV2 = ({ 
     open, onClose, htmlInicial, imagensIniciais, 
     onFinalizar, onAbrirNuvem, onSalvarRascunho,
-    nomePaciente // <-- Propriedade essencial resgatada do V1
+    nomePaciente
 }) => {
     const editorRef = useRef(null);
     const [imagens, setImagens] = useState([]);
@@ -59,15 +59,15 @@ const LaudosPreviewModalV2 = ({
                 .tox-notifications-container, .tox-statusbar__branding, .tox-promotion { display: none !important; }
                 .tox-editor-header { box-shadow: none !important; border-bottom: 1px solid #ced4da !important; }
                 .tox .tox-toolbar__primary { flex-wrap: nowrap !important; overflow-x: auto !important; background-color: #f8f9fa !important; padding: 2px 4px !important; }
-                .tox .tox-tbtn { height: 28px !important; width: 28px !important; margin: 0 1px !important; border-radius: 4px !important; }
-                .tox .tox-tbtn svg { transform: scale(0.85) !important; }
-                .tox .tox-tbtn--select { width: auto !important; padding: 0 6px !important; font-size: 12px !important; }
+                .tox .tox-tbtn { height: 26px !important; width: 26px !important; margin: 0 1px !important; border-radius: 4px !important; }
+                .tox .tox-tbtn svg { transform: scale(0.8) !important; }
+                .tox .tox-tbtn--select { width: auto !important; padding: 0 4px !important; font-size: 11px !important; }
                 .tox-tinymce { border: none !important; }
             `}</style>
 
             {/* CABEÇALHO VERMELHO DE REVISÃO (Herança do V1) */}
             <AppBar sx={{ position: 'relative', background: '#b71c1c', boxShadow: 'none' }}>
-                <Toolbar variant="dense" sx={{ minHeight: '50px', px: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Toolbar variant="dense" sx={{ minHeight: '48px', px: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     
                     {/* ESQUERDA: Título e Identificação do Paciente */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -85,50 +85,50 @@ const LaudosPreviewModalV2 = ({
                     </Box>
 
                     {/* CENTRO: Data do Exame */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(0,0,0,0.2)', px: 1.5, py: 0.5, borderRadius: '4px' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(0,0,0,0.2)', px: 1.5, py: 0.3, borderRadius: '4px' }}>
                         <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#fff', fontSize: '11px' }}>Data:</Typography>
                         <input 
                             type="date" value={dataExameModal} onChange={(e) => setDataExameModal(e.target.value)}
-                            style={{ padding: '2px', border: 'none', fontSize: '12px', outline: 'none', cursor: 'pointer', background: 'transparent', color: '#fff', fontWeight: 'bold' }}
+                            style={{ padding: '2px', border: 'none', fontSize: '11px', outline: 'none', cursor: 'pointer', background: 'transparent', color: '#fff', fontWeight: 'bold' }}
                         />
                     </Box>
 
                     {/* DIREITA: Ações Secundárias e Botão Finalizar */}
                     <Stack direction="row" spacing={1} alignItems="center">
-                        <Button size="small" onClick={acaoSalvarRascunho} sx={{ color: '#fff', textTransform: 'none', fontWeight: 600, fontSize: '12px' }}>
-                            <FaSave size={14} style={{ marginRight: 5 }} /> Salvar Rascunho
+                        <Button size="small" onClick={acaoSalvarRascunho} sx={{ color: '#fff', textTransform: 'none', fontWeight: 600, fontSize: '11px' }}>
+                            <FaSave size={13} style={{ marginRight: 4 }} /> Salvar Rascunho
                         </Button>
                         <Divider orientation="vertical" flexItem sx={{ background: 'rgba(255,255,255,0.3)', my: 1 }} />
                         <Tooltip title="Imprimir Teste">
                             <IconButton onClick={acaoImprimirApenas} sx={{ color: '#fff', opacity: 0.8, '&:hover': { opacity: 1 } }}>
-                                <FaPrint size={16} />
+                                <FaPrint size={15} />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title={mostrarFotos ? 'Ocultar Fotos' : 'Mostrar Fotos'}>
                             <IconButton onClick={() => setMostrarFotos(!mostrarFotos)} sx={{ color: mostrarFotos ? '#ffb74d' : '#fff', opacity: mostrarFotos ? 1 : 0.8 }}>
-                                <FaImage size={16} />
+                                <FaImage size={15} />
                             </IconButton>
                         </Tooltip>
                         
-                        <Divider orientation="vertical" flexItem sx={{ background: 'rgba(255,255,255,0.3)', my: 1, mx: 1 }} />
+                        <Divider orientation="vertical" flexItem sx={{ background: 'rgba(255,255,255,0.3)', my: 1, mx: 0.5 }} />
                         
                         <Button 
                             onClick={acaoFinalizar} variant="contained" 
                             sx={{ 
                                 background: '#2E7D32', textTransform: 'none', fontWeight: 'bold', 
-                                px: 2.5, py: 0.8, borderRadius: '30px', fontSize: '12px', 
+                                px: 2.5, py: 0.6, borderRadius: '30px', fontSize: '11px', 
                                 whiteSpace: 'nowrap', boxShadow: '0 4px 10px rgba(46, 125, 50, 0.4)',
-                                '&:hover': { background: '#1b5e20', boxShadow: '0 6px 14px rgba(46, 125, 50, 0.6)' } 
+                                '&:hover': { background: '#1b5e20' } 
                             }}
                         >
-                            <FaShareSquare size={14} style={{ marginRight: 8 }} /> FINALIZAR
+                            <FaShareSquare size={13} style={{ marginRight: 6 }} /> FINALIZAR
                         </Button>
                     </Stack>
                 </Toolbar>
             </AppBar>
 
             {/* ÁREA DE TRABALHO */}
-            <Box sx={{ display: 'flex', height: 'calc(100vh - 50px)', background: '#e9ecef', overflow: 'hidden' }}>
+            <Box sx={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#e9ecef', overflow: 'hidden' }}>
                 
                 {/* EDITOR A4 */}
                 <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -137,14 +137,21 @@ const LaudosPreviewModalV2 = ({
                         onInit={(evt, editor) => editorRef.current = editor}
                         initialValue={htmlInicial}
                         init={{
-                            height: '100%', width: '100%', resize: false, branding: false, promotion: false, elementpath: false, browser_spellcheck: true,
-                            toolbar_mode: 'sliding', // Mantém 1 linha
-                            plugins: 'advlist autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
-                            toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | align lineheight | numlist bullist indent outdent | table | removeformat',
+                            height: '100%', 
+                            width: '100%', 
+                            resize: false, 
+                            branding: false, 
+                            promotion: false, 
+                            elementpath: false, 
+                            menubar: false, // DESATIVADO PARA GARANTIR APENAS 1 LINHA
+                            browser_spellcheck: true,
+                            toolbar_mode: 'sliding',
+                            plugins: 'advlist autolink lists charmap preview searchreplace visualblocks fullscreen table wordcount',
+                            toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table | bullist numlist | removeformat',
                             content_style: `
                                 html { background-color: #e9ecef !important; padding: 0; margin: 0; }
                                 body { 
-                                    font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; lineHeight: 1.5;
+                                    font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
                                     background-color: #ffffff !important; background-image: url('/Receituario_v2.jpg'); 
                                     background-size: 100% 100%; background-repeat: no-repeat; background-position: center top;
                                     width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
@@ -161,7 +168,7 @@ const LaudosPreviewModalV2 = ({
 
                 {/* PAINEL LATERAL DE FOTOS */}
                 {mostrarFotos && (
-                    <Box sx={{ width: '320px', background: '#fff', borderLeft: '1px solid #ced4da', display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ width: '310px', background: '#fff', borderLeft: '1px solid #ced4da', display: 'flex', flexDirection: 'column' }}>
                         <Box sx={{ p: 2, background: '#f0f4f8', borderBottom: '1px solid #e0e6ed' }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1C2E4A', mb: 1.5 }}>
                                 Anexos ({imagens.length})
@@ -186,15 +193,13 @@ const LaudosPreviewModalV2 = ({
                                 </Box>
                             )}
                             {imagens.map((img, idx) => (
-                                <Box key={idx} sx={{ position: 'relative', borderRadius: '6px', overflow: 'hidden', border: '1px solid #ddd', height: '160px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                                <Box key={idx} sx={{ position: 'relative', borderRadius: '6px', overflow: 'hidden', border: '1px solid #ddd', height: '150px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
                                     <img src={img} alt={`foto-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    
                                     <Tooltip title="Remover">
                                         <IconButton size="small" onClick={() => removeImage(idx)} sx={{ position: 'absolute', top: 5, right: 5, background: 'white', '&:hover': { background: '#ffebee' } }}>
                                             <FaTrash size={12} color="#d32f2f" />
                                         </IconButton>
                                     </Tooltip>
-                                    
                                     <Box sx={{ position: 'absolute', bottom: 5, left: 5, background: 'rgba(0,0,0,0.6)', color: 'white', px: 1, py: 0.2, borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' }}>
                                         #{idx + 1}
                                     </Box>

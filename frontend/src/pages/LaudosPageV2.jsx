@@ -11,7 +11,10 @@ import {
   Tooltip, IconButton, Divider 
 } from '@mui/material';
 import '../components/laudos/Laudos.css';
-import '../atendimento.css'; // CSS PADRÃO TASY
+import '../atendimento.css';
+
+// Importa o gerador completo com cabeçalho
+import { gerarHtmlCompletoLaudo } from '../utils/htmlParser';
 
 // Formulários
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
@@ -23,13 +26,11 @@ import FormEletrocardiograma from '../components/laudos/eletrocardiograma/FormEl
 
 // Modais
 import AtestadoModal from '../components/laudos/AtestadoModal';
-import { parseLaudoToHtml } from '../utils/htmlParser';
 import LaudosPreviewModalV2 from '../components/laudos/LaudosPreviewModalV2'; 
 import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal'; 
 
 const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F0F2F5', border: '#dee2e6' };
 
-// Estilos para restaurar os Dropdowns
 const styles = {
     dropdownList: {
         position: 'absolute', top: '34px', left: 0, right: 0, background: 'white',
@@ -43,7 +44,6 @@ const styles = {
 };
 
 const STORAGE_KEY = 'laudos_rascunho_auto_save_v2'; 
-
 const maskCRM = (value) => value.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').replace(/(-\d{2})\d+?$/, '$1'); 
 
 const getInitialState = (key, fallback) => {
@@ -58,14 +58,12 @@ const getInitialState = (key, fallback) => {
 };
 
 const LaudosPageV2 = () => {
-  // Estados principais
   const [tipoExame, setTipoExame] = useState(() => getInitialState('tipoExame', 'OBSTETRICO'));
   const [paciente, setPaciente] = useState(() => getInitialState('paciente', null));
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
   const [loadingBusca, setLoadingBusca] = useState(false);
   
-  // Médico
   const [medicoNome, setMedicoNome] = useState(() => getInitialState('medicoNome', ''));
   const [medicoCrm, setMedicoCrm] = useState(() => getInitialState('medicoCrm', ''));
   const [medicoEspecialidades, setMedicoEspecialidades] = useState(() => getInitialState('medicoEspecialidades', []));
@@ -74,13 +72,11 @@ const LaudosPageV2 = () => {
   const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
   const [usuarioTemCertificado, setUsuarioTemCertificado] = useState(false);
   
-  // Conteúdo do Laudo
   const [textoFinal, setTextoFinal] = useState(() => getInitialState('textoFinal', ''));
   const [dadosEstruturados, setDadosEstruturados] = useState(() => getInitialState('dadosEstruturados', {}));
   const [tituloExame, setTituloExame] = useState(() => getInitialState('tituloExame', ''));
   const [imagens, setImagens] = useState(() => getInitialState('imagens', []));
   
-  // Estados de Controle
   const [modalSucessoOpen, setModalSucessoOpen] = useState(false);
   const [credenciais, setCredenciais] = useState(null);
   const [laudoId, setLaudoId] = useState(() => getInitialState('laudoId', null)); 
@@ -91,7 +87,6 @@ const LaudosPageV2 = () => {
 
   const searchTimeoutRef = useRef(null);
 
-  // --- CARREGAMENTOS INICIAIS ---
   useEffect(() => {
     const carregarMedicos = async () => {
         try {
@@ -113,7 +108,6 @@ const LaudosPageV2 = () => {
     checarUsuario();
   }, []);
 
-  // --- LÓGICA DE FILTROS E BUSCAS ---
   const handleInputMedicoChange = (texto) => {
       setMedicoNome(texto);
       setMostrarListaMedicos(true);
@@ -146,7 +140,6 @@ const LaudosPageV2 = () => {
       }, 300);
   };
 
-  // --- AUTO-SAVE ---
   useEffect(() => {
       const dados = { laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens };
       const timeoutId = setTimeout(() => {
@@ -156,7 +149,6 @@ const LaudosPageV2 = () => {
       return () => clearTimeout(timeoutId);
   }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens]);
 
-  // --- MANIPULADORES DO FORMULÁRIO ---
   const handleLimpar = () => {
     if (window.confirm("Limpar formulário? Rascunho será perdido.")) {
         sessionStorage.removeItem(STORAGE_KEY);
@@ -167,9 +159,9 @@ const LaudosPageV2 = () => {
   };
 
   const handleFormUpdate = useCallback((dados) => {
-      if (dados.texto) setTextoFinal(dados.texto);
+      if (dados.texto !== undefined) setTextoFinal(dados.texto);
       if (dados.dadosEstruturados) setDadosEstruturados(prev => ({ ...prev, ...dados.dadosEstruturados }));
-      if (dados.tituloExame) setTituloExame(dados.tituloExame);
+      if (dados.tituloExame !== undefined) setTituloExame(dados.tituloExame);
   }, []);
 
   const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => {
@@ -192,7 +184,6 @@ const LaudosPageV2 = () => {
     });
   };
 
-  // --- FUNÇÕES DE COMPARTILHAMENTO E TERMO RESTAURADAS ---
   const getMensagemCompartilhamento = (canal) => {
       const cod = credenciais?.codigo || "---";
       const pass = credenciais?.senha || "---";
@@ -237,7 +228,6 @@ const LaudosPageV2 = () => {
       termoWindow.document.close();
   };
 
-  // --- FINALIZAR LAUDO ---
   const handleFinalizacaoAssincrona = async (htmlDoEditor, imagensFinais, dataExameSelecionada) => {
     if (isPolling) return;
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
@@ -299,16 +289,25 @@ const LaudosPageV2 = () => {
 
   const handleImportarDaNuvem = (novasImagensBase64) => setImagens(prev => [...prev, ...novasImagensBase64]);
 
+  // Monta o HTML completo (Com cabeçalho e título) para o Preview e para o Modal
+  const htmlCompletoElegante = gerarHtmlCompletoLaudo({
+      paciente,
+      dadosEstruturados,
+      tituloExame,
+      tipoExame,
+      textoLaudo: textoFinal
+  });
+
   return (
     <div className="tasy-workspace" style={{ flex: 1, display: 'flex', background: theme.bg, minHeight: 0, overflow: 'hidden', fontFamily: "'Segoe UI', Roboto, sans-serif", fontSize: '11px', color: '#333' }}>
       
-      {/* COLUNA ESQUERDA (Tasy Flat Panel) */}
+      {/* COLUNA ESQUERDA */}
       <div className="tasy-flat-panel" style={{ flex: 2, minWidth: '700px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #dee2e6', minHeight: 0 }}>
         
         {/* BARRA DE FERRAMENTAS */}
         <div style={{ background: '#f8f9fa', borderBottom: `1px solid ${theme.border}`, padding: '10px 16px', display: 'grid', gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px', gap: '12px', alignItems: 'center', flexShrink: 0, zIndex: 20 }}>
             
-            {/* PACIENTE - RESTAURADO COM DROPDOWN E CLEAR */}
+            {/* PACIENTE */}
             <div className="tasy-compact-input" style={{position: 'relative', background: '#fff', border: '1px solid #ced4da', borderRadius: '3px', display: 'flex', alignItems: 'center', height: '32px'}}> 
                 <div style={{ padding: '0 10px', color: '#6c757d' }}><FaUserInjured size={13} /></div>
                 <input 
@@ -379,7 +378,7 @@ const LaudosPageV2 = () => {
                 </select>
             </div>
 
-            {/* MÉDICO - RESTAURADO COM DROPDOWN */}
+            {/* MÉDICO */}
             <div className="tasy-compact-input" style={{position: 'relative', background: '#fff', border: '1px solid #ced4da', borderRadius: '3px', display: 'flex', alignItems: 'center', height: '32px'}}>
                 <div style={{ padding: '0 10px', color: '#6c757d' }}><FaUserMd size={13} /></div>
                 <input 
@@ -419,11 +418,11 @@ const LaudosPageV2 = () => {
         </div>
       </div> 
 
-      {/* COLUNA DIREITA (PREVIEW WYSIWYG SIMULADO) */}
+      {/* COLUNA DIREITA (PREVIEW) */}
       <div style={{ flex: 1, minWidth: '400px', display: 'flex', flexDirection: 'column', background: theme.bg, minHeight: 0, paddingLeft: '8px' }}>
          <div className="tasy-flat-panel" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
-             {/* BARRA DE AÇÕES - RESTAURADA COM TERMO E ATESTADO */}
+             {/* BARRA DE AÇÕES */}
              <Box sx={{ px: 2, background: '#f8f9fa', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '45px', flexShrink: 0 }}>
                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                      <FaFileSignature color="#495057" size={14} />
@@ -460,7 +459,7 @@ const LaudosPageV2 = () => {
                  </Stack>
              </Box>
              
-             {/* ÁREA DE RENDERIZAÇÃO DO HTML */}
+             {/* ÁREA DE RENDERIZAÇÃO DO HTML COMPLETO */}
              <div style={{flex: 1, minHeight: 0, overflow: 'auto', background: '#e9ecef', padding: '20px', display: 'flex', justifyContent: 'center'}}>
                 <div 
                     style={{ 
@@ -468,20 +467,21 @@ const LaudosPageV2 = () => {
                         padding: '30px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #ced4da',
                         fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '13px', lineHeight: '1.5', color: '#333'
                     }}
-                    dangerouslySetInnerHTML={{ __html: parseLaudoToHtml(textoFinal) }}
+                    dangerouslySetInnerHTML={{ __html: htmlCompletoElegante }}
                 />
              </div>
          </div>
       </div>
 
-      {/* --- MODAIS RESTAURADOS --- */}
+      {/* MODAIS */}
       <LaudosPreviewModalV2 
           open={modalRevisaoOpen} 
           onClose={() => setModalRevisaoOpen(false)} 
-          htmlInicial={parseLaudoToHtml(textoFinal)}
+          htmlInicial={htmlCompletoElegante} 
           imagensIniciais={imagens} 
           onFinalizar={handleFinalizacaoAssincrona}
           onAbrirNuvem={() => setModalNuvemOpen(true)}
+          nomePaciente={paciente?.nome_completo} // <--- PASSANDO NOME CORRETO PARA A BARRA VERMELHA
           onSalvarRascunho={(htmlEditado) => {
               setTextoFinal(htmlEditado);
               setModalRevisaoOpen(false);
@@ -490,7 +490,7 @@ const LaudosPageV2 = () => {
       <ImagensNuvemModal open={modalNuvemOpen} onClose={() => setModalNuvemOpen(false)} paciente={paciente} onConfirmar={handleImportarDaNuvem} />
       <AtestadoModal open={modalAtestadoOpen} onClose={() => setModalAtestadoOpen(false)} paciente={paciente} medicoNome={medicoNome} medicoCrm={medicoCrm} usaAssinaturaDigital={usuarioTemCertificado} />
 
-      {/* MODAL SUCESSO RESTAURADO */}
+      {/* SUCESSO E POLLING */}
       <Dialog open={modalSucessoOpen} onClose={() => setModalSucessoOpen(false)} maxWidth="sm" fullWidth>
         <div style={{padding: '30px', textAlign: 'center'}}>
             <FaCheckCircle size={60} color="#4CAF50" style={{marginBottom: 15}} />
@@ -511,7 +511,6 @@ const LaudosPageV2 = () => {
         <DialogActions><Button onClick={() => setModalSucessoOpen(false)} style={{color: '#888'}}>Fechar Janela</Button></DialogActions>
       </Dialog>
 
-      {/* MODAL POLLING (SPINNER) RESTAURADO */}
       <Dialog open={isPolling} disableEscapeKeyDown>
         <div style={{padding: '40px', textAlign: 'center', minWidth: '300px'}}>
             <FaSpinner className="spin" size={40} color="#1C2E4A" style={{marginBottom: '20px'}}/>
