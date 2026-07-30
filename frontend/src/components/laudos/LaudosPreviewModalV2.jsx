@@ -53,22 +53,35 @@ const LaudosPreviewModalV2 = ({
     return (
         <Dialog open={open} onClose={acaoSalvarRascunho} fullScreen>
             
-            {/* CABEÇALHO EM UMA ÚNICA LINHA LIMPA */}
+            {/* INJEÇÃO DE CSS GLOBAL PARA ELIMINAR QUALQUER NOTIFICAÇÃO DO TINYMCE */}
+            <style>{`
+                .tox-notifications-container, 
+                .tox-notification, 
+                .tox-notification--warning, 
+                .tox-notification--error,
+                .tox-notification--in,
+                .tox-statusbar__branding, 
+                .tox-promotion {
+                    display: none !important;
+                }
+            `}</style>
+
+            {/* CABEÇALHO COMPACTO EM UMA SÓ LINHA */}
             <AppBar sx={{ position: 'relative', background: '#1C2E4A', boxShadow: 'none' }}>
-                <Toolbar variant="dense" sx={{ minHeight: '50px', px: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                <Toolbar variant="dense" sx={{ minHeight: '48px', px: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                     
-                    {/* LADO ESQUERDO: Fechar + Título */}
+                    {/* ESQUERDA: Fechar + Título */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <IconButton edge="start" color="inherit" onClick={acaoSalvarRascunho} title="Salvar Rascunho e Fechar">
-                            <FaTimes size={18} />
+                            <FaTimes size={16} />
                         </IconButton>
-                        <Typography sx={{ fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap' }} variant="h6">
-                            Revisão Final & Editor Visual
+                        <Typography sx={{ fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap' }} variant="h6">
+                            Revisão Final & Editor Visual (Word A4)
                         </Typography>
                     </Box>
 
-                    {/* CENTRO-ESQUERDA: Data do Exame */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.12)', px: 1.5, py: 0.4, borderRadius: 1 }}>
+                    {/* CENTRO: Data do Exame */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.12)', px: 1.5, py: 0.3, borderRadius: 1 }}>
                         <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#fff', fontSize: '11px', whiteSpace: 'nowrap' }}>
                             Data do Exame:
                         </Typography>
@@ -80,22 +93,22 @@ const LaudosPreviewModalV2 = ({
                         />
                     </Box>
 
-                    {/* CENTRO-DIREITA: Ações Secundárias */}
+                    {/* AÇÕES DE SUPORTE */}
                     <Stack direction="row" spacing={1} alignItems="center">
-                        <Button size="small" onClick={acaoSalvarRascunho} sx={{ color: '#fff', textTransform: 'none', fontWeight: 600, fontSize: '12px' }}>
-                            <FaSave size={14} style={{ marginRight: 5 }} /> Salvar Rascunho
+                        <Button size="small" onClick={acaoSalvarRascunho} sx={{ color: '#fff', textTransform: 'none', fontWeight: 600, fontSize: '11px' }}>
+                            <FaSave size={13} style={{ marginRight: 4 }} /> Rascunho
                         </Button>
                         <Divider orientation="vertical" flexItem sx={{ background: 'rgba(255,255,255,0.2)' }} />
-                        <Button size="small" onClick={acaoImprimirApenas} sx={{ color: '#90caf9', textTransform: 'none', fontWeight: 600, fontSize: '12px' }}>
-                            <FaPrint size={14} style={{ marginRight: 5 }} /> Imprimir
+                        <Button size="small" onClick={acaoImprimirApenas} sx={{ color: '#90caf9', textTransform: 'none', fontWeight: 600, fontSize: '11px' }}>
+                            <FaPrint size={13} style={{ marginRight: 4 }} /> Imprimir
                         </Button>
                         <Divider orientation="vertical" flexItem sx={{ background: 'rgba(255,255,255,0.2)' }} />
-                        <Button size="small" onClick={() => setMostrarFotos(!mostrarFotos)} sx={{ color: '#ffb74d', textTransform: 'none', fontWeight: 600, fontSize: '12px' }}>
-                            <FaImage size={14} style={{ marginRight: 5 }} /> {mostrarFotos ? 'Ocultar Fotos' : 'Ver Fotos'}
+                        <Button size="small" onClick={() => setMostrarFotos(!mostrarFotos)} sx={{ color: '#ffb74d', textTransform: 'none', fontWeight: 600, fontSize: '11px' }}>
+                            <FaImage size={13} style={{ marginRight: 4 }} /> {mostrarFotos ? 'Esconder Fotos' : 'Ver Fotos'}
                         </Button>
                     </Stack>
 
-                    {/* LADO DIREITO: Botão Principal de Finalização */}
+                    {/* DIREITA: Botão Principal */}
                     <Button 
                         onClick={acaoFinalizar} 
                         variant="contained" 
@@ -104,25 +117,25 @@ const LaudosPreviewModalV2 = ({
                             background: '#2E7D32', 
                             textTransform: 'none', 
                             fontWeight: 'bold', 
-                            px: 2.5, 
-                            py: 0.8, 
+                            px: 2, 
+                            py: 0.6, 
                             borderRadius: '20px',
-                            fontSize: '12px',
+                            fontSize: '11px',
                             whiteSpace: 'nowrap',
                             boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
                             '&:hover': { background: '#1b5e20' } 
                         }}
                     >
-                        <FaShareSquare size={14} style={{ marginRight: 6 }} /> Finalizar e Gerar Acesso
+                        <FaShareSquare size={13} style={{ marginRight: 5 }} /> Finalizar e Assinar
                     </Button>
 
                 </Toolbar>
             </AppBar>
 
-            {/* ÁREA DE TRABALHO: EDITOR 100% FLUIDO */}
-            <Box sx={{ display: 'flex', height: 'calc(100vh - 50px)', background: '#fff', overflow: 'hidden' }}>
+            {/* ÁREA DE TRABALHO: EDITOR A4 CENTRALIZADO ESTILO WORD */}
+            <Box sx={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#e9ecef', overflow: 'hidden' }}>
                 
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
                     <Editor
                         apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
                         onInit={(evt, editor) => editorRef.current = editor}
@@ -131,10 +144,10 @@ const LaudosPreviewModalV2 = ({
                             height: '100%',
                             width: '100%',
                             resize: false,
-                            branding: false,      // REMOVE O LOGO "POWERED BY TINYMCE"
-                            promotion: false,     // REMOVE AVISOS DE UPGRADE E BANNERS
-                            elementpath: false,   // LIMPA A BARRA INFERIOR DE ELEMENTOS HTML
-                            browser_spellcheck: true, // CORRETOR ORTOGRÁFICO NATIVO DO NAVEGADOR
+                            branding: false,
+                            promotion: false,
+                            elementpath: false,
+                            browser_spellcheck: true,
                             menubar: 'edit view insert format table',
                             plugins: [
                                 'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 
@@ -144,45 +157,50 @@ const LaudosPreviewModalV2 = ({
                             toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table | bullist numlist | code preview',
                             toolbar_sticky: true,
                             content_style: `
-                                /* 1. O fundo do editor (A "mesa" cinza) */
+                                /* Desativa notificações internas */
+                                .tox-notifications-container { display: none !important; }
+
+                                /* Fundo Cinza da Área de Trabalho */
                                 html { 
-                                    background: #e9ecef; 
+                                    background-color: #e9ecef !important; 
+                                    padding: 0;
+                                    margin: 0;
                                 }
                                 
-                                /* 2. A folha de papel A4 */
+                                /* Papel A4 em Branco Centralizado */
                                 body { 
-                                    font-family: Helvetica, Arial, sans-serif; 
-                                    font-size: 14px; 
-                                    color: #333; 
+                                    font-family: Arial, Helvetica, sans-serif; 
+                                    font-size: 13px; 
+                                    color: #222; 
                                     line-height: 1.5;
                                     
-                                    /* Visual do Papel Timbrado */
-                                    background-color: #ffffff;
+                                    background-color: #ffffff !important;
                                     background-image: url('/Receituario_v2.jpg'); 
                                     background-size: 100% 100%;
                                     background-repeat: no-repeat;
                                     background-position: center top;
                                     
-                                    /* Trava no tamanho EXATO de uma folha A4 */
+                                    /* Dimensões exatas de papel A4 */
                                     width: 210mm !important;
                                     min-height: 297mm !important;
-                                    box-sizing: border-box;
+                                    box-sizing: border-box !important;
                                     
-                                    /* Centraliza a folha na tela */
-                                    margin: 20px auto !important; 
-                                    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+                                    /* Efeito de folha de papel flutuante */
+                                    margin: 25px auto !important; 
+                                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18), 0 0 1px rgba(0, 0, 0, 0.2) !important;
+                                    border: 1px solid #d1d5db !important;
 
-                                    /* Áreas de bloqueio (Cabeçalho e Rodapé) */
-                                    padding-top: 6.0cm !important; 
-                                    padding-bottom: 4.0cm !important; 
-                                    padding-left: 1.5cm !important;
-                                    padding-right: 1.5cm !important;
+                                    /* Recuos de margem de impressão (Cabeçalho/Rodapé) */
+                                    padding-top: 5.5cm !important; 
+                                    padding-bottom: 3.5cm !important; 
+                                    padding-left: 2.0cm !important;
+                                    padding-right: 2.0cm !important;
                                 }
                                 
-                                /* 3. Formatação das Tabelas e Títulos */
-                                table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
-                                td, th { border: 1px dotted #ccc; padding: 6px 8px; text-align: left; }
-                                h4 { margin-top: 15px; margin-bottom: 8px; color: #1C2E4A; border-bottom: 1px solid #ccc; padding-bottom: 4px; font-size: 15px; }
+                                /* Estilo das Tabelas de Exames */
+                                table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+                                td, th { border: 1px dotted #bbb; padding: 5px 8px; text-align: left; font-size: 13px; }
+                                h4 { margin-top: 16px; margin-bottom: 6px; color: #1C2E4A; border-bottom: 1px solid #ccc; padding-bottom: 3px; font-size: 14px; text-transform: uppercase; }
                                 p { margin-top: 0; margin-bottom: 6px; }
                             `
                         }}
@@ -191,7 +209,7 @@ const LaudosPreviewModalV2 = ({
 
                 {/* PAINEL LATERAL DE FOTOS */}
                 {mostrarFotos && (
-                    <Box sx={{ width: '340px', background: '#fff', borderLeft: '1px solid #ced4da', display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ width: '330px', background: '#fff', borderLeft: '1px solid #ced4da', display: 'flex', flexDirection: 'column' }}>
                         <Box sx={{ p: 2, background: '#f0f4f8', borderBottom: '1px solid #e0e6ed' }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1C2E4A', mb: 1 }}>
                                 Anexos ({imagens.length})
@@ -216,7 +234,7 @@ const LaudosPreviewModalV2 = ({
                                 </Box>
                             )}
                             {imagens.map((img, idx) => (
-                                <Box key={idx} sx={{ position: 'relative', borderRadius: '4px', overflow: 'hidden', border: '1px solid #ddd', height: '170px' }}>
+                                <Box key={idx} sx={{ position: 'relative', borderRadius: '4px', overflow: 'hidden', border: '1px solid #ddd', height: '160px' }}>
                                     <img src={img} alt={`foto-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     <Tooltip title="Remover">
                                         <IconButton size="small" onClick={() => removeImage(idx)} sx={{ position: 'absolute', top: 5, right: 5, background: 'white', '&:hover':{background: '#ffebee'} }}>
