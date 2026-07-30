@@ -143,24 +143,28 @@ const LaudosPreviewModalV2 = ({
                             branding: false, 
                             promotion: false, 
                             elementpath: false, 
-                            menubar: false, // DESATIVADO PARA GARANTIR APENAS 1 LINHA
+                            menubar: false, // <-- ISTO GARANTE QUE A BARRA SUPERIOR SUMA
                             browser_spellcheck: true,
-                            toolbar_mode: 'sliding',
+                            toolbar_mode: 'sliding', // <-- ISTO GARANTE A BARRA EM APENAS 1 LINHA
                             plugins: 'advlist autolink lists charmap preview searchreplace visualblocks fullscreen table wordcount',
                             toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table | bullist numlist | removeformat',
                             content_style: `
                                 html { background-color: #e9ecef !important; padding: 0; margin: 0; }
                                 body { 
-                                    font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
+                                    font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #333; line-height: 1.15;
                                     background-color: #ffffff !important; background-image: url('/Receituario_v2.jpg'); 
                                     background-size: 100% 100%; background-repeat: no-repeat; background-position: center top;
                                     width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
                                     margin: 25px auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important; border: 1px solid #d1d5db !important;
-                                    padding-top: 5.5cm !important; padding-bottom: 3.5cm !important; padding-left: 2.0cm !important; padding-right: 2.0cm !important;
+                                    
+                                    /* MARGENS EXATAS DO PYTHON/DJANGO V1 */
+                                    padding-top: 6.0cm !important; 
+                                    padding-bottom: 2.0cm !important; 
+                                    padding-left: 1.5cm !important; 
+                                    padding-right: 1.5cm !important;
                                 }
                                 table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
-                                td, th { border: 1px dotted #bbb; padding: 5px 8px; text-align: left; font-size: 13px; }
-                                h4 { margin-top: 16px; margin-bottom: 6px; color: #1C2E4A; border-bottom: 1px solid #ccc; padding-bottom: 3px; font-size: 14px; text-transform: uppercase; }
+                                td, th { padding: 5px 8px; text-align: left; font-size: 13px; }
                             `
                         }}
                     />
