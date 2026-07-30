@@ -1,11 +1,14 @@
 // src/utils/htmlParser.js
 
-// 1. O Motor Exato do Backend (V1) Traduzido para JS
 export const parseLaudoToHtml = (textoRaw, tituloExame, tipoExame) => {
     if (!textoRaw) return '';
     
-    // Se o texto já foi editado no TinyMCE e possui tags HTML, retorna como está
+    // Se já é HTML rico (vindo do TinyMCE), só garantimos o título (caso ele não exista)
     if (textoRaw.includes('<p>') || textoRaw.includes('<table>') || textoRaw.includes('<h4')) {
+        const titulo = (tituloExame || `ULTRASSONOGRAFIA DE ${tipoExame || 'EXAME'}`).toUpperCase();
+        if (!textoRaw.includes(titulo)) {
+            return `<h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">${titulo}</h3>\n${textoRaw}`;
+        }
         return textoRaw;
     }
 
@@ -26,7 +29,7 @@ export const parseLaudoToHtml = (textoRaw, tituloExame, tipoExame) => {
         }
     };
 
-    // INSERE O TÍTULO CENTRALIZADO APENAS 1 VEZ
+    // TÍTULO CENTRALIZADO
     const titulo = (tituloExame || `ULTRASSONOGRAFIA DE ${tipoExame || 'EXAME'}`).toUpperCase();
     html += `<h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">${titulo}</h3>\n`;
 
@@ -42,6 +45,7 @@ export const parseLaudoToHtml = (textoRaw, tituloExame, tipoExame) => {
         if (titulosPrincipais.some(t => linhaLimpa.startsWith(t))) {
             fecharTabela();
             const tituloLimpo = linha.replace(":", "").trim();
+            // Títulos principais em verde, tamanho 11pt
             html += `<h4 style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px; text-transform: uppercase;">${tituloLimpo}</h4>\n`;
             
             if (["BIOMETRIA", "TABELA", "DOPPLER", "ÍNDICES", "MEDIDAS"].some(x => linhaLimpa.includes(x))) {
@@ -63,7 +67,6 @@ export const parseLaudoToHtml = (textoRaw, tituloExame, tipoExame) => {
                 label = parts[0].trim() + ':';
                 value = parts.slice(1).join(':').trim();
             } else if (linha.includes('...')) {
-                // CORREÇÃO: Faltava o "const" aqui na frente do "parts"
                 const parts = linha.split(/\.{2,}/);
                 label = parts[0].trim();
                 value = parts[1] ? parts[1].trim() : '';
@@ -80,7 +83,7 @@ export const parseLaudoToHtml = (textoRaw, tituloExame, tipoExame) => {
             return;
         }
 
-        // TEXTO NORMAL
+        // TEXTO NORMAL (Tamanho 10pt)
         if (linhaOriginal.includes('\t')) {
             const linhaFmt = linhaOriginal.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
             html += `<div style="margin-bottom: 2px; font-family: monospace; font-size: 10pt; color: #333;">${linhaFmt.trim()}</div>\n`;
