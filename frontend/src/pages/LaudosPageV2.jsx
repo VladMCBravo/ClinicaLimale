@@ -23,6 +23,7 @@ import FormEletrocardiograma from '../components/laudos/eletrocardiograma/FormEl
 
 // Modais
 import AtestadoModal from '../components/laudos/AtestadoModal';
+import { parseLaudoToHtml } from '../utils/htmlParser';
 import LaudosPreviewModalV2 from '../components/laudos/LaudosPreviewModalV2'; 
 import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal'; 
 
@@ -467,7 +468,7 @@ const LaudosPageV2 = () => {
                         padding: '30px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #ced4da',
                         fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '13px', lineHeight: '1.5', color: '#333'
                     }}
-                    dangerouslySetInnerHTML={{ __html: textoFinal.replace(/\n/g, '<br/>') }}
+                    dangerouslySetInnerHTML={{ __html: parseLaudoToHtml(textoFinal) }}
                 />
              </div>
          </div>
@@ -477,7 +478,7 @@ const LaudosPageV2 = () => {
       <LaudosPreviewModalV2 
           open={modalRevisaoOpen} 
           onClose={() => setModalRevisaoOpen(false)} 
-          htmlInicial={textoFinal} 
+          htmlInicial={parseLaudoToHtml(textoFinal)}
           imagensIniciais={imagens} 
           onFinalizar={handleFinalizacaoAssincrona}
           onAbrirNuvem={() => setModalNuvemOpen(true)}
