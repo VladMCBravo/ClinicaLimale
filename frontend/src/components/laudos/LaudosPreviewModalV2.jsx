@@ -53,11 +53,50 @@ const LaudosPreviewModalV2 = ({
     return (
         <Dialog open={open} onClose={acaoSalvarRascunho} fullScreen>
             
-            {/* CABEÇALHO ULTRA-COMPACTO (GARANTIDO EM 1 LINHA) */}
+            {/* INJEÇÃO DE CSS GLOBAL PARA NOTIFICAÇÕES E BARRA COMPACTA */}
+            <style>{`
+                /* Some com notificações */
+                .tox-notifications-container, 
+                .tox-statusbar__branding, 
+                .tox-promotion {
+                    display: none !important;
+                }
+
+                /* 🚀 ENCOLHENDO A BARRA DO TINYMCE (ESTILO TURING) */
+                .tox-editor-header {
+                    box-shadow: none !important;
+                    border-bottom: 1px solid #ced4da !important;
+                }
+                .tox .tox-toolbar__primary {
+                    flex-wrap: nowrap !important; /* Proíbe a quebra para 2 linhas */
+                    overflow-x: auto !important;  /* Deixa deslizar se a tela for micro */
+                    background-color: #f8f9fa !important;
+                    padding: 2px 4px !important;
+                }
+                .tox .tox-tbtn {
+                    height: 28px !important; /* Botões mais baixos e delicados */
+                    width: 28px !important;
+                    margin: 0 1px !important;
+                    border-radius: 4px !important;
+                }
+                .tox .tox-tbtn svg {
+                    transform: scale(0.85) !important; /* Ícones 15% menores */
+                }
+                .tox .tox-tbtn--select {
+                    width: auto !important; /* Caixas de fonte compactas */
+                    padding: 0 6px !important;
+                    font-size: 12px !important;
+                }
+                /* Remove a borda arredondada gigante do editor inteiro */
+                .tox-tinymce {
+                    border: none !important;
+                }
+            `}</style>
+
+            {/* CABEÇALHO ULTRA-COMPACTO DO REACT */}
             <AppBar sx={{ position: 'relative', background: '#1C2E4A', boxShadow: 'none' }}>
                 <Toolbar variant="dense" sx={{ minHeight: '40px', px: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     
-                    {/* ESQUERDA: Fechar + Título */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <IconButton edge="start" color="inherit" onClick={acaoSalvarRascunho} sx={{ p: 0.5 }}>
                             <FaTimes size={16} />
@@ -67,7 +106,6 @@ const LaudosPreviewModalV2 = ({
                         </Typography>
                     </Box>
 
-                    {/* CENTRO: Data do Exame */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.1)', px: 1, py: 0.2, borderRadius: 1 }}>
                         <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#fff', fontSize: '11px', whiteSpace: 'nowrap' }}>
                             Data do Exame:
@@ -80,7 +118,6 @@ const LaudosPreviewModalV2 = ({
                         />
                     </Box>
 
-                    {/* DIREITA: Ícones de Ação e Botão Finalizar */}
                     <Stack direction="row" spacing={0.5} alignItems="center">
                         <Tooltip title="Salvar Rascunho">
                             <IconButton onClick={acaoSalvarRascunho} sx={{ color: '#fff', p: 0.8 }}>
@@ -133,11 +170,11 @@ const LaudosPreviewModalV2 = ({
                             promotion: false,
                             elementpath: false,
                             browser_spellcheck: true,
-                            toolbar_mode: 'sliding', // <--- ISSO GARANTE A BARRA DO TINYMCE EM UMA ÚNICA LINHA
+                            toolbar_mode: 'scrolling', // <-- Garante que desliza e não quebra linha
                             
-                            // PLUGINS E TOOLBAR EXATOS DA SUA CONTA GRATUITA (Sem bloqueios)
-                            plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
-                            toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat',
+                            // BARRA DE FERRAMENTAS CIRÚRGICA (Apenas o que o médico precisa)
+                            plugins: 'advlist autolink lists charmap preview searchreplace visualblocks fullscreen table wordcount',
+                            toolbar: 'undo redo | fontfamily fontsize | bold italic underline | alignleft aligncenter alignright | table | bullist numlist | removeformat preview',
                             
                             content_style: `
                                 /* Fundo da tela */
