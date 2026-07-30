@@ -289,24 +289,16 @@ const LaudosPageV2 = () => {
 
   const handleImportarDaNuvem = (novasImagensBase64) => setImagens(prev => [...prev, ...novasImagensBase64]);
 
-  // Monta o HTML completo (Com cabeçalho e título) para o Preview e para o Modal
-  const htmlCompletoElegante = gerarHtmlCompletoLaudo({
-      paciente,
-      dadosEstruturados,
-      tituloExame,
-      tipoExame,
-      textoLaudo: textoFinal
-  });
+  // APAGUE o "const htmlCompletoElegante = ..." antigo e coloque isto no lugar:
+  const htmlPronto = parseLaudoToHtml(textoFinal, tituloExame, tipoExame);
 
   return (
     <div className="tasy-workspace" style={{ flex: 1, display: 'flex', background: theme.bg, minHeight: 0, overflow: 'hidden', fontFamily: "'Segoe UI', Roboto, sans-serif", fontSize: '11px', color: '#333' }}>
       
-      {/* COLUNA ESQUERDA */}
+      {/* ... (SUA COLUNA ESQUERDA CONTINUA INTACTA AQUI) ... */}
       <div className="tasy-flat-panel" style={{ flex: 2, minWidth: '700px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #dee2e6', minHeight: 0 }}>
         
-        {/* BARRA DE FERRAMENTAS */}
         <div style={{ background: '#f8f9fa', borderBottom: `1px solid ${theme.border}`, padding: '10px 16px', display: 'grid', gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px', gap: '12px', alignItems: 'center', flexShrink: 0, zIndex: 20 }}>
-            
             {/* PACIENTE */}
             <div className="tasy-compact-input" style={{position: 'relative', background: '#fff', border: '1px solid #ced4da', borderRadius: '3px', display: 'flex', alignItems: 'center', height: '32px'}}> 
                 <div style={{ padding: '0 10px', color: '#6c757d' }}><FaUserInjured size={13} /></div>
@@ -459,15 +451,16 @@ const LaudosPageV2 = () => {
                  </Stack>
              </Box>
              
-             {/* ÁREA DE RENDERIZAÇÃO DO HTML COMPLETO */}
+             {/* PRÉVIA A4: AGORA MOSTRA SÓ O CORPO DO EXAME E TÍTULO, IDENTICO AO WORD */}
              <div style={{flex: 1, minHeight: 0, overflow: 'auto', background: '#e9ecef', padding: '20px', display: 'flex', justifyContent: 'center'}}>
                 <div 
                     style={{ 
                         width: '100%', maxWidth: '210mm', minHeight: '297mm', background: '#fff', 
                         padding: '30px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #ced4da',
-                        fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '13px', lineHeight: '1.5', color: '#333'
+                        fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '10pt', lineHeight: '1.5', color: '#333',
+                        backgroundImage: "url('/Receituario_v2.jpg')", backgroundSize: "100% 100%", paddingTop: "6cm"
                     }}
-                    dangerouslySetInnerHTML={{ __html: htmlCompletoElegante }}
+                    dangerouslySetInnerHTML={{ __html: htmlPronto }}
                 />
              </div>
          </div>
@@ -477,11 +470,11 @@ const LaudosPageV2 = () => {
       <LaudosPreviewModalV2 
           open={modalRevisaoOpen} 
           onClose={() => setModalRevisaoOpen(false)} 
-          htmlInicial={htmlCompletoElegante} 
+          htmlInicial={htmlPronto} 
           imagensIniciais={imagens} 
           onFinalizar={handleFinalizacaoAssincrona}
           onAbrirNuvem={() => setModalNuvemOpen(true)}
-          nomePaciente={paciente?.nome_completo} // <--- PASSANDO NOME CORRETO PARA A BARRA VERMELHA
+          nomePaciente={paciente?.nome_completo}
           onSalvarRascunho={(htmlEditado) => {
               setTextoFinal(htmlEditado);
               setModalRevisaoOpen(false);
