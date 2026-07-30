@@ -1,5 +1,6 @@
 // src/utils/htmlParser.js
 
+// 1. O Motor Exato do Backend (V1) Traduzido para JS
 export const parseLaudoToHtml = (textoRaw, tituloExame, tipoExame) => {
     if (!textoRaw) return '';
     
@@ -58,12 +59,13 @@ export const parseLaudoToHtml = (textoRaw, tituloExame, tipoExame) => {
 
             let label = linha, value = '';
             if (linha.includes(':')) {
-                const partes = linha.split(':');
-                label = partes[0].trim() + ':';
-                value = partes.slice(1).join(':').trim();
+                const parts = linha.split(':');
+                label = parts[0].trim() + ':';
+                value = parts.slice(1).join(':').trim();
             } else if (linha.includes('...')) {
-                const partes = linha.split(/\.{2,}/);
-                label = partes[0].trim();
+                // CORREÇÃO: Faltava o "const" aqui na frente do "parts"
+                const parts = linha.split(/\.{2,}/);
+                label = parts[0].trim();
                 value = parts[1] ? parts[1].trim() : '';
             }
 

@@ -13,8 +13,8 @@ import {
 import '../components/laudos/Laudos.css';
 import '../atendimento.css';
 
-// Importa o gerador completo com cabeçalho
-import { gerarHtmlCompletoLaudo } from '../utils/htmlParser';
+// CORREÇÃO: IMPORTAÇÃO DA FUNÇÃO AQUI
+import { parseLaudoToHtml } from '../utils/htmlParser';
 
 // Formulários
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
@@ -289,15 +289,16 @@ const LaudosPageV2 = () => {
 
   const handleImportarDaNuvem = (novasImagensBase64) => setImagens(prev => [...prev, ...novasImagensBase64]);
 
-  // APAGUE o "const htmlCompletoElegante = ..." antigo e coloque isto no lugar:
+  // AQUI USAMOS A FUNÇÃO IMPORTADA:
   const htmlPronto = parseLaudoToHtml(textoFinal, tituloExame, tipoExame);
 
   return (
     <div className="tasy-workspace" style={{ flex: 1, display: 'flex', background: theme.bg, minHeight: 0, overflow: 'hidden', fontFamily: "'Segoe UI', Roboto, sans-serif", fontSize: '11px', color: '#333' }}>
       
-      {/* ... (SUA COLUNA ESQUERDA CONTINUA INTACTA AQUI) ... */}
+      {/* COLUNA ESQUERDA */}
       <div className="tasy-flat-panel" style={{ flex: 2, minWidth: '700px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #dee2e6', minHeight: 0 }}>
         
+        {/* BARRA DE FERRAMENTAS */}
         <div style={{ background: '#f8f9fa', borderBottom: `1px solid ${theme.border}`, padding: '10px 16px', display: 'grid', gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px', gap: '12px', alignItems: 'center', flexShrink: 0, zIndex: 20 }}>
             {/* PACIENTE */}
             <div className="tasy-compact-input" style={{position: 'relative', background: '#fff', border: '1px solid #ced4da', borderRadius: '3px', display: 'flex', alignItems: 'center', height: '32px'}}> 
@@ -451,7 +452,7 @@ const LaudosPageV2 = () => {
                  </Stack>
              </Box>
              
-             {/* PRÉVIA A4: AGORA MOSTRA SÓ O CORPO DO EXAME E TÍTULO, IDENTICO AO WORD */}
+             {/* PRÉVIA A4 */}
              <div style={{flex: 1, minHeight: 0, overflow: 'auto', background: '#e9ecef', padding: '20px', display: 'flex', justifyContent: 'center'}}>
                 <div 
                     style={{ 
