@@ -254,6 +254,7 @@ const LaudosPageV2 = () => {
         formData.append('crm_medico', medicoCrm);
         formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
         formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas));
+        formData.append('versao_laudo', 'v2');
         
         let response = await apiClient.post('/prontuario/laudos-async/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         const laudoProcessandoId = response.data.id;
