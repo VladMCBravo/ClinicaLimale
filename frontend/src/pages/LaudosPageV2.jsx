@@ -1,13 +1,17 @@
 // src/pages/LaudosPageV2.jsx
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaCalendarAlt } from 'react-icons/fa';
-import { FaWhatsapp, FaEnvelope, FaCheckCircle } from 'react-icons/fa';
+import { 
+  FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, 
+  FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaWhatsapp, 
+  FaEnvelope, FaCheckCircle 
+} from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 import { 
-  Box, Typography, Grid, Button, Dialog, DialogActions, Stack, Tooltip, IconButton, Divider 
+  Box, Typography, Grid, Button, Dialog, DialogActions, Stack, 
+  Tooltip, IconButton, Divider 
 } from '@mui/material';
 import '../components/laudos/Laudos.css';
-import '../atendimento.css'; // <-- SEU NOVO CSS PADRÃO TASY
+import '../atendimento.css'; // CSS PADRÃO TASY
 
 // Formulários
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
@@ -17,14 +21,27 @@ import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardi
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
 import FormEletrocardiograma from '../components/laudos/eletrocardiograma/FormEletrocardiograma';
 
-// Modais (IMPORTANDO O V2 AQUI!)
+// Modais
 import AtestadoModal from '../components/laudos/AtestadoModal';
-import LaudosPreviewModalV2 from '../components/laudos/LaudosPreviewModalV2'; // <--- O NOVO MODAL WYSIWYG
+import LaudosPreviewModalV2 from '../components/laudos/LaudosPreviewModalV2'; 
 import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal'; 
 
 const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F0F2F5', border: '#dee2e6' };
 
-const STORAGE_KEY = 'laudos_rascunho_auto_save_v2'; // Nome diferente para não conflitar com a V1
+// Estilos para restaurar os Dropdowns
+const styles = {
+    dropdownList: {
+        position: 'absolute', top: '34px', left: 0, right: 0, background: 'white',
+        border: '1px solid #ced4da', borderRadius: '0 0 4px 4px', zIndex: 100, 
+        maxHeight: '180px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+    },
+    dropdownItem: {
+        padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid #eee', 
+        fontSize: '12px', color: '#495057'
+    }
+};
+
+const STORAGE_KEY = 'laudos_rascunho_auto_save_v2'; 
 
 const maskCRM = (value) => value.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').replace(/(-\d{2})\d+?$/, '$1'); 
 
@@ -56,7 +73,7 @@ const LaudosPageV2 = () => {
   const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
   const [usuarioTemCertificado, setUsuarioTemCertificado] = useState(false);
   
-  // Conteúdo do Laudo (Agora armazenará HTML, não texto puro)
+  // Conteúdo do Laudo
   const [textoFinal, setTextoFinal] = useState(() => getInitialState('textoFinal', ''));
   const [dadosEstruturados, setDadosEstruturados] = useState(() => getInitialState('dadosEstruturados', {}));
   const [tituloExame, setTituloExame] = useState(() => getInitialState('tituloExame', ''));
@@ -174,7 +191,52 @@ const LaudosPageV2 = () => {
     });
   };
 
-  // --- FINALIZAR LAUDO (Recebe HTML do modal V2) ---
+  // --- FUNÇÕES DE COMPARTILHAMENTO E TERMO RESTAURADAS ---
+  const getMensagemCompartilhamento = (canal) => {
+      const cod = credenciais?.codigo || "---";
+      const pass = credenciais?.senha || "---";
+      const link = credenciais?.link || "https://clinica-limale.vercel.app/resultados";
+      const nomePct = paciente?.nome_completo?.split(' ')[0] || "Paciente";
+      const exameTitulo = tituloExame || tipoExame || "Exame";
+
+      if (canal === 'whatsapp') {
+          return `Olá, *${nomePct}*! \n\nSeu laudo de *${exameTitulo}* está pronto.\n\nAcesse o resultado e imagens no link:\n${link}\n\n*DADOS DE ACESSO:*\nUsuário: *${cod}*\nSenha: *${pass}*\n\nBaixe o PDF em anexo.\nAtt, Clínica Limalé`;
+      }
+      return `Olá, ${nomePct}!\n\nSeu laudo de ${exameTitulo} está pronto.\n\nAcesse o resultado e imagens clicando no link abaixo:\n${link}\n\nDADOS DE ACESSO:\nUsuário: ${cod}\nSenha: ${pass}\n\nBaixe o PDF em anexo.\nAtt, Clínica Limalé`;
+  };
+
+  const handleEnviarWhatsApp = () => {
+      const texto = getMensagemCompartilhamento('whatsapp');
+      const telefoneRaw = paciente?.telefone_celular || paciente?.telefone || ""; 
+      const apenasNumeros = telefoneRaw.replace(/\D/g, "");
+      let urlWhats = apenasNumeros.length >= 10 
+        ? `https://wa.me/55${apenasNumeros}?text=${encodeURIComponent(texto)}`
+        : `https://wa.me/?text=${encodeURIComponent(texto)}`;
+      window.open(urlWhats, '_blank');
+  };
+
+  const handleEnviarEmail = () => {
+      const texto = getMensagemCompartilhamento('email'); 
+      const email = paciente?.email || "";
+      const assunto = `Resultado de Exame - Clínica Limalé`;
+      window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`, '_blank');
+  };
+
+  const handleImprimirTermo = () => {
+      if (!medicoNome) return alert("Por favor, preencha o nome do Médico.");
+      const nomePaciente = paciente?.nome_completo || "__________________________________________________________";
+      const cpfPaciente = paciente?.cpf || "________________________";
+      const rgPaciente = paciente?.rg || "___________________________";
+      const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+      const hoje = new Date();
+      const dataExtenso = `${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
+
+      const termoWindow = window.open('', '', 'width=800,height=600');
+      termoWindow.document.write(`<html><head><title>Termo de Consentimento</title><style>body { font-family: 'Arial', sans-serif; font-size: 10pt; margin: 0; padding: 0; } @page { size: A4; margin: 1.5cm 2cm; } .content { padding-top: 4.5cm; } h2 { text-align: center; font-size: 12pt; margin-bottom: 20px; font-weight: bold; } p, li { line-height: 1.3; text-align: justify; margin-bottom: 8px; } ul { margin-left: 20px; margin-bottom: 10px; } .check-group { margin: 10px 0; } .assinaturas { margin-top: 30px; display: flex; flex-direction: column; gap: 30px; } .assinatura-box { width: 100%; } .linha { border-top: 1px solid #000; width: 60%; margin-bottom: 4px; }</style></head><body><div class="content"><h2>TERMO DE CONSENTIMENTO PARA USO DE IMAGEM</h2><p>Eu, <strong>${nomePaciente}</strong>, portador(a) do CPF nº <strong>${cpfPaciente}</strong>, RG nº <strong>${rgPaciente}</strong>, autorizo de forma livre, informada e inequívoca o uso da minha imagem, captada durante ou após meu atendimento realizado com o(a) Dr(a). <strong>${medicoNome}</strong> (CRM: ${medicoCrm}).</p><p>Autorizo que minha imagem seja utilizada para:</p><div class="check-group">(x) Divulgação científica<br/>(x) Divulgação institucional<br/>(x) Antes e depois ilustrativos</div><p>Declaro estar ciente que a utilização se dará para fins indicados, sem caráter pejorativo, e que posso revogar este consentimento a qualquer momento.</p><p style="text-align: right; margin-top: 20px;">Diadema, ${dataExtenso}.</p><div class="assinaturas"><div class="assinatura-box"><div class="linha"></div>Assinatura do(a) paciente</div><div class="assinatura-box"><div class="linha"></div>Assinatura do profissional: <strong>${medicoNome}</strong></div></div></div><script>window.onload = function() { window.print(); window.close(); }</script></body></html>`);
+      termoWindow.document.close();
+  };
+
+  // --- FINALIZAR LAUDO ---
   const handleFinalizacaoAssincrona = async (htmlDoEditor, imagensFinais, dataExameSelecionada) => {
     if (isPolling) return;
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
@@ -188,7 +250,7 @@ const LaudosPageV2 = () => {
 
     try {
         const imagensOtimizadas = await Promise.all(imagensFinais.map(img => otimizarImagemParaPDF(img)));
-        setTextoFinal(htmlDoEditor); // Salva o HTML final no estado
+        setTextoFinal(htmlDoEditor); 
         setImagens(imagensOtimizadas);
 
         const formData = new FormData();
@@ -196,7 +258,7 @@ const LaudosPageV2 = () => {
         formData.append('data_exame', dataExameSelecionada); 
         formData.append('tipo_exame', tipoExame);
         formData.append('titulo', tituloExame || `Laudo de ${tipoExame}`);
-        formData.append('texto_laudo', htmlDoEditor); // <-- AQUI ENVIAMOS O HTML
+        formData.append('texto_laudo', htmlDoEditor); 
         formData.append('medico_responsavel', medicoNome);
         formData.append('crm_medico', medicoCrm);
         formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
@@ -244,7 +306,8 @@ const LaudosPageV2 = () => {
         
         {/* BARRA DE FERRAMENTAS */}
         <div style={{ background: '#f8f9fa', borderBottom: `1px solid ${theme.border}`, padding: '10px 16px', display: 'grid', gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px', gap: '12px', alignItems: 'center', flexShrink: 0, zIndex: 20 }}>
-            {/* Paciente (Usando tasy-compact-input para simular seu CSS) */}
+            
+            {/* PACIENTE - RESTAURADO COM DROPDOWN E CLEAR */}
             <div className="tasy-compact-input" style={{position: 'relative', background: '#fff', border: '1px solid #ced4da', borderRadius: '3px', display: 'flex', alignItems: 'center', height: '32px'}}> 
                 <div style={{ padding: '0 10px', color: '#6c757d' }}><FaUserInjured size={13} /></div>
                 <input 
@@ -253,9 +316,56 @@ const LaudosPageV2 = () => {
                     value={paciente ? `${paciente.id}_${paciente.nome_completo}` : termoBusca}
                     onChange={(e) => { if (paciente) setPaciente(null); handleBuscaPacienteChange(e); }}
                 />
+                <div style={{position:'absolute', right:'8px', cursor:'pointer', display: 'flex', alignItems: 'center'}}>
+                    {loadingBusca ? <FaSpinner className="spin" color="#999"/> : 
+                    (paciente || termoBusca.length > 0) ? 
+                        <FaTimes color="#d32f2f" onClick={() => { 
+                            setPaciente(null); setTermoBusca(''); setPacientesEncontrados([]); 
+                            setMedicoEspecialidades([]); setLaudoId(null); setCredenciais(null); 
+                            setTextoFinal(''); setDadosEstruturados({}); setImagens([]); setTituloExame(''); 
+                            sessionStorage.removeItem(STORAGE_KEY); 
+                        }}/> 
+                        : null}
+                </div>
+
+                {!paciente && pacientesEncontrados.length > 0 && (
+                    <div style={styles.dropdownList}>
+                        {pacientesEncontrados.map(p => (
+                            <div key={p.id} style={styles.dropdownItem} onClick={async () => {
+                                setLaudoId(null); setCredenciais(null); setTextoFinal('');
+                                setDadosEstruturados({}); setImagens([]); setTituloExame('');
+                                sessionStorage.removeItem(STORAGE_KEY);
+
+                                const rawSexo = p.genero || p.sexo || '';
+                                const cleanSexo = rawSexo.toString().trim().toUpperCase();
+                                let sexoMapeado = 'Masculino';
+                                if (cleanSexo === 'F' || cleanSexo === 'FEMININO') sexoMapeado = 'Feminino';
+                                else if (cleanSexo === 'O' || cleanSexo === 'OUTRO') sexoMapeado = 'Outro';
+                                else if (cleanSexo === 'M' || cleanSexo === 'MASCULINO') sexoMapeado = 'Masculino';
+                                else sexoMapeado = rawSexo;
+
+                                setPaciente(p);
+                                setDadosEstruturados(prev => ({ ...prev, dataNascimento: p.data_nascimento || '', sexo: sexoMapeado }));
+                                setTermoBusca(''); setPacientesEncontrados([]);
+
+                                try {
+                                    const res = await apiClient.get(`/prontuario/credenciais-ativas/?paciente_id=${p.id}`);
+                                    if (res.data?.codigo) setCredenciais(res.data); else setCredenciais(null);
+                                } catch (e) { console.log("Sem credencial."); }
+                            }}>
+                                <span style={{fontWeight:'bold', display:'flex', alignItems: 'center', gap: '8px'}}>
+                                    <span style={{ background: '#1864ab', color: '#FFF', padding: '2px 6px', borderRadius: '4px', fontSize: '10px' }}>
+                                        ID: {p.id}
+                                    </span>
+                                    {p.nome_completo}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
             
-            {/* Tipo Exame */}
+            {/* TIPO DE EXAME */}
             <div className="tasy-compact-input" style={{background: '#fff', border: '1px solid #ced4da', borderRadius: '3px', display: 'flex', alignItems: 'center', height: '32px'}}>
                 <div style={{ padding: '0 10px', color: '#6c757d' }}><FaNotesMedical size={13} /></div>
                 <select value={tipoExame} onChange={(e) => setTipoExame(e.target.value)} style={{ border: 'none', width: '100%', height: '100%', outline: 'none', fontSize: '12px', color: '#495057', background: 'transparent' }}>
@@ -264,13 +374,30 @@ const LaudosPageV2 = () => {
                     <option value="ECOCARDIOGRAMA">Ecocardiograma</option>
                     <option value="ABDOME">US Geral</option>
                     <option value="DOPPLER_CAROTIDAS">Carótidas</option>
+                    <option value="ELETROCARDIOGRAMA">Eletrocardiograma</option> 
                 </select>
             </div>
 
-            {/* Médico */}
+            {/* MÉDICO - RESTAURADO COM DROPDOWN */}
             <div className="tasy-compact-input" style={{position: 'relative', background: '#fff', border: '1px solid #ced4da', borderRadius: '3px', display: 'flex', alignItems: 'center', height: '32px'}}>
                 <div style={{ padding: '0 10px', color: '#6c757d' }}><FaUserMd size={13} /></div>
-                <input style={{ border: 'none', width: '100%', height: '100%', outline: 'none', fontSize: '12px', color: '#495057' }} placeholder="Médico..." value={medicoNome} onChange={(e) => handleInputMedicoChange(e.target.value)} />
+                <input 
+                    style={{ border: 'none', width: '100%', height: '100%', outline: 'none', fontSize: '12px', color: '#495057' }} 
+                    placeholder="Médico..." 
+                    value={medicoNome} 
+                    onChange={(e) => handleInputMedicoChange(e.target.value)} 
+                    onFocus={() => { setMostrarListaMedicos(true); if(!medicoNome) setMedicosFiltrados(todosMedicos); }} 
+                    onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)}
+                />
+                {mostrarListaMedicos && medicosFiltrados.length > 0 && (
+                    <div style={styles.dropdownList}>
+                        {medicosFiltrados.map(med => (
+                            <div key={med.id} onClick={() => selecionarMedico(med)} style={styles.dropdownItem}>
+                                <span>{med.first_name ? `${med.first_name} ${med.last_name}` : med.username}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* CRM */}
@@ -282,11 +409,12 @@ const LaudosPageV2 = () => {
         {/* ÁREA DO FORMULÁRIO DINÂMICO */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: '#ffffff' }}> 
             <div className="tasy-section-header">Preenchimento Clínico</div>
-            {tipoExame === 'OBSTETRICO' && <FormObstetrico key={`${paciente?.id || 'novo'}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
-            {tipoExame === 'ABDOME' && <FormAbdome key={`${paciente?.id || 'novo'}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
+            {tipoExame === 'OBSTETRICO' && <FormObstetrico key={`${paciente?.id || 'novo'}-${dadosEstruturados?.sexo || ''}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
+            {tipoExame === 'ABDOME' && <FormAbdome key={`${paciente?.id || 'novo'}-${dadosEstruturados?.sexo || ''}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
             {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal key={`${paciente?.id || 'novo'}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
             {tipoExame === 'ECOCARDIOGRAMA' && <FormEcocardiograma key={`${paciente?.id || 'novo'}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
             {tipoExame === 'DOPPLER_CAROTIDAS' && <FormDopplerCarotidas key={`${paciente?.id || 'novo'}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
+            {tipoExame === 'ELETROCARDIOGRAMA' && <FormEletrocardiograma key={`${paciente?.id || 'novo'}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
         </div>
       </div> 
 
@@ -294,29 +422,44 @@ const LaudosPageV2 = () => {
       <div style={{ flex: 1, minWidth: '400px', display: 'flex', flexDirection: 'column', background: theme.bg, minHeight: 0, paddingLeft: '8px' }}>
          <div className="tasy-flat-panel" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
-             {/* BARRA DE AÇÕES */}
+             {/* BARRA DE AÇÕES - RESTAURADA COM TERMO E ATESTADO */}
              <Box sx={{ px: 2, background: '#f8f9fa', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '45px', flexShrink: 0 }}>
                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                      <FaFileSignature color="#495057" size={14} />
-                     <Typography variant="caption" sx={{ fontWeight: 600, color: '#495057', fontSize: '12px', textTransform: 'uppercase' }}>Pré-visualização (HTML)</Typography>
+                     <Typography variant="caption" sx={{ fontWeight: 600, color: '#495057', fontSize: '12px', textTransform: 'uppercase' }}>Pré-visualização</Typography>
                  </Box>
                  <Stack direction="row" spacing={1} alignItems="center">
                      <Tooltip title="Limpar"><IconButton onClick={handleLimpar} size="small" sx={{ color: '#fa5252' }}><FaEraser size={14} /></IconButton></Tooltip>
                      <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto' }} />
+                     
+                     <Button size="small" onClick={handleImprimirTermo} sx={{ color: '#495057', textTransform: 'none', fontSize: '11px', fontWeight: 600, minWidth: 'auto' }}>
+                         Termo
+                     </Button>
+                     <Button 
+                         size="small" 
+                         onClick={() => {
+                             if (!paciente || !medicoNome) return alert("Selecione um Paciente e identifique o Médico antes de gerar o documento.");
+                             setModalAtestadoOpen(true);
+                         }} 
+                         sx={{ color: '#0b7285', textTransform: 'none', fontSize: '11px', fontWeight: 600, minWidth: 'auto' }}
+                     >
+                         Atestado
+                     </Button>
+
                     <Button 
                         variant="contained" size="small" 
                         onClick={() => {
                             if (!textoFinal) return alert("Preencha as medidas para gerar o laudo.");
                             setModalRevisaoOpen(true);
                         }} 
-                        sx={{ background: '#1864ab', textTransform: 'none', fontWeight: '600', fontSize: '12px', boxShadow: 'none', '&:hover': { background: '#1971c2', boxShadow: 'none' } }}
+                        sx={{ background: '#1864ab', textTransform: 'none', fontWeight: '600', fontSize: '11px', ml: 1, boxShadow: 'none', '&:hover': { background: '#1971c2', boxShadow: 'none' } }}
                     >
                         Abrir Editor Visual
                     </Button>
                  </Stack>
              </Box>
              
-             {/* ÁREA DE RENDERIZAÇÃO DO HTML (Simula a folha antes de abrir o modal) */}
+             {/* ÁREA DE RENDERIZAÇÃO DO HTML */}
              <div style={{flex: 1, minHeight: 0, overflow: 'auto', background: '#e9ecef', padding: '20px', display: 'flex', justifyContent: 'center'}}>
                 <div 
                     style={{ 
@@ -324,24 +467,20 @@ const LaudosPageV2 = () => {
                         padding: '30px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #ced4da',
                         fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '13px', lineHeight: '1.5', color: '#333'
                     }}
-                    // Temporário: Enquanto o TextBuilderV2 não está pronto, renderizamos como pre-wrap 
-                    // para não quebrar o texto atual, mas já preparamos a div para receber HTML.
                     dangerouslySetInnerHTML={{ __html: textoFinal.replace(/\n/g, '<br/>') }}
                 />
              </div>
          </div>
       </div>
 
-      {/* --- MODAIS --- */}
+      {/* --- MODAIS RESTAURADOS --- */}
       <LaudosPreviewModalV2 
           open={modalRevisaoOpen} 
           onClose={() => setModalRevisaoOpen(false)} 
-          htmlInicial={textoFinal} // Retiramos o .replace() provisório, pois o TextBuilder novo já manda HTML
+          htmlInicial={textoFinal} 
           imagensIniciais={imagens} 
           onFinalizar={handleFinalizacaoAssincrona}
           onAbrirNuvem={() => setModalNuvemOpen(true)}
-          
-          // NOVA PROPRIEDADE AQUI:
           onSalvarRascunho={(htmlEditado) => {
               setTextoFinal(htmlEditado);
               setModalRevisaoOpen(false);
@@ -349,6 +488,39 @@ const LaudosPageV2 = () => {
       />
       <ImagensNuvemModal open={modalNuvemOpen} onClose={() => setModalNuvemOpen(false)} paciente={paciente} onConfirmar={handleImportarDaNuvem} />
       <AtestadoModal open={modalAtestadoOpen} onClose={() => setModalAtestadoOpen(false)} paciente={paciente} medicoNome={medicoNome} medicoCrm={medicoCrm} usaAssinaturaDigital={usuarioTemCertificado} />
+
+      {/* MODAL SUCESSO RESTAURADO */}
+      <Dialog open={modalSucessoOpen} onClose={() => setModalSucessoOpen(false)} maxWidth="sm" fullWidth>
+        <div style={{padding: '30px', textAlign: 'center'}}>
+            <FaCheckCircle size={60} color="#4CAF50" style={{marginBottom: 15}} />
+            <Typography variant="h5" style={{fontWeight: 'bold', color: '#2C3E50', marginBottom: 10}}>Laudo Salvo com Sucesso!</Typography>
+            <Typography variant="body1" style={{color: '#555', marginBottom: 30}}>O exame foi registrado no prontuário.</Typography>
+            <div style={{background: '#F0F4F8', border: '1px dashed #B0BEC5', borderRadius: 8, padding: '15px', marginBottom: 30, textAlign: 'left'}}>
+                <Typography variant="subtitle2" style={{color: '#1C2E4A', fontWeight: 'bold', marginBottom: 5}}>DADOS DE ACESSO GERADOS:</Typography>
+                <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px'}}>
+                    <span>Usuário: <strong>{credenciais?.codigo || '---'}</strong></span>
+                    <span>Senha: <strong>{credenciais?.senha || '---'}</strong></span>
+                </div>
+            </div>
+            <Grid container spacing={2}>
+                <Grid item xs={6}><Button fullWidth variant="contained" onClick={handleEnviarWhatsApp} style={{background: '#25D366', height: '50px', fontSize: '12px', display: 'flex', gap: '8px'}}><FaWhatsapp size={20} /> Enviar WhatsApp</Button></Grid>
+                <Grid item xs={6}><Button fullWidth variant="contained" onClick={handleEnviarEmail} style={{background: '#1C2E4A', height: '50px', fontSize: '12px', display: 'flex', gap: '8px'}}><FaEnvelope size={20} /> Enviar E-mail</Button></Grid>
+            </Grid>
+        </div>
+        <DialogActions><Button onClick={() => setModalSucessoOpen(false)} style={{color: '#888'}}>Fechar Janela</Button></DialogActions>
+      </Dialog>
+
+      {/* MODAL POLLING (SPINNER) RESTAURADO */}
+      <Dialog open={isPolling} disableEscapeKeyDown>
+        <div style={{padding: '40px', textAlign: 'center', minWidth: '300px'}}>
+            <FaSpinner className="spin" size={40} color="#1C2E4A" style={{marginBottom: '20px'}}/>
+            <Typography variant="h6" style={{fontWeight: 'bold', color: '#1C2E4A'}}>Processando Laudo...</Typography>
+            <Typography variant="body2" color="textSecondary" style={{marginTop: '10px'}}>
+                Gerando PDF e aplicando assinatura digital.<br/>Isso pode levar alguns segundos.
+            </Typography>
+        </div>
+      </Dialog>
+
     </div>
   );
 };
