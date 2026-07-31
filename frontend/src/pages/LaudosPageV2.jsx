@@ -10,11 +10,17 @@ import {
   Box, Typography, Grid, Button, Dialog, DialogActions, Stack, 
   Tooltip, IconButton, Divider 
 } from '@mui/material';
+
+// ✅ CORREÇÃO 2: Importação do Editor do TinyMCE
+import { Editor } from '@tinymce/tinymce-react';
+
 import '../components/laudos/Laudos.css';
 import '../atendimento.css';
 
-import { gerarHtmlCompletoLaudo } from '../utils/htmlParser';
+// Importa a função que cria as folhas A4 virtuais
+import { gerarConteudoParaEditor } from '../utils/htmlParser';
 
+// Formulários
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormAbdome from '../components/laudos/abdome/FormAbdome'; 
 import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal';
@@ -22,6 +28,7 @@ import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardi
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
 import FormEletrocardiograma from '../components/laudos/eletrocardiograma/FormEletrocardiograma';
 
+// Modais
 import AtestadoModal from '../components/laudos/AtestadoModal';
 import LaudosPreviewModalV2 from '../components/laudos/LaudosPreviewModalV2'; 
 import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal'; 
@@ -287,8 +294,14 @@ const LaudosPageV2 = () => {
 
   const handleImportarDaNuvem = (novasImagensBase64) => setImagens(prev => [...prev, ...novasImagensBase64]);
 
-  const htmlPronto = gerarHtmlCompletoLaudo({
-      paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo: textoFinal
+  // ✅ CORREÇÃO 1: Passa uma string vazia no dataExame, já que a página principal usa sempre a data atual
+  const htmlPronto = gerarConteudoParaEditor({
+      paciente, 
+      dadosEstruturados, 
+      tituloExame, 
+      tipoExame, 
+      textoLaudo: textoFinal, 
+      dataExame: '' 
   });
 
   return (

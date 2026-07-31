@@ -60,7 +60,27 @@ const LaudosPreviewModalV2 = ({
                 .tox .tox-tbtn { height: 26px !important; width: 26px !important; margin: 0 1px !important; border-radius: 4px !important; }
                 .tox .tox-tbtn svg { transform: scale(0.8) !important; }
                 .tox .tox-tbtn--select { width: auto !important; padding: 0 4px !important; font-size: 11px !important; }
-                .tox-tinymce { border: none !important; }
+                .tox-tinymce { border: none !important; height: 100% !important; }
+                
+                /* O container que força o limite A4 para o TinyMCE */
+                .a4-container {
+                    background-color: #ffffff;
+                    background-image: url('/Receituario_v2.jpg'); 
+                    background-size: 210mm 297mm;
+                    background-repeat: repeat-y;
+                    width: 210mm;
+                    min-height: 297mm;
+                    margin: 20px auto;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+                    border: 1px solid #d1d5db;
+                    position: relative;
+                    /* Estas margens seguram o editor na área branca da folha */
+                    padding-top: 6.0cm;
+                    padding-bottom: 5.5cm;
+                    padding-left: 1.5cm;
+                    padding-right: 1.5cm;
+                    box-sizing: border-box;
+                }
             `}</style>
 
             <AppBar sx={{ position: 'relative', background: '#b71c1c', boxShadow: 'none' }}>
@@ -113,94 +133,55 @@ const LaudosPreviewModalV2 = ({
                 </Toolbar>
             </AppBar>
 
-            <Box sx={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#e9ecef', overflow: 'hidden' }}>
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-                    <Editor
-                        apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
-                        onInit={(evt, editor) => editorRef.current = editor}
-                        initialValue={htmlInicial}
-                        init={{
-                            height: '100%', 
-                            width: '100%', 
-                            resize: false, 
-                            branding: false, 
-                            promotion: false, 
-                            elementpath: false, 
-                            menubar: false, 
-                            browser_spellcheck: true, 
-                            toolbar_mode: 'sliding',
-                            plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount',
-                            toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
-                            // O SEGREDO DO COMPORTAMENTO DO WORD ESTÁ NESTE BLOCO CSS:
-                            content_style: `
-                                /* O fundo geral escuro que imita a "mesa" */
-                                html { 
-                                    background-color: #e9ecef !important; 
-                                }
-                                
-                                /* O body age como um contêiner transparente para as páginas */
-                                body { 
-                                    font-family: Arial, Helvetica, sans-serif; 
-                                    font-size: 13px; 
-                                    color: #222; 
-                                    line-height: 1.5;
-                                    background-color: transparent !important;
-                                    padding: 20px 0 !important;
-                                    margin: 0 !important;
-                                    overflow-y: auto !important;
-                                    /* Garante que o body possa rolar */
-                                    height: auto !important; 
-                                    min-height: 100vh !important;
-                                }
-
-                                /* ESTILO PARA CADA PÁGINA (A "folha" em si) */
-                                .page-a4 {
-                                    background-color: #ffffff;
-                                    background-image: url('/Receituario_v2.jpg'); 
-                                    background-size: 100% 100%;
-                                    background-repeat: no-repeat;
-                                    width: 210mm;
-                                    height: 297mm; /* Altura fixa da página A4 */
-                                    margin: 0 auto 20px auto;
-                                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-                                    border: 1px solid #d1d5db;
-                                    position: relative;
-                                    page-break-after: always;
-                                    overflow: hidden; /* Impede que o texto vaze para a próxima folha sem controle */
-                                }
-
-                                /* A área de digitação dentro de cada página */
-                                .page-content {
-                                    padding-top: 6.0cm; 
-                                    padding-bottom: 5.5cm; 
-                                    padding-left: 1.5cm; 
-                                    padding-right: 1.5cm;
-                                    height: 100%;
-                                    box-sizing: border-box;
-                                }
-
-                                /* O comportamento do pagebreak agora cria visualmente uma nova div .page-a4 */
-                                .mce-pagebreak {
-                                    display: block !important; 
-                                    margin: 0 !important; 
-                                    padding: 0 !important; 
-                                    border: none !important;
-                                    page-break-after: always !important; 
-                                    break-after: page !important;
-                                    /* Visualmente, o plugin apenas marca a quebra para o usuário. 
-                                       Na hora de parsear, o JS vai transformar isso em novas divs .page-a4 */
-                                    border-top: 2px dashed rgba(24, 100, 171, 0.4) !important;
-                                }
-
-                                table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
-                                td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
-                            `
-                        }}
-                    />
+            {/* ÁREA DE TRABALHO E ROLAGEM GERAL */}
+            <Box sx={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#e9ecef', overflowY: 'auto' }}>
+                
+                {/* CONTAINER QUE SEGURA O PAPEL A4 */}
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', pb: 5 }}>
+                    <div className="a4-container">
+                        <Editor
+                            apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
+                            onInit={(evt, editor) => editorRef.current = editor}
+                            initialValue={htmlInicial}
+                            init={{
+                                height: '100%', 
+                                width: '100%', 
+                                resize: false, 
+                                branding: false, 
+                                promotion: false, 
+                                elementpath: false, 
+                                menubar: false, 
+                                browser_spellcheck: true, 
+                                toolbar_mode: 'sliding',
+                                plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize',
+                                toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
+                                autoresize_bottom_margin: 0,
+                                content_style: `
+                                    html { background: transparent !important; }
+                                    body { 
+                                        font-family: Arial, Helvetica, sans-serif; 
+                                        font-size: 13px; color: #222; line-height: 1.5;
+                                        background: transparent !important;
+                                        margin: 0 !important; padding: 0 !important;
+                                        overflow-y: hidden !important; /* Desativa a barra dupla */
+                                    }
+                                    table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+                                    td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
+                                    .mce-pagebreak {
+                                        display: block !important; 
+                                        height: 11.5cm !important; /* Pulo mágico exato para a próxima folha A4! */
+                                        margin: 0 !important; padding: 0 !important; border: none !important;
+                                        border-top: 2px dashed rgba(24, 100, 171, 0.4) !important;
+                                    }
+                                `
+                            }}
+                        />
+                    </div>
                 </Box>
 
+                {/* PAINEL LATERAL DE FOTOS */}
                 {mostrarFotos && (
-                    <Box sx={{ width: '310px', background: '#fff', borderLeft: '1px solid #ced4da', display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ width: '310px', background: '#fff', borderLeft: '1px solid #ced4da', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: 'calc(100vh - 48px)' }}>
                         <Box sx={{ p: 2, background: '#f0f4f8', borderBottom: '1px solid #e0e6ed' }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1C2E4A', mb: 1.5 }}>
                                 Anexos ({imagens.length})
