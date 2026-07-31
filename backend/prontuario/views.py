@@ -1677,9 +1677,12 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                 # 🚀 TRANSIÇÃO SEGURA: GERAÇÃO DE PDF NO BACKEND
                 # ====================================================================
                 import json
-                from datetime import date # Certifique-se de que isso existe
+                from datetime import date
                 from django.core.files.base import ContentFile
+                
+                # 1. IMPORTAMOS AS DUAS VERSÕES (V1 e V2)
                 from prontuario.utils import gerar_pdf_laudo_backend 
+                from prontuario.utilsv2 import gerar_pdf_laudo_backend_v2
 
                 imagens_raw = request.data.get('imagens_anexas', '[]')
                 try:
@@ -1687,7 +1690,6 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                 except:
                     imagens_lista = []
 
-                # CALCULA A IDADE DIRETAMENTE AQUI PARA NÃO FALHAR
                 idade_formatada = ""
                 if paciente.data_nascimento:
                     hoje = date.today()
@@ -1703,21 +1705,26 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                     'imagens': imagens_lista
                 }
 
-                # >>> ADICIONE ESTE LOG AQUI <<<
                 print("\n=== DEBUG BACKEND 2: PREPARANDO CONTEXTO DO PDF ===")
                 print(f"Laudo ID salvo: {laudo.id}")
                 print(f"Paciente injetado no PDF: {paciente.nome_completo}")
                 print("====================================================\n")
 
-                pdf_bytes = gerar_pdf_laudo_backend(contexto)
+                # 2. O DESVIO INTELIGENTE: Lê a tag enviada pelo React
+                versao_laudo = request.data.get('versao_laudo', 'v1')
+                
+                if versao_laudo == 'v2':
+                    print("DEBUG [LAUDO]: 🚀 Roteando para Motor V2 (utilsv2.py)")
+                    pdf_bytes = gerar_pdf_laudo_backend_v2(contexto)
+                else:
+                    print("DEBUG [LAUDO]: 🔙 Roteando para Motor V1 Clássico (utils.py)")
+                    pdf_bytes = gerar_pdf_laudo_backend(contexto)
                 
                 if pdf_bytes:
                     data_hoje_str = data_retroativa.strftime("%d-%m-%Y")
                     nome_base_arquivo = f"{laudo.titulo_exame}_{paciente.nome_completo}_{data_hoje_str}"
                     nome_seguro = slugify(nome_base_arquivo).upper()
                     
-                    # Salva no banco. O Celery vai pegar este arquivo transparente 
-                    # para colocar a máscara da Limalé e assinar criptograficamente!
                     laudo.arquivo_pdf = ContentFile(pdf_bytes, name=f"{nome_seguro}.pdf")
                 # ====================================================================
             
