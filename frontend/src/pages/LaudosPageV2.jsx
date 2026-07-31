@@ -13,7 +13,7 @@ import {
 import '../components/laudos/Laudos.css';
 import '../atendimento.css';
 
-import { gerarHtmlCompletoLaudo } from '../utils/htmlParser';
+import { gerarConteudoParaEditor } from '../utils/htmlParser';
 
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormAbdome from '../components/laudos/abdome/FormAbdome'; 
@@ -287,8 +287,9 @@ const LaudosPageV2 = () => {
 
   const handleImportarDaNuvem = (novasImagensBase64) => setImagens(prev => [...prev, ...novasImagensBase64]);
 
-  const htmlPronto = gerarHtmlCompletoLaudo({
-      paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo: textoFinal
+  // CHAMA A FUNÇÃO NOVA QUE GERA O CONTEÚDO (NÃO MAIS COM HEADER FIXO POSICIONADO ABSOLUTO)
+  const htmlPronto = gerarConteudoParaEditor({
+      paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo: textoFinal, dataExame: dataExameModal || ''
   });
 
   return (
@@ -410,7 +411,7 @@ const LaudosPageV2 = () => {
         </div>
       </div> 
 
-      {/* COLUNA DIREITA (PREVIEW RÁPIDO VIA DIV PURE - ULTRA RESPOSITIVO) */}
+      {/* COLUNA DIREITA (PREVIEW RÁPIDO) */}
       <div style={{ flex: 1, minWidth: '400px', display: 'flex', flexDirection: 'column', background: theme.bg, minHeight: 0, paddingLeft: '8px' }}>
          <div className="tasy-flat-panel" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
@@ -451,19 +452,48 @@ const LaudosPageV2 = () => {
                  </Stack>
              </Box>
              
-             {/* PRÉVIA A4 LEVE E INSTANTÂNEA */}
-             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: '#e9ecef', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div 
-                    style={{ 
-                        width: '210mm', minHeight: '297mm', background: '#fff', 
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)', border: '1px solid #ced4da',
-                        fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '10pt', lineHeight: '1.5', color: '#333',
-                        backgroundImage: "url('/Receituario_v2.jpg')", backgroundSize: "210mm 297mm", backgroundRepeat: "repeat-y", 
-                        paddingTop: "6.0cm", paddingLeft: "1.5cm", paddingRight: "1.5cm", paddingBottom: "5.0cm",
-                        boxSizing: 'border-box', position: 'relative'
-                    }}
-                    dangerouslySetInnerHTML={{ __html: htmlPronto }}
-                />
+             {/* PRÉVIA A4: ENVELOPADA PERFEITAMENTE PARA NÃO ATROPELAR */}
+             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: '#e9ecef', padding: '20px 0' }}>
+                <div style={{
+                    backgroundColor: '#ffffff',
+                    backgroundImage: "url('/Receituario_v2.jpg')", 
+                    backgroundSize: '210mm 297mm',
+                    backgroundRepeat: 'repeat-y',
+                    width: '210mm',
+                    minHeight: '297mm',
+                    margin: '0 auto',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.18)',
+                    border: '1px solid #d1d5db',
+                    position: 'relative',
+                    paddingTop: '6.0cm',
+                    paddingBottom: '5.5cm',
+                    paddingLeft: '1.5cm',
+                    paddingRight: '1.5cm',
+                    boxSizing: 'border-box'
+                }}>
+                    <Editor
+                        apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
+                        value={htmlPronto}
+                        disabled={true}
+                        init={{
+                            height: '100%', width: '100%', resize: false, branding: false, promotion: false, elementpath: false, menubar: false, toolbar: false,
+                            plugins: 'autoresize', autoresize_bottom_margin: 0,
+                            content_style: `
+                                html { background: transparent !important; overflow: hidden !important; }
+                                body { 
+                                    font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
+                                    background: transparent !important; margin: 0 !important; padding: 0 !important;
+                                }
+                                table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+                                td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
+                                .mce-pagebreak {
+                                    display: block !important; height: 11.5cm !important; margin: 0 !important; padding: 0 !important; border: none !important;
+                                    border-top: 2px dashed rgba(24, 100, 171, 0.4) !important; page-break-after: always !important; break-after: page !important;
+                                }
+                            `
+                        }}
+                    />
+                </div>
              </div>
          </div>
       </div>

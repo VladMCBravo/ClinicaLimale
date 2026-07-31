@@ -1,10 +1,8 @@
 // src/utils/htmlParser.js
 
-// Converte o texto bruto do formulário para HTML rico
 export const parseLaudoToHtml = (textoRaw) => {
     if (!textoRaw) return '';
     
-    // Se o texto já foi editado no TinyMCE e possui tags HTML, retorna como está
     if (textoRaw.includes('<p>') || textoRaw.includes('<table>') || textoRaw.includes('<h4')) {
         return textoRaw;
     }
@@ -29,7 +27,7 @@ export const parseLaudoToHtml = (textoRaw) => {
     linhas.forEach(linhaOriginal => {
         const linha = linhaOriginal.trim();
         if (!linha) {
-            if (!emTabela) html += '<div style="line-height: 4px;">&nbsp;</div>\n';
+            if (!emTabela) html += '<p style="margin: 0; line-height: 8px;">&nbsp;</p>\n';
             return;
         }
 
@@ -75,23 +73,22 @@ export const parseLaudoToHtml = (textoRaw) => {
             return;
         }
 
-        // TEXTO NORMAL (Tamanho 10pt)
         if (linhaOriginal.includes('\t')) {
             const linhaFmt = linhaOriginal.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
-            html += `<div style="margin-bottom: 2px; font-family: monospace; font-size: 10pt; color: #333;">${linhaFmt.trim()}</div>\n`;
+            html += `<p style="margin: 0 0 3px 0; font-family: monospace; font-size: 10pt; color: #333;">${linhaFmt.trim()}</p>\n`;
         } else if (linha.startsWith('-')) {
-            html += `<div style="margin-bottom: 3px; padding-left: 15px; font-size: 10pt; text-align: justify;">${linha}</div>\n`;
+            html += `<p style="margin: 0 0 3px 0; padding-left: 15px; font-size: 10pt; text-align: justify; color: #333;">${linha}</p>\n`;
         } else if (linha.includes(': ')) {
             const partes = linha.split(': ');
             const prefixo = partes[0].trim();
             const resto = partes.slice(1).join(': ').trim();
             if (prefixo.length <= 45) {
-                html += `<div style="margin-bottom: 4px; font-size: 10pt; text-align: justify; line-height: 1.25;"><span style="font-weight: bold; color: #1C2E4A;">${prefixo}:</span> ${resto}</div>\n`;
+                html += `<p style="margin: 0 0 4px 0; font-size: 10pt; text-align: justify; line-height: 1.25; color: #333;"><span style="font-weight: bold; color: #1C2E4A;">${prefixo}:</span> ${resto}</p>\n`;
             } else {
-                html += `<div style="margin-bottom: 3px; font-size: 10pt; text-align: justify; line-height: 1.25;">${linha}</div>\n`;
+                html += `<p style="margin: 0 0 3px 0; font-size: 10pt; text-align: justify; line-height: 1.25; color: #333;">${linha}</p>\n`;
             }
         } else {
-            html += `<div style="margin-bottom: 3px; font-size: 10pt; text-align: justify; line-height: 1.25;">${linha}</div>\n`;
+            html += `<p style="margin: 0 0 3px 0; font-size: 10pt; text-align: justify; line-height: 1.25; color: #333;">${linha}</p>\n`;
         }
     });
 
@@ -99,10 +96,12 @@ export const parseLaudoToHtml = (textoRaw) => {
     return html;
 };
 
-// GERA O HTML COMPLETO DO LAUDO
-export const gerarHtmlCompletoLaudo = ({
+// GERA O CONTEÚDO PURO (SEM MÁSCARA, SÓ O TEXTO) PARA O TINYMCE
+export const gerarConteudoParaEditor = ({
     paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo, dataExame
 }) => {
+    
+    // Se já foi gerado na versão v2, retorna o texto formatado pelo médico.
     if (textoLaudo && textoLaudo.includes('id="header_content_v2"')) {
         return textoLaudo;
     }
@@ -129,7 +128,6 @@ export const gerarHtmlCompletoLaudo = ({
     }
 
     const sexoPct = (dadosEstruturados?.sexo || paciente?.genero || paciente?.sexo || '______').toUpperCase();
-    
     const solicitanteRaw = dadosEstruturados?.medicoSolicitante || '';
     const solicitante = (solicitanteRaw && solicitanteRaw.trim() !== '') ? solicitanteRaw.toUpperCase() : 'NÃO INFORMADO';
     
@@ -139,18 +137,25 @@ export const gerarHtmlCompletoLaudo = ({
     const corpoHtml = parseLaudoToHtml(textoLaudo);
 
     return `
-<div id="header_content_v2" contenteditable="false" style="position: absolute; top: 1.5cm; left: 10.2cm; width: 9.0cm; font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #1C2E4A; line-height: 1.6; z-index: 10; pointer-events: none;">
-    <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
-    <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
-    <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
-    <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
+<div id="header_content_v2" contenteditable="false" style="width: 100%; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between;">
+        <div style="flex: 2;">
+            <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
+            <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
+            <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</div>
+        </div>
+        <div style="flex: 1; text-align: right;">
+            <div><span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
+            <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
+        </div>
+    </div>
 </div>
 
 <h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">
     ${titulo}
 </h3>
 
-<div class="corpo-laudo-a4" style="text-align: justify; font-size: 10pt; color: #333;">
+<div class="corpo-laudo-v2" style="text-align: justify; font-size: 10pt; color: #333;">
     ${corpoHtml}
 </div>
     `.trim();
