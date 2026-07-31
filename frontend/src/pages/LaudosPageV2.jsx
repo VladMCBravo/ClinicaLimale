@@ -14,7 +14,6 @@ import '../components/laudos/Laudos.css';
 import '../atendimento.css';
 
 import { gerarHtmlCompletoLaudo } from '../utils/htmlParser';
-import { Editor } from '@tinymce/tinymce-react';
 
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormAbdome from '../components/laudos/abdome/FormAbdome'; 
@@ -411,7 +410,7 @@ const LaudosPageV2 = () => {
         </div>
       </div> 
 
-      {/* COLUNA DIREITA (PREVIEW) */}
+      {/* COLUNA DIREITA (PREVIEW RÁPIDO VIA DIV PURE - ULTRA RESPOSITIVO) */}
       <div style={{ flex: 1, minWidth: '400px', display: 'flex', flexDirection: 'column', background: theme.bg, minHeight: 0, paddingLeft: '8px' }}>
          <div className="tasy-flat-panel" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
@@ -452,45 +451,18 @@ const LaudosPageV2 = () => {
                  </Stack>
              </Box>
              
-             {/* PRÉVIA A4 COM O EDITOR READONLY (MANTÉM O MESMO FORMATO DO MODAL) */}
-             <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', background: '#e9ecef', display: 'flex', flexDirection: 'column' }}>
-                <Editor
-                    apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
-                    value={htmlPronto}
-                    disabled={true}
-                    init={{
-                        height: '100%', width: '100%', resize: false, branding: false, promotion: false, elementpath: false, menubar: false, toolbar: false,
-                        content_style: `
-                            html { background-color: #e9ecef !important; overflow-y: auto !important; overflow-x: hidden !important; height: 100% !important; padding: 20px 0 !important; margin: 0; }
-                            body { 
-                                font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
-                                background-color: transparent !important;
-                                padding: 0 !important; margin: 0 !important;
-                                height: auto !important; min-height: 100vh !important;
-                            }
-                            
-                            .page-a4 {
-                                background-color: #ffffff;
-                                background-image: url('/Receituario_v2.jpg'); 
-                                background-size: 100% 100%;
-                                background-repeat: no-repeat;
-                                width: 210mm; height: 297mm;
-                                margin: 0 auto 20px auto;
-                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-                                border: 1px solid #d1d5db;
-                                position: relative;
-                                overflow: hidden;
-                            }
-
-                            .page-content {
-                                padding-top: 6.0cm; padding-bottom: 5.5cm; padding-left: 1.5cm; padding-right: 1.5cm;
-                                height: 100%; box-sizing: border-box;
-                            }
-                            
-                            table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
-                            td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
-                        `
+             {/* PRÉVIA A4 LEVE E INSTANTÂNEA */}
+             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: '#e9ecef', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div 
+                    style={{ 
+                        width: '210mm', minHeight: '297mm', background: '#fff', 
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)', border: '1px solid #ced4da',
+                        fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '10pt', lineHeight: '1.5', color: '#333',
+                        backgroundImage: "url('/Receituario_v2.jpg')", backgroundSize: "210mm 297mm", backgroundRepeat: "repeat-y", 
+                        paddingTop: "6.0cm", paddingLeft: "1.5cm", paddingRight: "1.5cm", paddingBottom: "5.0cm",
+                        boxSizing: 'border-box', position: 'relative'
                     }}
+                    dangerouslySetInnerHTML={{ __html: htmlPronto }}
                 />
              </div>
          </div>

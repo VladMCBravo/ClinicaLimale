@@ -1,4 +1,5 @@
 import os
+import re
 import base64
 import qrcode
 from io import BytesIO
@@ -14,8 +15,10 @@ def gerar_pdf_laudo_backend_v2(context):
     data_exame = context.get('data_exame')
     imagens = context.get('imagens', [])
     
-    # 🚀 NO V2, O TEXTO JÁ VEM EM HTML PERFEITO DO REACT (COM TÍTULO E TABELAS)
     html_corpo = laudo.texto_laudo if laudo else ''
+    
+    # REMOVE O BLOCO VISUAL DO REACT COM OS TRACINHOS/NOME
+    html_corpo = re.sub(r'<div id="header_content_v2".*?</div>', '', html_corpo, flags=re.DOTALL)
     
     dados_estruturados = laudo.dados_estruturados if laudo and isinstance(laudo.dados_estruturados, dict) else {}
     medico_solicitante = dados_estruturados.get('medicoSolicitante', 'NÃO INFORMADO').upper()

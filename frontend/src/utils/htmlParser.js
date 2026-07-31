@@ -4,8 +4,7 @@
 export const parseLaudoToHtml = (textoRaw) => {
     if (!textoRaw) return '';
     
-    // Se o texto já foi editado no TinyMCE e possui tags HTML, retorna como está.
-    // Ele será tratado no gerarHtmlCompletoLaudo para se adequar às páginas.
+    // Se o texto já foi editado no TinyMCE e possui tags HTML, retorna como está
     if (textoRaw.includes('<p>') || textoRaw.includes('<table>') || textoRaw.includes('<h4')) {
         return textoRaw;
     }
@@ -100,15 +99,11 @@ export const parseLaudoToHtml = (textoRaw) => {
     return html;
 };
 
-// =========================================================================
-// GERA O CONTEÚDO ENVELOPADO NAS PÁGINAS A4 (COM QUEBRA DE PÁGINA)
-// =========================================================================
+// GERA O HTML COMPLETO DO LAUDO
 export const gerarHtmlCompletoLaudo = ({
     paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo, dataExame
 }) => {
-    
-    // Se o texto já estiver estruturado na nova versão com as classes .page-a4, nós devolvemos intacto.
-    if (textoLaudo && textoLaudo.includes('class="page-a4"')) {
+    if (textoLaudo && textoLaudo.includes('id="header_content_v2"')) {
         return textoLaudo;
     }
 
@@ -141,45 +136,22 @@ export const gerarHtmlCompletoLaudo = ({
     const titulo = (tituloExame || `ULTRASSONOGRAFIA DE ${tipoExame || 'EXAME'}`).toUpperCase();
     const dataFmt = dataExame ? dataExame.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
 
-    // 1. O Cabeçalho (Fixo)
-    const cabecalhoHMTL = `
-        <div id="header_content_v2" contenteditable="false" style="position: absolute; top: 1.5cm; left: 10.5cm; width: 9.0cm; font-family: Helvetica, Arial, sans-serif; font-size: 13px; color: #1C2E4A; line-height: 1.6; z-index: 10; pointer-events: none;">
-            <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
-            <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
-            <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
-            <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
-        </div>
-    `;
+    const corpoHtml = parseLaudoToHtml(textoLaudo);
 
-    const tituloHTML = `
-        <h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">
-            ${titulo}
-        </h3>
-    `;
+    return `
+<div id="header_content_v2" contenteditable="false" style="position: absolute; top: 1.5cm; left: 10.2cm; width: 9.0cm; font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #1C2E4A; line-height: 1.6; z-index: 10; pointer-events: none;">
+    <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
+    <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
+    <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
+    <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
+</div>
 
-    // 2. Transforma o corpo bruto em HTML rico
-    let corpoHtmlBase = parseLaudoToHtml(textoLaudo);
+<h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">
+    ${titulo}
+</h3>
 
-    // 3. Separa o corpo onde houver uma quebra de página explícita do TinyMCE (ou div de quebra)
-    // Se não houver, ele retorna um array com 1 elemento.
-    const paginasConteudo = corpoHtmlBase.split(/(?:|<div class="mce-pagebreak"[^>]*><\/div>)/gi);
-
-    // 4. Constrói a estrutura envelopada
-    let documentoCompleto = '';
-
-    paginasConteudo.forEach((conteudoDaPagina, index) => {
-        // Se for a página 1, colocamos o Título. Nas demais, apenas o conteúdo que "sobrou".
-        const conteudoParaExibir = index === 0 ? tituloHTML + conteudoDaPagina : conteudoDaPagina;
-
-        documentoCompleto += `
-            <div class="page-a4">
-                ${cabecalhoHMTL}
-                <div class="page-content" style="text-align: justify; font-size: 10pt; color: #333;">
-                    ${conteudoParaExibir}
-                </div>
-            </div>
-        `;
-    });
-
-    return documentoCompleto.trim();
+<div class="corpo-laudo-a4" style="text-align: justify; font-size: 10pt; color: #333;">
+    ${corpoHtml}
+</div>
+    `.trim();
 };
