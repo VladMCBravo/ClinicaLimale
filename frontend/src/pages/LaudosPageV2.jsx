@@ -13,7 +13,7 @@ import {
 import '../components/laudos/Laudos.css';
 import '../atendimento.css';
 
-import { gerarHtmlCompletoLaudo } from '../utils/htmlParser'; // <-- Atualize esta linha
+import { gerarHtmlCompletoLaudo } from '../utils/htmlParser';
 
 // Formulários
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
@@ -253,7 +253,7 @@ const LaudosPageV2 = () => {
         formData.append('crm_medico', medicoCrm);
         formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
         formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas));
-        formData.append('versao_laudo', 'v2');
+        formData.append('versao_laudo', 'v2'); // TAG V2
         
         let response = await apiClient.post('/prontuario/laudos-async/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         const laudoProcessandoId = response.data.id;
@@ -289,10 +289,9 @@ const LaudosPageV2 = () => {
 
   const handleImportarDaNuvem = (novasImagensBase64) => setImagens(prev => [...prev, ...novasImagensBase64]);
 
-  // Gera o HTML rico incluindo o cabeçalho do paciente
-const htmlPronto = gerarHtmlCompletoLaudo({
-    paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo: textoFinal
-});
+  const htmlPronto = gerarHtmlCompletoLaudo({
+      paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo: textoFinal
+  });
 
   return (
     <div className="tasy-workspace" style={{ flex: 1, display: 'flex', background: theme.bg, minHeight: 0, overflow: 'hidden', fontFamily: "'Segoe UI', Roboto, sans-serif", fontSize: '11px', color: '#333' }}>
@@ -454,20 +453,20 @@ const htmlPronto = gerarHtmlCompletoLaudo({
                  </Stack>
              </Box>
              
-             {/* PRÉVIA A4 */}
-            <div style={{flex: 1, minHeight: 0, overflow: 'auto', background: '#e9ecef', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+             {/* PRÉVIA A4: ROLAGEM E RECUO DE SEGURANÇA */}
+             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: '#e9ecef', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div 
                     style={{ 
                         width: '210mm', minHeight: '297mm', background: '#fff', 
                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #ced4da',
                         fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '10pt', lineHeight: '1.5', color: '#333',
                         backgroundImage: "url('/Receituario_v2.jpg')", backgroundSize: "210mm 297mm", backgroundRepeat: "repeat-y", 
-                        paddingTop: "6cm", paddingLeft: "1.5cm", paddingRight: "1.5cm", paddingBottom: "2cm",
-                        overflow: 'hidden'
+                        paddingTop: "6.0cm", paddingLeft: "1.5cm", paddingRight: "1.5cm", paddingBottom: "5.0cm",
+                        boxSizing: 'border-box'
                     }}
                     dangerouslySetInnerHTML={{ __html: htmlPronto }}
                 />
-            </div>
+             </div>
          </div>
       </div>
 
