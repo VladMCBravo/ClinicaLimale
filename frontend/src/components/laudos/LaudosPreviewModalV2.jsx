@@ -120,44 +120,76 @@ const LaudosPreviewModalV2 = ({
                         onInit={(evt, editor) => editorRef.current = editor}
                         initialValue={htmlInicial}
                         init={{
-                            height: '100%', width: '100%', resize: false, branding: false, promotion: false, elementpath: false, menubar: false, browser_spellcheck: true, toolbar_mode: 'sliding',
+                            height: '100%', 
+                            width: '100%', 
+                            resize: false, 
+                            branding: false, 
+                            promotion: false, 
+                            elementpath: false, 
+                            menubar: false, 
+                            browser_spellcheck: true, 
+                            toolbar_mode: 'sliding',
                             plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount',
                             toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
+                            // O SEGREDO DO COMPORTAMENTO DO WORD ESTÁ NESTE BLOCO CSS:
                             content_style: `
-                                /* ROLAGEM MESTRA DO EDITOR */
-                                html { background-color: #e9ecef !important; overflow-y: auto !important; overflow-x: hidden !important; height: 100% !important; padding: 20px 0 !important; }
+                                /* O fundo geral escuro que imita a "mesa" */
+                                html { 
+                                    background-color: #e9ecef !important; 
+                                }
                                 
-                                /* TÉCNICA DO PAPEL A4 EM CASCATA */
+                                /* O body age como um contêiner transparente para as páginas */
                                 body { 
-                                    font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
-                                    
-                                    /* Fundo que repete as folhas */
-                                    background-image: url('/Receituario_v2.jpg') !important; 
-                                    background-size: 210mm 297mm !important; 
-                                    background-repeat: repeat-y !important;
-                                    background-color: #e9ecef !important;
-                                    
-                                    /* Dimensões flexíveis que crescem de acordo com o texto */
-                                    width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
-                                    margin: 0 auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-                                    
-                                    /* MARGENS SIMULADAS (6cm topo / 5.5cm rodapé para salvar o timbre) */
-                                    padding-top: 6.0cm !important; 
-                                    padding-bottom: 5.5cm !important; 
-                                    padding-left: 1.5cm !important; 
-                                    padding-right: 1.5cm !important;
+                                    font-family: Arial, Helvetica, sans-serif; 
+                                    font-size: 13px; 
+                                    color: #222; 
+                                    line-height: 1.5;
+                                    background-color: transparent !important;
+                                    padding: 20px 0 !important;
+                                    margin: 0 !important;
+                                    overflow-y: auto !important;
+                                    /* Garante que o body possa rolar */
+                                    height: auto !important; 
+                                    min-height: 100vh !important;
                                 }
 
-                                /* O SEGREDO DA QUEBRA: Força espaços vazios que casam com o background-repeat */
+                                /* ESTILO PARA CADA PÁGINA (A "folha" em si) */
+                                .page-a4 {
+                                    background-color: #ffffff;
+                                    background-image: url('/Receituario_v2.jpg'); 
+                                    background-size: 100% 100%;
+                                    background-repeat: no-repeat;
+                                    width: 210mm;
+                                    height: 297mm; /* Altura fixa da página A4 */
+                                    margin: 0 auto 20px auto;
+                                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+                                    border: 1px solid #d1d5db;
+                                    position: relative;
+                                    page-break-after: always;
+                                    overflow: hidden; /* Impede que o texto vaze para a próxima folha sem controle */
+                                }
+
+                                /* A área de digitação dentro de cada página */
+                                .page-content {
+                                    padding-top: 6.0cm; 
+                                    padding-bottom: 5.5cm; 
+                                    padding-left: 1.5cm; 
+                                    padding-right: 1.5cm;
+                                    height: 100%;
+                                    box-sizing: border-box;
+                                }
+
+                                /* O comportamento do pagebreak agora cria visualmente uma nova div .page-a4 */
                                 .mce-pagebreak {
-                                    display: block !important;
-                                    height: 11.5cm !important; /* Espaço exato entre o fim do texto (rodapé) e o começo da página seguinte (cabeçalho) */
-                                    margin: 0 !important;
-                                    padding: 0 !important;
+                                    display: block !important; 
+                                    margin: 0 !important; 
+                                    padding: 0 !important; 
                                     border: none !important;
-                                    border-top: 2px dashed rgba(24, 100, 171, 0.4) !important;
-                                    page-break-after: always !important;
+                                    page-break-after: always !important; 
                                     break-after: page !important;
+                                    /* Visualmente, o plugin apenas marca a quebra para o usuário. 
+                                       Na hora de parsear, o JS vai transformar isso em novas divs .page-a4 */
+                                    border-top: 2px dashed rgba(24, 100, 171, 0.4) !important;
                                 }
 
                                 table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }

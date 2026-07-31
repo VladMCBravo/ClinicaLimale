@@ -4,7 +4,8 @@
 export const parseLaudoToHtml = (textoRaw) => {
     if (!textoRaw) return '';
     
-    // Se o texto já foi editado no TinyMCE e possui tags HTML, retorna como está
+    // Se o texto já foi editado no TinyMCE e possui tags HTML, retorna como está.
+    // Ele será tratado no gerarHtmlCompletoLaudo para se adequar às páginas.
     if (textoRaw.includes('<p>') || textoRaw.includes('<table>') || textoRaw.includes('<h4')) {
         return textoRaw;
     }
@@ -100,12 +101,14 @@ export const parseLaudoToHtml = (textoRaw) => {
 };
 
 // =========================================================================
-// GERA O CONTEÚDO COMPLETO COM CABEÇALHO (MÉTODO ÚNICO PARA PREVIEW E MODAL)
+// GERA O CONTEÚDO ENVELOPADO NAS PÁGINAS A4 (COM QUEBRA DE PÁGINA)
 // =========================================================================
 export const gerarHtmlCompletoLaudo = ({
     paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo, dataExame
 }) => {
-    if (textoLaudo && textoLaudo.includes('id="header_content_v2"')) {
+    
+    // Se o texto já estiver estruturado na nova versão com as classes .page-a4, nós devolvemos intacto.
+    if (textoLaudo && textoLaudo.includes('class="page-a4"')) {
         return textoLaudo;
     }
 
@@ -120,7 +123,6 @@ export const gerarHtmlCompletoLaudo = ({
         return `${idade} ANOS`;
     };
 
-    // VAZIOS FORMATADOS COM LINHAS QUANDO NÃO SELECIONADO
     const nomePct = paciente?.nome_completo ? paciente.nome_completo.toUpperCase() : '______________________________';
     const idadePct = calcularIdadeStr(dadosEstruturados?.dataNascimento || paciente?.data_nascimento) || '______';
     
@@ -133,30 +135,51 @@ export const gerarHtmlCompletoLaudo = ({
 
     const sexoPct = (dadosEstruturados?.sexo || paciente?.genero || paciente?.sexo || '______').toUpperCase();
     
-    // REQUISITO: Se não constar médico solicitante, exibe obrigatoriamente "NÃO INFORMADO"
-    const solicitante = (dadosEstruturados?.medicoSolicitante && dadosEstruturados.medicoSolicitante.trim() !== '')
-        ? dadosEstruturados.medicoSolicitante.toUpperCase()
-        : 'NÃO INFORMADO';
+    const solicitanteRaw = dadosEstruturados?.medicoSolicitante || '';
+    const solicitante = (solicitanteRaw && solicitanteRaw.trim() !== '') ? solicitanteRaw.toUpperCase() : 'NÃO INFORMADO';
     
     const titulo = (tituloExame || `ULTRASSONOGRAFIA DE ${tipoExame || 'EXAME'}`).toUpperCase();
     const dataFmt = dataExame ? dataExame.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
 
-    const corpoHtml = parseLaudoToHtml(textoLaudo);
+    // 1. O Cabeçalho (Fixo)
+    const cabecalhoHMTL = `
+        <div id="header_content_v2" contenteditable="false" style="position: absolute; top: 1.5cm; left: 10.5cm; width: 9.0cm; font-family: Helvetica, Arial, sans-serif; font-size: 13px; color: #1C2E4A; line-height: 1.6; z-index: 10; pointer-events: none;">
+            <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
+            <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
+            <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
+            <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
+        </div>
+    `;
 
-    return `
-<div id="header_content_v2" contenteditable="false" style="font-family: Helvetica, Arial, sans-serif; font-size: 13px; color: #1C2E4A; line-height: 1.6; margin-left: 9.7cm; margin-top: -4.5cm; margin-bottom: 2cm;">
-    <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
-    <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
-    <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
-    <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
-</div>
+    const tituloHTML = `
+        <h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">
+            ${titulo}
+        </h3>
+    `;
 
-<h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">
-    ${titulo}
-</h3>
+    // 2. Transforma o corpo bruto em HTML rico
+    let corpoHtmlBase = parseLaudoToHtml(textoLaudo);
 
-<div class="corpo-laudo-a4" style="text-align: justify; font-size: 10pt; color: #333;">
-    ${corpoHtml}
-</div>
-    `.trim();
+    // 3. Separa o corpo onde houver uma quebra de página explícita do TinyMCE (ou div de quebra)
+    // Se não houver, ele retorna um array com 1 elemento.
+    const paginasConteudo = corpoHtmlBase.split(/(?:|<div class="mce-pagebreak"[^>]*><\/div>)/gi);
+
+    // 4. Constrói a estrutura envelopada
+    let documentoCompleto = '';
+
+    paginasConteudo.forEach((conteudoDaPagina, index) => {
+        // Se for a página 1, colocamos o Título. Nas demais, apenas o conteúdo que "sobrou".
+        const conteudoParaExibir = index === 0 ? tituloHTML + conteudoDaPagina : conteudoDaPagina;
+
+        documentoCompleto += `
+            <div class="page-a4">
+                ${cabecalhoHMTL}
+                <div class="page-content" style="text-align: justify; font-size: 10pt; color: #333;">
+                    ${conteudoParaExibir}
+                </div>
+            </div>
+        `;
+    });
+
+    return documentoCompleto.trim();
 };

@@ -456,26 +456,39 @@ const LaudosPageV2 = () => {
              <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', background: '#e9ecef', display: 'flex', flexDirection: 'column' }}>
                 <Editor
                     apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
-                    initialValue={htmlPronto}
-                    disabled={true} // Apenas Leitura
+                    value={htmlPronto}
+                    disabled={true}
                     init={{
                         height: '100%', width: '100%', resize: false, branding: false, promotion: false, elementpath: false, menubar: false, toolbar: false,
                         content_style: `
                             html { background-color: #e9ecef !important; overflow-y: auto !important; overflow-x: hidden !important; height: 100% !important; padding: 20px 0 !important; margin: 0; }
                             body { 
                                 font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
-                                background-image: url('/Receituario_v2.jpg') !important; background-size: 210mm 297mm !important; background-repeat: repeat-y !important;
-                                background-color: #ffffff !important;
-                                width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
-                                margin: 0 auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important; border: 1px solid #d1d5db !important;
-                                padding-top: 6.0cm !important; padding-bottom: 5.0cm !important; padding-left: 1.5cm !important; padding-right: 1.5cm !important;
+                                background-color: transparent !important;
+                                padding: 0 !important; margin: 0 !important;
+                                height: auto !important; min-height: 100vh !important;
                             }
+                            
+                            .page-a4 {
+                                background-color: #ffffff;
+                                background-image: url('/Receituario_v2.jpg'); 
+                                background-size: 100% 100%;
+                                background-repeat: no-repeat;
+                                width: 210mm; height: 297mm;
+                                margin: 0 auto 20px auto;
+                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+                                border: 1px solid #d1d5db;
+                                position: relative;
+                                overflow: hidden;
+                            }
+
+                            .page-content {
+                                padding-top: 6.0cm; padding-bottom: 5.5cm; padding-left: 1.5cm; padding-right: 1.5cm;
+                                height: 100%; box-sizing: border-box;
+                            }
+                            
                             table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
                             td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
-                            .mce-pagebreak {
-                                display: block !important; height: 11.5cm !important; margin: 0 !important; padding: 0 !important; border: none !important;
-                                border-top: 2px dashed rgba(24, 100, 171, 0.4) !important; page-break-after: always !important; break-after: page !important;
-                            }
                         `
                     }}
                 />
