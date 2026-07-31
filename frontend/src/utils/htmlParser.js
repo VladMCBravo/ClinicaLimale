@@ -1,8 +1,10 @@
 // src/utils/htmlParser.js
 
+// Converte o texto bruto do formulário para HTML rico
 export const parseLaudoToHtml = (textoRaw) => {
     if (!textoRaw) return '';
     
+    // Se o texto já foi editado no TinyMCE e possui tags HTML, retorna como está
     if (textoRaw.includes('<p>') || textoRaw.includes('<table>') || textoRaw.includes('<h4')) {
         return textoRaw;
     }
@@ -27,7 +29,7 @@ export const parseLaudoToHtml = (textoRaw) => {
     linhas.forEach(linhaOriginal => {
         const linha = linhaOriginal.trim();
         if (!linha) {
-            if (!emTabela) html += '<p style="margin: 0; line-height: 8px;">&nbsp;</p>\n';
+            if (!emTabela) html += '<p style="margin: 0; line-height: 4px;">&nbsp;</p>\n';
             return;
         }
 
@@ -73,6 +75,7 @@ export const parseLaudoToHtml = (textoRaw) => {
             return;
         }
 
+        // TEXTO NORMAL (Tamanho 10pt)
         if (linhaOriginal.includes('\t')) {
             const linhaFmt = linhaOriginal.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
             html += `<p style="margin: 0 0 3px 0; font-family: monospace; font-size: 10pt; color: #333;">${linhaFmt.trim()}</p>\n`;
