@@ -53,8 +53,6 @@ const LaudosPreviewModalV2 = ({
 
     return (
         <Dialog open={open} onClose={acaoSalvarRascunho} fullScreen>
-            
-            {/* CSS GLOBAL: Oculta notificações do TinyMCE */}
             <style>{`
                 .tox-notifications-container, .tox-statusbar__branding, .tox-promotion { display: none !important; }
                 .tox-editor-header { box-shadow: none !important; border-bottom: 1px solid #ced4da !important; }
@@ -65,10 +63,8 @@ const LaudosPreviewModalV2 = ({
                 .tox-tinymce { border: none !important; }
             `}</style>
 
-            {/* CABEÇALHO VERMELHO */}
             <AppBar sx={{ position: 'relative', background: '#b71c1c', boxShadow: 'none' }}>
                 <Toolbar variant="dense" sx={{ minHeight: '48px', px: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <IconButton edge="start" color="inherit" onClick={acaoSalvarRascunho} title="Voltar e Salvar Rascunho" sx={{ p: 0.5 }}>
                             <FaTimes size={18} />
@@ -106,17 +102,10 @@ const LaudosPreviewModalV2 = ({
                                 <FaImage size={15} />
                             </IconButton>
                         </Tooltip>
-                        
                         <Divider orientation="vertical" flexItem sx={{ background: 'rgba(255,255,255,0.3)', my: 1, mx: 0.5 }} />
-                        
                         <Button 
                             onClick={acaoFinalizar} variant="contained" 
-                            sx={{ 
-                                background: '#2E7D32', textTransform: 'none', fontWeight: 'bold', 
-                                px: 2.5, py: 0.6, borderRadius: '30px', fontSize: '11px', 
-                                whiteSpace: 'nowrap', boxShadow: '0 4px 10px rgba(46, 125, 50, 0.4)',
-                                '&:hover': { background: '#1b5e20' } 
-                            }}
+                            sx={{ background: '#2E7D32', textTransform: 'none', fontWeight: 'bold', px: 2.5, py: 0.6, borderRadius: '30px', fontSize: '11px', whiteSpace: 'nowrap', boxShadow: '0 4px 10px rgba(46, 125, 50, 0.4)', '&:hover': { background: '#1b5e20' } }}
                         >
                             <FaShareSquare size={13} style={{ marginRight: 6 }} /> FINALIZAR
                         </Button>
@@ -124,69 +113,60 @@ const LaudosPreviewModalV2 = ({
                 </Toolbar>
             </AppBar>
 
-            {/* ÁREA DE TRABALHO */}
             <Box sx={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#e9ecef', overflow: 'hidden' }}>
-                
-                {/* EDITOR A4 */}
                 <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                     <Editor
                         apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
                         onInit={(evt, editor) => editorRef.current = editor}
                         initialValue={htmlInicial}
                         init={{
-                            height: '100%', 
-                            width: '100%', 
-                            resize: false, 
-                            branding: false, 
-                            promotion: false, 
-                            elementpath: false, 
-                            menubar: false,
-                            browser_spellcheck: true,
-                            toolbar_mode: 'sliding',
+                            height: '100%', width: '100%', resize: false, branding: false, promotion: false, elementpath: false, menubar: false, browser_spellcheck: true, toolbar_mode: 'sliding',
                             plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount',
                             toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
                             content_style: `
-                                /* ROLAGEM VERTICAL LIBERADA */
-                                html { 
-                                    background-color: #e9ecef !important; 
-                                    margin: 0; 
-                                    padding: 20px 0 !important;
-                                    height: 100% !important; 
-                                    overflow-y: auto !important; 
-                                    overflow-x: hidden !important;
-                                }
+                                /* ROLAGEM MESTRA DO EDITOR */
+                                html { background-color: #e9ecef !important; overflow-y: auto !important; overflow-x: hidden !important; height: 100% !important; padding: 20px 0 !important; }
+                                
+                                /* TÉCNICA DO PAPEL A4 EM CASCATA */
                                 body { 
                                     font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
-                                    background-color: #ffffff !important; 
+                                    
+                                    /* Fundo que repete as folhas */
                                     background-image: url('/Receituario_v2.jpg') !important; 
                                     background-size: 210mm 297mm !important; 
-                                    background-repeat: repeat-y !important; 
-                                    width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
-                                    margin: 0 auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important; border: 1px solid #d1d5db !important;
+                                    background-repeat: repeat-y !important;
+                                    background-color: #e9ecef !important;
                                     
-                                    /* RECUOS DE MARGEM DO TIMBRE */
+                                    /* Dimensões flexíveis que crescem de acordo com o texto */
+                                    width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
+                                    margin: 0 auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+                                    
+                                    /* MARGENS SIMULADAS (6cm topo / 5.5cm rodapé para salvar o timbre) */
                                     padding-top: 6.0cm !important; 
-                                    padding-bottom: 5.0cm !important; /* TRAVA O RODAPÉ */
+                                    padding-bottom: 5.5cm !important; 
                                     padding-left: 1.5cm !important; 
                                     padding-right: 1.5cm !important;
                                 }
-                                table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
-                                td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
-                                
-                                /* ESTILO VISUAL PARA QUEBRA DE PÁGINA */
+
+                                /* O SEGREDO DA QUEBRA: Força espaços vazios que casam com o background-repeat */
                                 .mce-pagebreak {
+                                    display: block !important;
+                                    height: 11.5cm !important; /* Espaço exato entre o fim do texto (rodapé) e o começo da página seguinte (cabeçalho) */
+                                    margin: 0 !important;
+                                    padding: 0 !important;
+                                    border: none !important;
+                                    border-top: 2px dashed rgba(24, 100, 171, 0.4) !important;
                                     page-break-after: always !important;
                                     break-after: page !important;
-                                    border-top: 2px dashed #1864ab !important;
-                                    margin: 4.5cm 0 6.0cm 0 !important;
-                                    text-align: center !important;
                                 }
+
+                                table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+                                td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
                             `
                         }}
                     />
                 </Box>
 
-                {/* PAINEL LATERAL DE FOTOS */}
                 {mostrarFotos && (
                     <Box sx={{ width: '310px', background: '#fff', borderLeft: '1px solid #ced4da', display: 'flex', flexDirection: 'column' }}>
                         <Box sx={{ p: 2, background: '#f0f4f8', borderBottom: '1px solid #e0e6ed' }}>
