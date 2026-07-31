@@ -14,8 +14,8 @@ import '../components/laudos/Laudos.css';
 import '../atendimento.css';
 
 import { gerarHtmlCompletoLaudo } from '../utils/htmlParser';
+import { Editor } from '@tinymce/tinymce-react';
 
-// Formulários
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormAbdome from '../components/laudos/abdome/FormAbdome'; 
 import FormTransvaginal from '../components/laudos/trasnvaginal/FormTransvaginal';
@@ -23,7 +23,6 @@ import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardi
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
 import FormEletrocardiograma from '../components/laudos/eletrocardiograma/FormEletrocardiograma';
 
-// Modais
 import AtestadoModal from '../components/laudos/AtestadoModal';
 import LaudosPreviewModalV2 from '../components/laudos/LaudosPreviewModalV2'; 
 import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal'; 
@@ -253,7 +252,7 @@ const LaudosPageV2 = () => {
         formData.append('crm_medico', medicoCrm);
         formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
         formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas));
-        formData.append('versao_laudo', 'v2'); // TAG V2
+        formData.append('versao_laudo', 'v2');
         
         let response = await apiClient.post('/prontuario/laudos-async/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         const laudoProcessandoId = response.data.id;
@@ -453,18 +452,32 @@ const LaudosPageV2 = () => {
                  </Stack>
              </Box>
              
-             {/* PRÉVIA A4: ROLAGEM E RECUO DE SEGURANÇA */}
-             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: '#e9ecef', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div 
-                    style={{ 
-                        width: '210mm', minHeight: '297mm', background: '#fff', 
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #ced4da',
-                        fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '10pt', lineHeight: '1.5', color: '#333',
-                        backgroundImage: "url('/Receituario_v2.jpg')", backgroundSize: "210mm 297mm", backgroundRepeat: "repeat-y", 
-                        paddingTop: "6.0cm", paddingLeft: "1.5cm", paddingRight: "1.5cm", paddingBottom: "5.0cm",
-                        boxSizing: 'border-box'
+             {/* PRÉVIA A4 COM O EDITOR READONLY (MANTÉM O MESMO FORMATO DO MODAL) */}
+             <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', background: '#e9ecef', display: 'flex', flexDirection: 'column' }}>
+                <Editor
+                    apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
+                    initialValue={htmlPronto}
+                    disabled={true} // Apenas Leitura
+                    init={{
+                        height: '100%', width: '100%', resize: false, branding: false, promotion: false, elementpath: false, menubar: false, toolbar: false,
+                        content_style: `
+                            html { background-color: #e9ecef !important; overflow-y: auto !important; overflow-x: hidden !important; height: 100% !important; padding: 20px 0 !important; margin: 0; }
+                            body { 
+                                font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
+                                background-image: url('/Receituario_v2.jpg') !important; background-size: 210mm 297mm !important; background-repeat: repeat-y !important;
+                                background-color: #ffffff !important;
+                                width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
+                                margin: 0 auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important; border: 1px solid #d1d5db !important;
+                                padding-top: 6.0cm !important; padding-bottom: 5.0cm !important; padding-left: 1.5cm !important; padding-right: 1.5cm !important;
+                            }
+                            table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+                            td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
+                            .mce-pagebreak {
+                                display: block !important; height: 11.5cm !important; margin: 0 !important; padding: 0 !important; border: none !important;
+                                border-top: 2px dashed rgba(24, 100, 171, 0.4) !important; page-break-after: always !important; break-after: page !important;
+                            }
+                        `
                     }}
-                    dangerouslySetInnerHTML={{ __html: htmlPronto }}
                 />
              </div>
          </div>
