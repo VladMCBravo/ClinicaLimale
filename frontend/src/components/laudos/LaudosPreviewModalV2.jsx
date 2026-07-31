@@ -140,42 +140,43 @@ const LaudosPreviewModalV2 = ({
                 <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', pb: 5 }}>
                     <div className="a4-container">
                         <Editor
-                            apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
-                            onInit={(evt, editor) => editorRef.current = editor}
-                            initialValue={htmlInicial}
-                            init={{
-                                height: '100%', 
-                                width: '100%', 
-                                resize: false, 
-                                branding: false, 
-                                promotion: false, 
-                                elementpath: false, 
-                                menubar: false, 
-                                browser_spellcheck: true, 
-                                toolbar_mode: 'sliding',
-                                plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize',
-                                toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
-                                autoresize_bottom_margin: 0,
-                                content_style: `
-                                    html { background: transparent !important; }
-                                    body { 
-                                        font-family: Arial, Helvetica, sans-serif; 
-                                        font-size: 13px; color: #222; line-height: 1.5;
-                                        background: transparent !important;
-                                        margin: 0 !important; padding: 0 !important;
-                                        overflow-y: hidden !important; /* Desativa a barra dupla */
-                                    }
-                                    table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
-                                    td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
-                                    .mce-pagebreak {
-                                        display: block !important; 
-                                        height: 11.5cm !important; /* Pulo mágico exato para a próxima folha A4! */
-                                        margin: 0 !important; padding: 0 !important; border: none !important;
-                                        border-top: 2px dashed rgba(24, 100, 171, 0.4) !important;
-                                    }
-                                `
-                            }}
-                        />
+                        apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
+                        onInit={(evt, editor) => editorRef.current = editor}
+                        initialValue={htmlInicial}
+                        init={{
+                            height: '100%', 
+                            width: '100%', 
+                            resize: false, 
+                            branding: false, 
+                            promotion: false, 
+                            elementpath: false, 
+                            menubar: false, 
+                            browser_spellcheck: true, 
+                            toolbar_mode: 'sliding',
+                            plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount',
+                            toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
+                            content_style: `
+                                html { background-color: #e9ecef !important; overflow-y: auto !important; overflow-x: hidden !important; height: 100% !important; padding: 20px 0 !important; margin: 0; }
+                                body { 
+                                    font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
+                                    background-image: url('/Receituario_v2.jpg') !important; background-size: 210mm 297mm !important; background-repeat: repeat-y !important;
+                                    background-color: #ffffff !important;
+                                    width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
+                                    margin: 0 auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important; border: 1px solid #d1d5db !important;
+                                    padding: 0 !important; /* PADDING ZERO AQUI! O BLOCO HEADER FAZ O RECUO! */
+                                }
+                                table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+                                td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
+                                .mce-pagebreak {
+                                    display: block !important; 
+                                    height: 11.5cm !important; /* O Salto Quântico: 5.5cm do rodapé velho + 6.0cm do cabeçalho novo */
+                                    margin: 0 !important; padding: 0 !important; border: none !important;
+                                    border-top: 2px dashed rgba(24, 100, 171, 0.4) !important; 
+                                    page-break-after: always !important; break-after: page !important;
+                                }
+                            `
+                        }}
+                    />
                     </div>
                 </Box>
 

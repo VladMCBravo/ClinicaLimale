@@ -472,7 +472,7 @@ const LaudosPageV2 = () => {
                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)', border: '1px solid #ced4da',
                         fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '10pt', lineHeight: '1.5', color: '#333',
                         backgroundImage: "url('/Receituario_v2.jpg')", backgroundSize: "210mm 297mm", backgroundRepeat: "repeat-y", 
-                        paddingTop: "6.0cm", paddingLeft: "1.5cm", paddingRight: "1.5cm", paddingBottom: "5.0cm",
+                        padding: 0, /* PADDING ZERO AQUI! O BLOCO HEADER FAZ O RECUO! */
                         boxSizing: 'border-box', position: 'relative'
                     }}
                     dangerouslySetInnerHTML={{ __html: htmlPronto }}
