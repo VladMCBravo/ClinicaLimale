@@ -13,8 +13,7 @@ import {
 import '../components/laudos/Laudos.css';
 import '../atendimento.css';
 
-// CORREÇÃO: IMPORTAÇÃO DA FUNÇÃO AQUI
-import { parseLaudoToHtml } from '../utils/htmlParser';
+import { gerarHtmlCompletoLaudo } from '../utils/htmlParser'; // <-- Atualize esta linha
 
 // Formulários
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
@@ -290,8 +289,10 @@ const LaudosPageV2 = () => {
 
   const handleImportarDaNuvem = (novasImagensBase64) => setImagens(prev => [...prev, ...novasImagensBase64]);
 
-  // AQUI USAMOS A FUNÇÃO IMPORTADA:
-  const htmlPronto = parseLaudoToHtml(textoFinal, tituloExame, tipoExame);
+  // Gera o HTML rico incluindo o cabeçalho do paciente
+const htmlPronto = gerarHtmlCompletoLaudo({
+    paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo: textoFinal
+});
 
   return (
     <div className="tasy-workspace" style={{ flex: 1, display: 'flex', background: theme.bg, minHeight: 0, overflow: 'hidden', fontFamily: "'Segoe UI', Roboto, sans-serif", fontSize: '11px', color: '#333' }}>
@@ -454,17 +455,19 @@ const LaudosPageV2 = () => {
              </Box>
              
              {/* PRÉVIA A4 */}
-             <div style={{flex: 1, minHeight: 0, overflow: 'auto', background: '#e9ecef', padding: '20px', display: 'flex', justifyContent: 'center'}}>
+            <div style={{flex: 1, minHeight: 0, overflow: 'auto', background: '#e9ecef', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                 <div 
                     style={{ 
-                        width: '100%', maxWidth: '210mm', minHeight: '297mm', background: '#fff', 
-                        padding: '30px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #ced4da',
+                        width: '210mm', minHeight: '297mm', background: '#fff', 
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #ced4da',
                         fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '10pt', lineHeight: '1.5', color: '#333',
-                        backgroundImage: "url('/Receituario_v2.jpg')", backgroundSize: "100% 100%", paddingTop: "6cm"
+                        backgroundImage: "url('/Receituario_v2.jpg')", backgroundSize: "210mm 297mm", backgroundRepeat: "repeat-y", 
+                        paddingTop: "6cm", paddingLeft: "1.5cm", paddingRight: "1.5cm", paddingBottom: "2cm",
+                        overflow: 'hidden'
                     }}
                     dangerouslySetInnerHTML={{ __html: htmlPronto }}
                 />
-             </div>
+            </div>
          </div>
       </div>
 

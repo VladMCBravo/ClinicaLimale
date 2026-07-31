@@ -149,22 +149,22 @@ const LaudosPreviewModalV2 = ({
                             plugins: 'advlist autolink lists charmap preview searchreplace visualblocks fullscreen table wordcount',
                             toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table | bullist numlist | removeformat',
                             content_style: `
-                                html { background-color: #e9ecef !important; padding: 0; margin: 0; }
+                                html { background-color: #e9ecef !important; padding: 25px 0; margin: 0; }
                                 body { 
-                                    font-family: Arial, Helvetica, sans-serif; 
-                                    font-size: 13px; /* 13px equivale visualmente a 10pt no ecrã */
-                                    color: #333; line-height: 1.25;
+                                    font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
                                     background-color: #ffffff !important; 
-                                    background-image: url('/Receituario_v2.jpg'); 
-                                    background-size: 100% 100%; 
-                                    background-repeat: no-repeat; 
-                                    background-position: center top;
-                                    width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
-                                    margin: 25px auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important; border: 1px solid #d1d5db !important;
                                     
-                                    /* MARGENS SIMULADAS (idênticas ao PDF do Python) */
+                                    /* MÁGICA DAS MÚLTIPLAS PÁGINAS A4 NO WORD */
+                                    background-image: url('/Receituario_v2.jpg') !important; 
+                                    background-size: 210mm 297mm !important; /* Trava o tamanho do timbre */
+                                    background-repeat: repeat-y !important; /* Repete a imagem infinitamente para baixo */
+                                    
+                                    width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
+                                    margin: 0 auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important; border: 1px solid #d1d5db !important;
+                                    
+                                    /* MARGENS SIMULADAS DO PDF */
                                     padding-top: 6.0cm !important; 
-                                    padding-bottom: 4.5cm !important; /* Espaço para o médico ver onde a assinatura entra */
+                                    padding-bottom: 4.0cm !important; 
                                     padding-left: 1.5cm !important; 
                                     padding-right: 1.5cm !important;
                                 }
