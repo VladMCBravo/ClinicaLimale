@@ -1,8 +1,13 @@
 // src/utils/htmlParser.js
 
+// Converte o texto bruto do formulário para HTML rico
 export const parseLaudoToHtml = (textoRaw) => {
     if (!textoRaw) return '';
-    if (textoRaw.includes('<p>') || textoRaw.includes('<table>') || textoRaw.includes('<h4')) return textoRaw;
+    
+    // Se o texto já foi editado no TinyMCE e possui tags HTML, retorna como está
+    if (textoRaw.includes('<p>') || textoRaw.includes('<table>') || textoRaw.includes('<h4')) {
+        return textoRaw;
+    }
 
     const linhas = textoRaw.replace(/\(Ver PDF\)/g, "").replace(/===/g, "").split('\n');
     const titulosPrincipais = [
@@ -15,7 +20,10 @@ export const parseLaudoToHtml = (textoRaw) => {
     let emTabela = false;
 
     const fecharTabela = () => {
-        if (emTabela) { html += '</tbody></table>\n'; emTabela = false; }
+        if (emTabela) {
+            html += '</tbody></table>\n';
+            emTabela = false;
+        }
     };
 
     linhas.forEach(linhaOriginal => {
@@ -31,6 +39,7 @@ export const parseLaudoToHtml = (textoRaw) => {
             fecharTabela();
             const tituloLimpo = linha.replace(":", "").trim();
             html += `<h4 style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px; text-transform: uppercase;">${tituloLimpo}</h4>\n`;
+            
             if (["BIOMETRIA", "TABELA", "DOPPLER", "ÍNDICES", "MEDIDAS"].some(x => linhaLimpa.includes(x))) {
                 html += `<table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10pt;"><tbody>\n`;
                 emTabela = true;
@@ -43,6 +52,7 @@ export const parseLaudoToHtml = (textoRaw) => {
                 html += `<tr><td colspan="2" style="border: 1px dotted #bbb; padding: 4px; color: #555; font-size: 9pt; font-style: italic;">${linha}</td></tr>\n`;
                 return;
             }
+
             let label = linha, value = '';
             if (linha.includes(':')) {
                 const parts = linha.split(':');
@@ -53,6 +63,7 @@ export const parseLaudoToHtml = (textoRaw) => {
                 label = parts[0].trim();
                 value = parts[1] ? parts[1].trim() : '';
             }
+
             if (value) {
                 html += `<tr>
                             <td style="border: 1px dotted #bbb; padding: 4px; text-align: left; width: 60%; color: #555;">${label}</td>
@@ -64,22 +75,23 @@ export const parseLaudoToHtml = (textoRaw) => {
             return;
         }
 
+        // TEXTO NORMAL (Tamanho 10pt)
         if (linhaOriginal.includes('\t')) {
             const linhaFmt = linhaOriginal.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
-            html += `<div style="margin-bottom: 2px; font-family: monospace; font-size: 10pt; color: #333;">${linhaFmt.trim()}</div>\n`;
+            html += `<p style="margin: 0 0 3px 0; font-family: monospace; font-size: 10pt; color: #333;">${linhaFmt.trim()}</p>\n`;
         } else if (linha.startsWith('-')) {
-            html += `<div style="margin-bottom: 3px; padding-left: 15px; font-size: 10pt; text-align: justify; color: #333;">${linha}</div>\n`;
+            html += `<p style="margin: 0 0 3px 0; padding-left: 15px; font-size: 10pt; text-align: justify; color: #333;">${linha}</p>\n`;
         } else if (linha.includes(': ')) {
             const partes = linha.split(': ');
             const prefixo = partes[0].trim();
             const resto = partes.slice(1).join(': ').trim();
             if (prefixo.length <= 45) {
-                html += `<div style="margin-bottom: 4px; font-size: 10pt; text-align: justify; line-height: 1.25; color: #333;"><span style="font-weight: bold; color: #1C2E4A;">${prefixo}:</span> ${resto}</div>\n`;
+                html += `<p style="margin: 0 0 4px 0; font-size: 10pt; text-align: justify; line-height: 1.25; color: #333;"><span style="font-weight: bold; color: #1C2E4A;">${prefixo}:</span> ${resto}</p>\n`;
             } else {
-                html += `<div style="margin-bottom: 3px; font-size: 10pt; text-align: justify; line-height: 1.25; color: #333;">${linha}</div>\n`;
+                html += `<p style="margin: 0 0 3px 0; font-size: 10pt; text-align: justify; line-height: 1.25; color: #333;">${linha}</p>\n`;
             }
         } else {
-            html += `<div style="margin-bottom: 3px; font-size: 10pt; text-align: justify; line-height: 1.25; color: #333;">${linha}</div>\n`;
+            html += `<p style="margin: 0 0 3px 0; font-size: 10pt; text-align: justify; line-height: 1.25; color: #333;">${linha}</p>\n`;
         }
     });
 
@@ -87,9 +99,15 @@ export const parseLaudoToHtml = (textoRaw) => {
     return html;
 };
 
-// GERA O HTML COMPLETO (BLINDADO COM <br/> PARA O REGEX DO PYTHON FUNCIONAR)
-export const gerarHtmlCompletoLaudo = ({ paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo, dataExame }) => {
-    if (textoLaudo && textoLaudo.includes('id="header_content_v2"')) return textoLaudo;
+// GERA O CONTEÚDO PURO (SEM MÁSCARA, SÓ O TEXTO) PARA O TINYMCE
+export const gerarConteudoParaEditor = ({
+    paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo, dataExame
+}) => {
+    
+    // Se já foi gerado na versão v2, retorna o texto formatado pelo médico.
+    if (textoLaudo && textoLaudo.includes('id="header_content_v2"')) {
+        return textoLaudo;
+    }
 
     const calcularIdadeStr = (dataNasc) => {
         if (!dataNasc) return '';
@@ -106,8 +124,11 @@ export const gerarHtmlCompletoLaudo = ({ paciente, dadosEstruturados, tituloExam
     const idadePct = calcularIdadeStr(dadosEstruturados?.dataNascimento || paciente?.data_nascimento) || '______';
     
     let dataNascPct = '__________';
-    if (dadosEstruturados?.dataNascimento) dataNascPct = dadosEstruturados.dataNascimento.split('-').reverse().join('/');
-    else if (paciente?.data_nascimento) dataNascPct = paciente.data_nascimento.split('-').reverse().join('/');
+    if (dadosEstruturados?.dataNascimento) {
+        dataNascPct = dadosEstruturados.dataNascimento.split('-').reverse().join('/');
+    } else if (paciente?.data_nascimento) {
+        dataNascPct = paciente.data_nascimento.split('-').reverse().join('/');
+    }
 
     const sexoPct = (dadosEstruturados?.sexo || paciente?.genero || paciente?.sexo || '______').toUpperCase();
     const solicitanteRaw = dadosEstruturados?.medicoSolicitante || '';
@@ -118,21 +139,27 @@ export const gerarHtmlCompletoLaudo = ({ paciente, dadosEstruturados, tituloExam
 
     const corpoHtml = parseLaudoToHtml(textoLaudo);
 
-    // MÁGICA: Bloco de exatamente 6cm de altura (Substitui o absolute). E usa <br/> para o Python apagar depois!
     return `
-<div id="header_content_v2" contenteditable="false" style="height: 6.0cm; padding-top: 1.5cm; padding-left: 10.5cm; padding-right: 1.5cm; box-sizing: border-box; font-family: Helvetica, Arial, sans-serif; font-size: 13px; color: #1C2E4A; line-height: 1.6; user-select: none;">
-    <span style="font-weight: bold;">PACIENTE:</span> ${nomePct}<br/>
-    <span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}<br/>
-    <span style="font-weight: bold;">SEXO:</span> ${sexoPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> ${dataFmt}<br/>
-    <span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}
-</div>
-<div style="padding-left: 1.5cm; padding-right: 1.5cm; padding-bottom: 5.5cm; box-sizing: border-box;">
-    <h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">
-        ${titulo}
-    </h3>
-    <div class="corpo-laudo-v2" style="text-align: justify; font-size: 10pt; color: #333;">
-        ${corpoHtml}
+<div id="header_content_v2" contenteditable="false" style="width: 100%; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between;">
+        <div style="flex: 2;">
+            <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
+            <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
+            <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</div>
+        </div>
+        <div style="flex: 1; text-align: right;">
+            <div><span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
+            <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
+        </div>
     </div>
+</div>
+
+<h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">
+    ${titulo}
+</h3>
+
+<div class="corpo-laudo-v2" style="text-align: justify; font-size: 10pt; color: #333;">
+    ${corpoHtml}
 </div>
     `.trim();
 };
