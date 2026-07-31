@@ -38,7 +38,6 @@ export const parseLaudoToHtml = (textoRaw) => {
         if (titulosPrincipais.some(t => linhaLimpa.startsWith(t))) {
             fecharTabela();
             const tituloLimpo = linha.replace(":", "").trim();
-            // Títulos principais em verde, tamanho 11pt
             html += `<h4 style="color: #2E7D32; font-weight: bold; font-size: 11pt; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #E0E0E0; padding-bottom: 2px; text-transform: uppercase;">${tituloLimpo}</h4>\n`;
             
             if (["BIOMETRIA", "TABELA", "DOPPLER", "ÍNDICES", "MEDIDAS"].some(x => linhaLimpa.includes(x))) {
@@ -106,7 +105,6 @@ export const parseLaudoToHtml = (textoRaw) => {
 export const gerarHtmlCompletoLaudo = ({
     paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo, dataExame
 }) => {
-    // Se já estiver envelopado com o cabeçalho V2, não envelopa de novo.
     if (textoLaudo && textoLaudo.includes('id="header_content_v2"')) {
         return textoLaudo;
     }
@@ -122,7 +120,7 @@ export const gerarHtmlCompletoLaudo = ({
         return `${idade} ANOS`;
     };
 
-    // Variáveis amigáveis que ficam vazias caso o paciente não tenha sido selecionado
+    // VAZIOS FORMATADOS COM LINHAS QUANDO NÃO SELECIONADO
     const nomePct = paciente?.nome_completo ? paciente.nome_completo.toUpperCase() : '______________________________';
     const idadePct = calcularIdadeStr(dadosEstruturados?.dataNascimento || paciente?.data_nascimento) || '______';
     
@@ -134,16 +132,19 @@ export const gerarHtmlCompletoLaudo = ({
     }
 
     const sexoPct = (dadosEstruturados?.sexo || paciente?.genero || paciente?.sexo || '______').toUpperCase();
-    const solicitante = (dadosEstruturados?.medicoSolicitante || '__________________').toUpperCase();
+    
+    // REQUISITO: Se não constar médico solicitante, exibe obrigatoriamente "NÃO INFORMADO"
+    const solicitante = (dadosEstruturados?.medicoSolicitante && dadosEstruturados.medicoSolicitante.trim() !== '')
+        ? dadosEstruturados.medicoSolicitante.toUpperCase()
+        : 'NÃO INFORMADO';
     
     const titulo = (tituloExame || `ULTRASSONOGRAFIA DE ${tipoExame || 'EXAME'}`).toUpperCase();
     const dataFmt = dataExame ? dataExame.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
 
-    // Converte apenas o texto bruto do meio
     const corpoHtml = parseLaudoToHtml(textoLaudo);
 
     return `
-<div id="header_content_v2" contenteditable="false" style="font-family: Helvetica, Arial, sans-serif; font-size: 13px; color: #1C2E4A; line-height: 1.6; margin-left: 10cm; margin-top: -4.5cm; margin-bottom: 2cm;">
+<div id="header_content_v2" contenteditable="false" style="font-family: Helvetica, Arial, sans-serif; font-size: 13px; color: #1C2E4A; line-height: 1.6; margin-left: 9.7cm; margin-top: -4.5cm; margin-bottom: 2cm;">
     <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
     <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
     <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>

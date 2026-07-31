@@ -54,7 +54,7 @@ const LaudosPreviewModalV2 = ({
     return (
         <Dialog open={open} onClose={acaoSalvarRascunho} fullScreen>
             
-            {/* CSS GLOBAL: Esconde notificações e força barra em 1 linha */}
+            {/* CSS GLOBAL: Oculta notificações do TinyMCE */}
             <style>{`
                 .tox-notifications-container, .tox-statusbar__branding, .tox-promotion { display: none !important; }
                 .tox-editor-header { box-shadow: none !important; border-bottom: 1px solid #ced4da !important; }
@@ -65,11 +65,10 @@ const LaudosPreviewModalV2 = ({
                 .tox-tinymce { border: none !important; }
             `}</style>
 
-            {/* CABEÇALHO VERMELHO DE REVISÃO (Herança do V1) */}
+            {/* CABEÇALHO VERMELHO */}
             <AppBar sx={{ position: 'relative', background: '#b71c1c', boxShadow: 'none' }}>
                 <Toolbar variant="dense" sx={{ minHeight: '48px', px: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     
-                    {/* ESQUERDA: Título e Identificação do Paciente */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <IconButton edge="start" color="inherit" onClick={acaoSalvarRascunho} title="Voltar e Salvar Rascunho" sx={{ p: 0.5 }}>
                             <FaTimes size={18} />
@@ -84,7 +83,6 @@ const LaudosPreviewModalV2 = ({
                         </Box>
                     </Box>
 
-                    {/* CENTRO: Data do Exame */}
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(0,0,0,0.2)', px: 1.5, py: 0.3, borderRadius: '4px' }}>
                         <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#fff', fontSize: '11px' }}>Data:</Typography>
                         <input 
@@ -93,7 +91,6 @@ const LaudosPreviewModalV2 = ({
                         />
                     </Box>
 
-                    {/* DIREITA: Ações Secundárias e Botão Finalizar */}
                     <Stack direction="row" spacing={1} alignItems="center">
                         <Button size="small" onClick={acaoSalvarRascunho} sx={{ color: '#fff', textTransform: 'none', fontWeight: 600, fontSize: '11px' }}>
                             <FaSave size={13} style={{ marginRight: 4 }} /> Salvar Rascunho
@@ -131,7 +128,7 @@ const LaudosPreviewModalV2 = ({
             <Box sx={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#e9ecef', overflow: 'hidden' }}>
                 
                 {/* EDITOR A4 */}
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                     <Editor
                         apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
                         onInit={(evt, editor) => editorRef.current = editor}
@@ -146,30 +143,44 @@ const LaudosPreviewModalV2 = ({
                             menubar: false,
                             browser_spellcheck: true,
                             toolbar_mode: 'sliding',
-                            plugins: 'advlist autolink lists charmap preview searchreplace visualblocks fullscreen table wordcount',
-                            toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table | bullist numlist | removeformat',
+                            plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount',
+                            toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
                             content_style: `
-                                html { background-color: #e9ecef !important; padding: 25px 0; margin: 0; }
+                                /* ROLAGEM VERTICAL LIBERADA */
+                                html { 
+                                    background-color: #e9ecef !important; 
+                                    margin: 0; 
+                                    padding: 20px 0 !important;
+                                    height: 100% !important; 
+                                    overflow-y: auto !important; 
+                                    overflow-x: hidden !important;
+                                }
                                 body { 
                                     font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
                                     background-color: #ffffff !important; 
-                                    
-                                    /* MÁGICA DAS MÚLTIPLAS PÁGINAS A4 NO WORD */
                                     background-image: url('/Receituario_v2.jpg') !important; 
-                                    background-size: 210mm 297mm !important; /* Trava o tamanho do timbre */
-                                    background-repeat: repeat-y !important; /* Repete a imagem infinitamente para baixo */
-                                    
+                                    background-size: 210mm 297mm !important; 
+                                    background-repeat: repeat-y !important; 
                                     width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
                                     margin: 0 auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important; border: 1px solid #d1d5db !important;
                                     
-                                    /* MARGENS SIMULADAS DO PDF */
+                                    /* RECUOS DE MARGEM DO TIMBRE */
                                     padding-top: 6.0cm !important; 
-                                    padding-bottom: 4.0cm !important; 
+                                    padding-bottom: 5.0cm !important; /* TRAVA O RODAPÉ */
                                     padding-left: 1.5cm !important; 
                                     padding-right: 1.5cm !important;
                                 }
                                 table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
                                 td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
+                                
+                                /* ESTILO VISUAL PARA QUEBRA DE PÁGINA */
+                                .mce-pagebreak {
+                                    page-break-after: always !important;
+                                    break-after: page !important;
+                                    border-top: 2px dashed #1864ab !important;
+                                    margin: 4.5cm 0 6.0cm 0 !important;
+                                    text-align: center !important;
+                                }
                             `
                         }}
                     />
