@@ -1,14 +1,11 @@
 // src/utils/htmlParser.js
 
-export const parseLaudoToHtml = (textoRaw, tituloExame, tipoExame) => {
+// Converte o texto bruto do formulário para HTML rico
+export const parseLaudoToHtml = (textoRaw) => {
     if (!textoRaw) return '';
     
-    // Se já é HTML rico (vindo do TinyMCE), só garantimos o título (caso ele não exista)
+    // Se o texto já foi editado no TinyMCE e possui tags HTML, retorna como está
     if (textoRaw.includes('<p>') || textoRaw.includes('<table>') || textoRaw.includes('<h4')) {
-        const titulo = (tituloExame || `ULTRASSONOGRAFIA DE ${tipoExame || 'EXAME'}`).toUpperCase();
-        if (!textoRaw.includes(titulo)) {
-            return `<h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">${titulo}</h3>\n${textoRaw}`;
-        }
         return textoRaw;
     }
 
@@ -28,10 +25,6 @@ export const parseLaudoToHtml = (textoRaw, tituloExame, tipoExame) => {
             emTabela = false;
         }
     };
-
-    // TÍTULO CENTRALIZADO
-    const titulo = (tituloExame || `ULTRASSONOGRAFIA DE ${tipoExame || 'EXAME'}`).toUpperCase();
-    html += `<h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">${titulo}</h3>\n`;
 
     linhas.forEach(linhaOriginal => {
         const linha = linhaOriginal.trim();
@@ -105,4 +98,64 @@ export const parseLaudoToHtml = (textoRaw, tituloExame, tipoExame) => {
 
     fecharTabela();
     return html;
+};
+
+// =========================================================================
+// GERA O CONTEÚDO COMPLETO COM CABEÇALHO (MÉTODO ÚNICO PARA PREVIEW E MODAL)
+// =========================================================================
+export const gerarHtmlCompletoLaudo = ({
+    paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo, dataExame
+}) => {
+    // Se já estiver envelopado com o cabeçalho V2, não envelopa de novo.
+    if (textoLaudo && textoLaudo.includes('id="header_content_v2"')) {
+        return textoLaudo;
+    }
+
+    const calcularIdadeStr = (dataNasc) => {
+        if (!dataNasc) return '';
+        const nascimento = new Date(dataNasc);
+        if (isNaN(nascimento.getTime())) return dataNasc;
+        const hoje = new Date();
+        let idade = hoje.getFullYear() - nascimento.getFullYear();
+        const m = hoje.getMonth() - nascimento.getMonth();
+        if (m < 0 || (m === 0 && hoje.getDate() < nascimento.getDate())) idade--;
+        return `${idade} ANOS`;
+    };
+
+    // Variáveis amigáveis que ficam vazias caso o paciente não tenha sido selecionado
+    const nomePct = paciente?.nome_completo ? paciente.nome_completo.toUpperCase() : '______________________________';
+    const idadePct = calcularIdadeStr(dadosEstruturados?.dataNascimento || paciente?.data_nascimento) || '______';
+    
+    let dataNascPct = '__________';
+    if (dadosEstruturados?.dataNascimento) {
+        dataNascPct = dadosEstruturados.dataNascimento.split('-').reverse().join('/');
+    } else if (paciente?.data_nascimento) {
+        dataNascPct = paciente.data_nascimento.split('-').reverse().join('/');
+    }
+
+    const sexoPct = (dadosEstruturados?.sexo || paciente?.genero || paciente?.sexo || '______').toUpperCase();
+    const solicitante = (dadosEstruturados?.medicoSolicitante || '__________________').toUpperCase();
+    
+    const titulo = (tituloExame || `ULTRASSONOGRAFIA DE ${tipoExame || 'EXAME'}`).toUpperCase();
+    const dataFmt = dataExame ? dataExame.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
+
+    // Converte apenas o texto bruto do meio
+    const corpoHtml = parseLaudoToHtml(textoLaudo);
+
+    return `
+<div id="header_content_v2" contenteditable="false" style="font-family: Helvetica, Arial, sans-serif; font-size: 13px; color: #1C2E4A; line-height: 1.6; margin-left: 10cm; margin-top: -4.5cm; margin-bottom: 2cm;">
+    <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
+    <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
+    <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
+    <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
+</div>
+
+<h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">
+    ${titulo}
+</h3>
+
+<div class="corpo-laudo-a4" style="text-align: justify; font-size: 10pt; color: #333;">
+    ${corpoHtml}
+</div>
+    `.trim();
 };
