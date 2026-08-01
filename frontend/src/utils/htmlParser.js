@@ -1,6 +1,6 @@
 // src/utils/htmlParser.js
 
-export const parseLaudoToHtml = (textoRaw) => {
+export const parseLaudoToHtml = (textoRaw, tituloExame) => { // <-- Adicionado tituloExame como parâmetro
     if (!textoRaw) return '';
     
     if (textoRaw.includes('<p>') || textoRaw.includes('<table>') || textoRaw.includes('<h4')) {
@@ -23,6 +23,19 @@ export const parseLaudoToHtml = (textoRaw) => {
             emTabela = false;
         }
     };
+
+    // --- LÓGICA DE REMOÇÃO DE TÍTULO DUPLICADO ---
+    // Pega o título limpo para comparar
+    const tituloComparacao = tituloExame ? tituloExame.trim().toUpperCase() : '';
+    
+    // Varre as primeiras linhas para remover o título que vem do form
+    for (let i = 0; i < Math.min(4, linhas.length); i++) {
+        let linhaAtual = linhas[i].trim().toUpperCase();
+        if (linhaAtual && (linhaAtual === tituloComparacao || linhaAtual.includes("ULTRASSONOGRAFIA") || linhaAtual.includes("ECOCARDIOGRAMA"))) {
+            linhas[i] = ""; // Apaga a linha se for o título
+        }
+    }
+    // ---------------------------------------------
 
     linhas.forEach(linhaOriginal => {
         const linha = linhaOriginal.trim();
@@ -132,7 +145,8 @@ export const gerarConteudoParaEditor = ({
     const titulo = (tituloExame || `ULTRASSONOGRAFIA DE ${tipoExame || 'EXAME'}`).toUpperCase();
     const dataFmt = dataExame ? dataExame.split('-').reverse().join('/') : new Date().toLocaleDateString('pt-BR');
 
-    const corpoHtml = parseLaudoToHtml(textoLaudo);
+    // Passamos o 'titulo' para o parser, para ele apagar a duplicata do corpo
+    const corpoHtml = parseLaudoToHtml(textoLaudo, titulo);
 
     return `
 <div id="header_content_v2" contenteditable="false" style="float: right; width: 8.5cm; margin-top: -4.5cm; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; text-align: left; z-index: 10;">
