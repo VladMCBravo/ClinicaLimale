@@ -54,7 +54,7 @@ const LaudosPreviewModalV2 = ({
         <Dialog open={open} onClose={acaoSalvarRascunho} fullScreen>
             <style>{`
                 .tox-notifications-container, .tox-statusbar__branding, .tox-promotion { display: none !important; }
-                .tox-editor-header { box-shadow: none !important; border-bottom: 1px solid #ced4da !important; }
+                .tox-editor-header { box-shadow: none !important; border-bottom: 1px solid #ced4da !important; z-index: 15 !important; }
                 .tox .tox-toolbar__primary { flex-wrap: nowrap !important; overflow-x: auto !important; background-color: #f8f9fa !important; padding: 4px 8px !important; }
                 .tox-tinymce { border: none !important; }
             `}</style>
@@ -131,7 +131,7 @@ const LaudosPreviewModalV2 = ({
                             apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
                             onInit={(evt, editor) => editorRef.current = editor}
                             initialValue={htmlInicial}
-                            init={{
+                            iinit={{
                                 height: '100%', 
                                 width: '100%', 
                                 resize: false, 
@@ -141,9 +141,11 @@ const LaudosPreviewModalV2 = ({
                                 menubar: false, 
                                 browser_spellcheck: true, 
                                 toolbar_mode: 'sliding',
+                                toolbar_sticky: true,          // <-- ADICIONADO
+                                toolbar_sticky_offset: 0,      // <-- ajusta se sobrar espaço/appbar sobrepor
                                 plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize', 
                                 autoresize_bottom_margin: 0,
-                                toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
+                                    toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
                                 content_style: `
                                     html { 
                                         background: transparent !important; 
@@ -153,8 +155,8 @@ const LaudosPreviewModalV2 = ({
                                         font-size: 13px; color: #222; line-height: 1.5;
                                         background: transparent !important; 
                                         margin: 0 !important;
-                                        /* Estas margens precisam ser exatas para encaixar na máscara A4 do React/PDF */
-                                        padding: 6.0cm 1.5cm 5.5cm 1.5cm !important;
+                                        /* Antes: padding: 6.0cm 1.5cm 5.5cm 1.5cm !important; */
+                                        padding: 0 1.5cm 5.5cm 1.5cm !important;
                                         box-sizing: border-box !important;
                                     }
                                     table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
