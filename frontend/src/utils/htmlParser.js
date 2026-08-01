@@ -1,10 +1,8 @@
 // src/utils/htmlParser.js
 
-// Converte o texto bruto do formulário para HTML rico
 export const parseLaudoToHtml = (textoRaw) => {
     if (!textoRaw) return '';
     
-    // Se o texto já foi editado no TinyMCE e possui tags HTML, retorna como está
     if (textoRaw.includes('<p>') || textoRaw.includes('<table>') || textoRaw.includes('<h4')) {
         return textoRaw;
     }
@@ -75,7 +73,6 @@ export const parseLaudoToHtml = (textoRaw) => {
             return;
         }
 
-        // TEXTO NORMAL (Tamanho 10pt)
         if (linhaOriginal.includes('\t')) {
             const linhaFmt = linhaOriginal.replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
             html += `<p style="margin: 0 0 3px 0; font-family: monospace; font-size: 10pt; color: #333;">${linhaFmt.trim()}</p>\n`;
@@ -99,12 +96,10 @@ export const parseLaudoToHtml = (textoRaw) => {
     return html;
 };
 
-// GERA O CONTEÚDO PURO (SEM MÁSCARA, SÓ O TEXTO) PARA O TINYMCE
 export const gerarConteudoParaEditor = ({
     paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo, dataExame
 }) => {
     
-    // Se já foi gerado na versão v2, retorna o texto formatado pelo médico.
     if (textoLaudo && textoLaudo.includes('id="header_content_v2"')) {
         return textoLaudo;
     }
@@ -140,19 +135,13 @@ export const gerarConteudoParaEditor = ({
     const corpoHtml = parseLaudoToHtml(textoLaudo);
 
     return `
-<div id="header_content_v2" contenteditable="false" style="width: 100%; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">
-    <div style="display: flex; justify-content: space-between;">
-        <div style="flex: 2;">
-            <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
-            <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
-            <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</div>
-        </div>
-        <div style="flex: 1; text-align: right;">
-            <div><span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
-            <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
-        </div>
-    </div>
-</div>
+<div id="header_content_v2" contenteditable="false" style="position: absolute; top: 1.5cm; left: 11.2cm; width: 8.3cm; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; z-index: 10;">
+    <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
+    <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
+    <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</div>
+    <div><span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
+    <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
+</div><!-- FIM_HEADER_V2 -->
 
 <h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">
     ${titulo}
