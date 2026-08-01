@@ -106,7 +106,7 @@
     font-size: 13px;
     color: #222;
     line-height: 1.5;
-    /* ADICIONADO: Movemos o padding para cá, para agir no conteúdo interno da A4, não nela mesma */
-    padding: 6.0cm 1.5cm 5.5cm 1.5cm;
+    /* Antes: padding: 6.0cm 1.5cm 5.5cm 1.5cm; -> o topo agora é reservado pelo .laudo-header-area */
+    padding: 0 1.5cm 5.5cm 1.5cm;
     box-sizing: border-box;
 }

@@ -157,35 +157,25 @@ export const gerarConteudoParaEditor = ({
     // O backend (xhtml2pdf), o TinyMCE e o React renderizam isso com 100% de precisão.
     
     return `
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="table-layout: fixed;">
-    <!-- CABEÇALHO -->
-    <tr id="header_content_v2">
-        <!-- Coluna invisível que deixa a logo de fundo respirar -->
-        <td style="width: 55%; vertical-align: top; padding-bottom: 20px;"></td>
-        <!-- Coluna com as informações do paciente -->
-        <td style="width: 45%; vertical-align: top; padding-bottom: 20px;">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #1C2E4A; line-height: 1.4;">
-                <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</td></tr>
-                <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</td></tr>
-                <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</td></tr>
-                <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">DATA:</span> ${dataFmt}</td></tr>
-                <tr><td><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</td></tr>
-            </table>
-        </td>
-    </tr>
-    <!-- FIM_HEADER_V2 -->
+<div class="laudo-header-area" style="position: relative; width: 100%; min-height: 6.0cm;">
+    <!-- Bloco de dados do paciente, alinhado ao lado da logo -->
+    <div id="header_content_v2" style="position: absolute; top: 1.0cm; right: 0; width: 45%; text-align: left; font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #1C2E4A; line-height: 1.4;">
+        <div style="padding-bottom: 2px;"><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
+        <div style="padding-bottom: 2px;"><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
+        <div style="padding-bottom: 2px;"><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</div>
+        <div style="padding-bottom: 2px;"><span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
+        <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
+    </div>
+</div>
+<!-- FIM_HEADER_V2 -->
 
-    <!-- CORPO DO LAUDO -->
-    <tr>
-        <td colspan="2" style="vertical-align: top;">
-            <h3 style="text-align: center; color: #1C2E4A; font-size: 11pt; font-weight: bold; margin-top: 0; margin-bottom: 12px; text-transform: uppercase; font-family: Helvetica, Arial, sans-serif;">
-                ${titulo}
-            </h3>
-            <div class="corpo-laudo-v2" style="text-align: justify; font-size: 10pt; color: #333; font-family: Helvetica, Arial, sans-serif;">
-                ${corpoHtml}
-            </div>
-        </td>
-    </tr>
-</table>
+<div class="corpo-laudo-wrapper">
+    <h3 style="text-align: center; color: #1C2E4A; font-size: 11pt; font-weight: bold; margin-top: 0; margin-bottom: 12px; text-transform: uppercase; font-family: Helvetica, Arial, sans-serif;">
+        ${titulo}
+    </h3>
+    <div class="corpo-laudo-v2" style="text-align: justify; font-size: 10pt; color: #333; font-family: Helvetica, Arial, sans-serif;">
+        ${corpoHtml}
+    </div>
+</div>
     `.trim();
 };
