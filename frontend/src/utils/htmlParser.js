@@ -149,8 +149,12 @@ export const gerarConteudoParaEditor = ({
 
     const corpoHtml = parseLaudoToHtml(textoLaudo, titulo);
 
+    // MUDANÇA CRUCIAL:
+    // Em vez de 'float', voltamos a usar 'position: absolute' (que o xhtml2pdf adora), 
+    // mas amarramos ele rigidamente às margens do papel, desvinculando-o do fluxo do texto
+    // que vem abaixo.
     return `
-<div id="header_content_v2" contenteditable="false" style="float: right; width: 8.5cm; margin-top: -4.5cm; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; text-align: left; z-index: 10;">
+<div id="header_content_v2" contenteditable="false" style="position: absolute; top: 1.2cm; right: 1.5cm; width: 8.5cm; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; text-align: left; z-index: 10; background: transparent;">
     <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
     <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
     <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</div>
@@ -159,8 +163,9 @@ export const gerarConteudoParaEditor = ({
 </div>
 <!-- FIM_HEADER_V2 -->
 
-<!-- margin-top negativo de -40px para puxar o título para cima e colar na linha -->
-<h3 style="text-align: center; color: #1C2E4A; font-size: 11pt; font-weight: bold; margin-top: -40px; margin-bottom: 15px; text-transform: uppercase;">
+<!-- Como o cabeçalho acima é 'absolute', ele "não existe" no fluxo. -->
+<!-- Não precisamos de margens negativas bizarras. Apenas encostamos o título no topo. -->
+<h3 style="text-align: center; color: #1C2E4A; font-size: 11pt; font-weight: bold; margin-top: 0; margin-bottom: 15px; text-transform: uppercase;">
     ${titulo}
 </h3>
 
