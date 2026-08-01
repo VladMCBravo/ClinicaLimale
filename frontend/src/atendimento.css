@@ -92,7 +92,6 @@
     transform-origin: top left;
     
     background-color: #ffffff;
-    background-image: url('/Receituario_v2.jpg'); /* Arte da Clínica */
     background-size: 210mm 297mm; 
     background-repeat: repeat-y;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);

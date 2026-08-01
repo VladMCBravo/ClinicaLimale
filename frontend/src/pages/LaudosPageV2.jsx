@@ -454,7 +454,10 @@ const LaudosPageV2 = () => {
              {/* NOVA E DEFINITIVA PRÉVIA ESCALONADA VIA CLASSE CSS */}
              <div className="tasy-preview-miniatura-container">
                 <div className="tasy-preview-wrapper">
-                    <Box className="tasy-preview-a4-real">
+                    <Box 
+                        className="tasy-preview-a4-real"
+                        sx={{ backgroundImage: `url(${process.env.PUBLIC_URL}/Receituario_v2.jpg)` }}
+                    >
                         <div 
                             className="tasy-preview-content"
                             dangerouslySetInnerHTML={{ __html: htmlPronto }} 
