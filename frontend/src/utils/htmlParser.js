@@ -159,7 +159,7 @@ export const gerarConteudoParaEditor = ({
     return `
 <div class="laudo-header-area" style="position: relative; width: 100%; min-height: 6.0cm;">
     <!-- Bloco de dados do paciente, alinhado ao lado da logo -->
-    <div id="header_content_v2" style="position: absolute; top: 1.0cm; right: 0; width: 45%; text-align: left; font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #1C2E4A; line-height: 1.4;">
+    <div id="header_content_v2" style="position: absolute; top: 1.35cm; right: 0; width: 45%; text-align: left; font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #1C2E4A; line-height: 1.4;">
         <div style="padding-bottom: 2px;"><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
         <div style="padding-bottom: 2px;"><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
         <div style="padding-bottom: 2px;"><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</div>
