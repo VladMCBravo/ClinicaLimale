@@ -54,10 +54,20 @@ const LaudosPreviewModalV2 = ({
         <Dialog open={open} onClose={acaoSalvarRascunho} fullScreen>
             <style>{`
                 .tox-notifications-container, .tox-statusbar__branding, .tox-promotion { display: none !important; }
-                .tox-editor-header { box-shadow: none !important; border-bottom: 1px solid #ced4da !important; z-index: 15 !important; }
+                .tox-editor-header { 
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important; 
+                    border-bottom: 1px solid #ced4da !important; 
+                    z-index: 20 !important; 
+                    background: #f8f9fa !important;
+                }
                 .tox .tox-toolbar__primary { flex-wrap: nowrap !important; overflow-x: auto !important; background-color: #f8f9fa !important; padding: 4px 8px !important; }
                 .tox-tinymce { border: none !important; width: 100% !important; }
-                .tox-tinymce iframe { width: 100% !important; }
+
+                /* CRÍTICO: remove o fundo branco padrão que o TinyMCE injeta no iframe,
+                permitindo que o background da "folha" venha do <body> interno */
+                .tox-edit-area, .tox-edit-area__iframe, .tox-editor-container { 
+                    background: transparent !important; 
+                }
             `}</style>
 
             <AppBar sx={{ position: 'relative', background: '#b71c1c', boxShadow: 'none' }}>
@@ -110,67 +120,67 @@ const LaudosPreviewModalV2 = ({
                 </Toolbar>
             </AppBar>
 
-            {/* ÁREA DE TRABALHO GERAL */}
+            {/* ÁREA DE TRABALHO GERAL — agora o editor ocupa 100% da largura, como o Word */}
             <Box sx={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#e9ecef', overflowY: 'auto' }}>
                 
-                {/* CONTAINER DO EDITOR (SCROLL NATIVO DO BROWSER) */}
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', py: 5 }}>
-                    
-                    {/* A CAIXA A4 REAL */}
-                    <Box sx={{ 
-                        width: '210mm', 
-                        // minHeight não é mais necessário — autoresize_min_height já garante 1 folha
-                        backgroundColor: '#ffffff',
-                        backgroundImage: `url(${process.env.PUBLIC_URL}/Receituario_v2.jpg)`, 
-                        backgroundSize: '210mm 297mm',
-                        backgroundRepeat: 'repeat-y',
-                        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
-                        border: '1px solid #d1d5db',
-                        boxSizing: 'border-box'
-                    }}>
-                        <Editor
-                            apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
-                            onInit={(evt, editor) => editorRef.current = editor}
-                            initialValue={htmlInicial}
-                            init={{
-                                // REMOVIDO: height: '100%',  <-- conflitava com autoresize e colapsava o iframe
-                                autoresize_min_height: 1123,   // ~297mm em px (96dpi) -> altura mínima = 1 folha A4
-                                autoresize_bottom_margin: 40,
-                                width: '100%',
-                                resize: false,
-                                branding: false,
-                                promotion: false,
-                                elementpath: false,
-                                menubar: false,
-                                browser_spellcheck: true,
-                                toolbar_mode: 'sliding',
-                                toolbar_sticky: true,          // fixa a barra ao rolar
-                                toolbar_sticky_offset: 0,
-                                plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize',
-                                toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
-                                content_style: `
-                                    html { background: transparent !important; }
-                                    body { 
-                                        font-family: Arial, Helvetica, sans-serif; 
-                                        font-size: 13px; color: #222; line-height: 1.5;
-                                        background: transparent !important; 
-                                        margin: 0 !important;
-                                        padding: 0 1.5cm 5.5cm 1.5cm !important;
-                                        box-sizing: border-box !important;
-                                    }
-                                    table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
-                                    td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
-                                    .mce-pagebreak {
-                                        display: block !important; 
-                                        height: 11.5cm !important; 
-                                        margin: 0 !important; padding: 0 !important; border: none !important;
-                                        border-top: 2px dashed rgba(24, 100, 171, 0.4) !important; 
-                                        page-break-after: always !important; break-after: page !important;
-                                    }
-                                `
-                            }}
-                        />
-                    </Box>
+                {/* CONTAINER DO EDITOR — full width, sem centralizar aqui; a "folha" é centralizada dentro do iframe */}
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <Editor
+                        apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
+                        onInit={(evt, editor) => editorRef.current = editor}
+                        initialValue={htmlInicial}
+                        init={{
+                            autoresize_min_height: 1123,
+                            autoresize_bottom_margin: 0,
+                            width: '100%',
+                            resize: false,
+                            branding: false,
+                            promotion: false,
+                            elementpath: false,
+                            menubar: false,
+                            browser_spellcheck: true,
+                            toolbar_mode: 'sliding',
+                            toolbar_sticky: true,
+                            toolbar_sticky_offset: 0,
+                            plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize',
+                            toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
+                            content_style: `
+                                html { 
+                                    background: #e9ecef !important; 
+                                    margin: 0;
+                                    padding: 24px 0 40px 0;
+                                }
+                                body { 
+                                    font-family: Arial, Helvetica, sans-serif; 
+                                    font-size: 13px; color: #222; line-height: 1.5;
+                                    
+                                    /* AQUI está a "folha A4": largura fixa, centralizada, com sombra e máscara */
+                                    width: 210mm;
+                                    min-height: 297mm;
+                                    margin: 0 auto !important;
+                                    box-sizing: border-box;
+                                    
+                                    background-color: #ffffff;
+                                    background-image: url('${process.env.PUBLIC_URL}/Receituario_v2.jpg');
+                                    background-size: 210mm 297mm;
+                                    background-repeat: repeat-y;
+                                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+                                    border: 1px solid #d1d5db;
+                                    
+                                    padding: 6.0cm 1.5cm 5.5cm 1.5cm !important;
+                                }
+                                table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+                                td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
+                                .mce-pagebreak {
+                                    display: block !important; 
+                                    height: 11.5cm !important; 
+                                    margin: 0 !important; padding: 0 !important; border: none !important;
+                                    border-top: 2px dashed rgba(24, 100, 171, 0.4) !important; 
+                                    page-break-after: always !important; break-after: page !important;
+                                }
+                            `
+                        }}
+                    />
                 </Box>
 
                 {/* PAINEL LATERAL DE FOTOS */}
