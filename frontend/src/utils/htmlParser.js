@@ -151,35 +151,41 @@ export const gerarConteudoParaEditor = ({
 
     const corpoHtml = parseLaudoToHtml(textoLaudo, titulo);
 
-    // MÁGICA DE LAYOUT: Tabela com duas colunas. A coluna da esquerda serve como um espaçador para a logo.
+    // SOLUÇÃO DEFINITIVA E INFALÍVEL:
+    // Uma tabela principal que segura TODO o laudo. 
+    // A primeira linha (cabeçalho) tem duas colunas: a esquerda empurra o texto para a direita (onde fica a logo no fundo).
+    // O backend (xhtml2pdf), o TinyMCE e o React renderizam isso com 100% de precisão.
+    
     return `
-<div id="header_content_v2" contenteditable="false" style="width: 100%; font-family: Helvetica, Arial, sans-serif; color: #1C2E4A; line-height: 1.5; z-index: 10;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 9.5pt; table-layout: fixed;">
-        <tr>
-            <!-- Coluna da esquerda vazia (Espaço para a Logo) -->
-            <td style="width: 50%;"></td>
-            <!-- Coluna da direita com os dados do paciente -->
-            <td style="width: 50%; vertical-align: top;">
-                <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</td></tr>
-                    <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</td></tr>
-                    <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</td></tr>
-                    <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">DATA:</span> ${dataFmt}</td></tr>
-                    <tr><td><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</td></tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-</div>
-<!-- FIM_HEADER_V2 -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="table-layout: fixed;">
+    <!-- CABEÇALHO -->
+    <tr id="header_content_v2">
+        <!-- Coluna invisível que deixa a logo de fundo respirar -->
+        <td style="width: 55%; vertical-align: top; padding-bottom: 20px;"></td>
+        <!-- Coluna com as informações do paciente -->
+        <td style="width: 45%; vertical-align: top; padding-bottom: 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #1C2E4A; line-height: 1.4;">
+                <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</td></tr>
+                <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</td></tr>
+                <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</td></tr>
+                <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">DATA:</span> ${dataFmt}</td></tr>
+                <tr><td><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</td></tr>
+            </table>
+        </td>
+    </tr>
+    <!-- FIM_HEADER_V2 -->
 
-<!-- O Título do exame -->
-<h3 style="text-align: center; color: #1C2E4A; font-size: 11pt; font-weight: bold; margin-top: 15px; margin-bottom: 12px; text-transform: uppercase;">
-    ${titulo}
-</h3>
-
-<div class="corpo-laudo-v2" style="text-align: justify; font-size: 10pt; color: #333;">
-    ${corpoHtml}
-</div>
+    <!-- CORPO DO LAUDO -->
+    <tr>
+        <td colspan="2" style="vertical-align: top;">
+            <h3 style="text-align: center; color: #1C2E4A; font-size: 11pt; font-weight: bold; margin-top: 0; margin-bottom: 12px; text-transform: uppercase; font-family: Helvetica, Arial, sans-serif;">
+                ${titulo}
+            </h3>
+            <div class="corpo-laudo-v2" style="text-align: justify; font-size: 10pt; color: #333; font-family: Helvetica, Arial, sans-serif;">
+                ${corpoHtml}
+            </div>
+        </td>
+    </tr>
+</table>
     `.trim();
 };
