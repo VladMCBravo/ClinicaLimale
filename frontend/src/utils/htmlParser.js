@@ -1,5 +1,7 @@
 // src/utils/htmlParser.js
 
+// ... (Mantenha o código existente do parseLaudoToHtml) ...
+
 export const parseLaudoToHtml = (textoRaw, tituloExame) => { 
     if (!textoRaw) return '';
     
@@ -149,25 +151,32 @@ export const gerarConteudoParaEditor = ({
 
     const corpoHtml = parseLaudoToHtml(textoLaudo, titulo);
 
-    // O header flutua à direita, sem margens negativas que quebram o layout do TinyMCE
+    // MÁGICA DE LAYOUT: Tabela com duas colunas. A coluna da esquerda serve como um espaçador para a logo.
     return `
-<div id="header_content_v2" contenteditable="false" style="float: right; width: 8.5cm; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.5; z-index: 10;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 9.5pt;">
-        <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</td></tr>
-        <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</td></tr>
-        <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</td></tr>
-        <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">DATA:</span> ${dataFmt}</td></tr>
-        <tr><td><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</td></tr>
+<div id="header_content_v2" contenteditable="false" style="width: 100%; font-family: Helvetica, Arial, sans-serif; color: #1C2E4A; line-height: 1.5; z-index: 10;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 9.5pt; table-layout: fixed;">
+        <tr>
+            <!-- Coluna da esquerda vazia (Espaço para a Logo) -->
+            <td style="width: 50%;"></td>
+            <!-- Coluna da direita com os dados do paciente -->
+            <td style="width: 50%; vertical-align: top;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</td></tr>
+                    <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</td></tr>
+                    <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</td></tr>
+                    <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">DATA:</span> ${dataFmt}</td></tr>
+                    <tr><td><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</td></tr>
+                </table>
+            </td>
+        </tr>
     </table>
 </div>
+<!-- FIM_HEADER_V2 -->
 
 <!-- O Título do exame -->
-<h3 style="text-align: center; color: #1C2E4A; font-size: 11pt; font-weight: bold; margin-top: 0; padding-top: 30px; margin-bottom: 12px; text-transform: uppercase;">
+<h3 style="text-align: center; color: #1C2E4A; font-size: 11pt; font-weight: bold; margin-top: 15px; margin-bottom: 12px; text-transform: uppercase;">
     ${titulo}
 </h3>
-
-<!-- Limpa o float para o texto não invadir a tabela se for longo -->
-<div style="clear: both; margin-bottom: 15px;"></div>
 
 <div class="corpo-laudo-v2" style="text-align: justify; font-size: 10pt; color: #333;">
     ${corpoHtml}

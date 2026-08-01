@@ -66,28 +66,25 @@
     padding: 20px 0; 
     display: flex; 
     justify-content: center; 
-    pointer-events: none; /* Impede a seleção do texto, deixando igual ao Tasy */
+    pointer-events: none;
 }
 
 .tasy-preview-wrapper {
-    /* 
-      Toda folha A4 tem proporção de ~1:1.414. 
-      Com 400px de largura, a altura deve ser 566px.
-    */
     width: 400px;
     height: 566px; 
     position: relative;
+    /* Adicionando flex para alinhar o conteúdo interno se necessário */
+    display: flex;
+    justify-content: center;
 }
 
 .tasy-preview-a4-real {
     position: absolute;
     top: 0;
     left: 0;
-    width: 210mm; /* A4 Largura Real */
-    min-height: 297mm; /* A4 Altura Real */
+    width: 210mm;
+    min-height: 297mm; 
     
-    /* Esta linha é a MÁGICA. Ela pega a folha gigante de 210mm e reduz a 50.38%
-       do tamanho, fazendo ela caber ESSECIALMENTE no buraco de 400px do Wrapper. */
     transform: scale(0.5038); 
     transform-origin: top left;
     
@@ -97,8 +94,8 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
     border: 1px solid #d1d5db;
     
-    /* As margens do papel, idênticas ao backend (xhtml2pdf) */
-    padding: 6.0cm 1.5cm 5.5cm 1.5cm;
+    /* REMOVIDO: O padding estava causando o aumento da folha e conflito de estilos */
+    /* padding: 6.0cm 1.5cm 5.5cm 1.5cm; */
     box-sizing: border-box;
 }
 
@@ -109,4 +106,7 @@
     font-size: 13px;
     color: #222;
     line-height: 1.5;
+    /* ADICIONADO: Movemos o padding para cá, para agir no conteúdo interno da A4, não nela mesma */
+    padding: 6.0cm 1.5cm 5.5cm 1.5cm;
+    box-sizing: border-box;
 }
