@@ -149,25 +149,25 @@ export const gerarConteudoParaEditor = ({
 
     const corpoHtml = parseLaudoToHtml(textoLaudo, titulo);
 
-    // MUDANÇA CRUCIAL:
-    // Em vez de 'float', voltamos a usar 'position: absolute' (que o xhtml2pdf adora), 
-    // mas amarramos ele rigidamente às margens do papel, desvinculando-o do fluxo do texto
-    // que vem abaixo.
+    // O header flutua à direita, sem margens negativas que quebram o layout do TinyMCE
     return `
-<div id="header_content_v2" contenteditable="false" style="position: absolute; top: 1.2cm; right: 1.5cm; width: 8.5cm; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; text-align: left; z-index: 10; background: transparent;">
-    <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
-    <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
-    <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</div>
-    <div><span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
-    <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
+<div id="header_content_v2" contenteditable="false" style="float: right; width: 8.5cm; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.5; z-index: 10;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 9.5pt;">
+        <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</td></tr>
+        <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</td></tr>
+        <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</td></tr>
+        <tr><td style="padding-bottom: 2px;"><span style="font-weight: bold;">DATA:</span> ${dataFmt}</td></tr>
+        <tr><td><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</td></tr>
+    </table>
 </div>
-<!-- FIM_HEADER_V2 -->
 
-<!-- Como o cabeçalho acima é 'absolute', ele "não existe" no fluxo. -->
-<!-- Não precisamos de margens negativas bizarras. Apenas encostamos o título no topo. -->
-<h3 style="text-align: center; color: #1C2E4A; font-size: 11pt; font-weight: bold; margin-top: 0; margin-bottom: 15px; text-transform: uppercase;">
+<!-- O Título do exame -->
+<h3 style="text-align: center; color: #1C2E4A; font-size: 11pt; font-weight: bold; margin-top: 0; padding-top: 30px; margin-bottom: 12px; text-transform: uppercase;">
     ${titulo}
 </h3>
+
+<!-- Limpa o float para o texto não invadir a tabela se for longo -->
+<div style="clear: both; margin-bottom: 15px;"></div>
 
 <div class="corpo-laudo-v2" style="text-align: justify; font-size: 10pt; color: #333;">
     ${corpoHtml}
