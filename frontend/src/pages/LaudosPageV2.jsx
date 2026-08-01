@@ -15,7 +15,6 @@ import '../atendimento.css';
 
 // A EXPORTAÇÃO EXATA
 import { gerarConteudoParaEditor } from '../utils/htmlParser';
-import { Editor } from '@tinymce/tinymce-react';
 
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
 import FormAbdome from '../components/laudos/abdome/FormAbdome'; 
@@ -453,43 +452,54 @@ const LaudosPageV2 = () => {
                  </Stack>
              </Box>
              
-             {/* PRÉVIA A4: MINIATURA PERFEITA ESCALONADA (SCALE 55%) */}
-             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: '#e9ecef', padding: '20px 0', display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
-                <Box sx={{ 
-                    width: '210mm', 
-                    minHeight: '297mm',
-                    transform: 'scale(0.55)', /* Reduz o tamanho da folha A4 proporcionalmente */
-                    transformOrigin: 'top center',
-                    marginBottom: '-133mm', /* Compensa o espaço vazio deixado pela redução da altura */
-                }}>
-                    <Editor
-                        apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
-                        value={htmlPronto}
-                        disabled={true}
-                        init={{
-                            height: '100%', width: '100%', resize: false, branding: false, promotion: false, elementpath: false, menubar: false, toolbar: false,
-                            plugins: 'autoresize', autoresize_bottom_margin: 0,
-                            content_style: `
-                                html { background: transparent !important; overflow: hidden !important; }
-                                body { 
-                                    position: relative;
-                                    font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
-                                    background-image: url('/Receituario_v2.jpg') !important; 
-                                    background-size: 210mm 297mm !important;
-                                    background-repeat: repeat-y !important;
-                                    background-color: #ffffff !important;
-                                    width: 210mm !important;
-                                    min-height: 297mm !important;
-                                    margin: 0 auto !important;
-                                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important;
-                                    border: 1px solid #d1d5db !important;
-                                    padding: 6.0cm 1.5cm 5.5cm 1.5cm !important; 
-                                    box-sizing: border-box !important;
-                                }
-                                table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
-                                td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
-                            `
-                        }}
+             {/* PRÉVIA MINIATURA NATIVA (SEM IFRAME) */}
+             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: '#e9ecef', padding: '20px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Box 
+                    className="laudo-preview-container"
+                    sx={{ 
+                        width: '100%', 
+                        maxWidth: '500px', // Limita a largura máxima da prévia
+                        aspectRatio: '210 / 297', // Mantém a proporção exata de uma folha A4
+                        backgroundColor: '#ffffff',
+                        backgroundImage: "url('/Receituario_v2.jpg')", 
+                        backgroundSize: 'cover', // Faz o fundo cobrir a div proporcionalmente
+                        backgroundPosition: 'center top',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.18)',
+                        border: '1px solid #d1d5db',
+                        position: 'relative',
+                        // O padding é baseado em porcentagem para acompanhar o tamanho da div
+                        paddingTop: '20%', 
+                        paddingBottom: '15%',
+                        paddingLeft: '7%',
+                        paddingRight: '7%',
+                        boxSizing: 'border-box',
+                        overflow: 'hidden', // Evita que o texto vaze se for muito longo
+                        '& p, & div, & h3, & h4, & span, & td': {
+                            // Diminui a fonte geral na prévia para simular a miniatura
+                            fontSize: '0.65rem !important',
+                            lineHeight: '1.2 !important',
+                        },
+                        '& table': {
+                            marginBottom: '6px !important'
+                        },
+                        '& h3': {
+                            marginBottom: '10px !important'
+                        },
+                        '& h4': {
+                            marginTop: '8px !important',
+                            marginBottom: '2px !important'
+                        },
+                        '& #header_content_v2': {
+                            // Ajuste do cabeçalho flutuante para a miniatura
+                            width: '40% !important',
+                            marginTop: '-15% !important',
+                            fontSize: '0.6rem !important'
+                        }
+                    }}
+                >
+                    <div 
+                        dangerouslySetInnerHTML={{ __html: htmlPronto }} 
+                        style={{ width: '100%', height: '100%' }}
                     />
                 </Box>
              </div>
