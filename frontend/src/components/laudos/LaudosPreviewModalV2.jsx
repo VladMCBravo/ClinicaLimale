@@ -154,7 +154,6 @@ const LaudosPreviewModalV2 = ({
                                     font-family: Arial, Helvetica, sans-serif; 
                                     font-size: 13px; color: #222; line-height: 1.5;
                                     
-                                    /* AQUI está a "folha A4": largura fixa, centralizada, com sombra e máscara */
                                     width: 210mm;
                                     min-height: 297mm;
                                     margin: 0 auto !important;
@@ -167,7 +166,8 @@ const LaudosPreviewModalV2 = ({
                                     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
                                     border: 1px solid #d1d5db;
                                     
-                                    padding: 6.0cm 1.5cm 5.5cm 1.5cm !important;
+                                    /* ANTES: padding: 6.0cm 1.5cm 5.5cm 1.5cm !important;  <- duplicava o espaço da logo */
+                                    padding: 0 1.5cm 5.5cm 1.5cm !important;
                                 }
                                 table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
                                 td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
