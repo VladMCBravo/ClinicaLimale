@@ -61,26 +61,6 @@ const LaudosPreviewModalV2 = ({
                 .tox .tox-tbtn svg { transform: scale(0.8) !important; }
                 .tox .tox-tbtn--select { width: auto !important; padding: 0 4px !important; font-size: 11px !important; }
                 .tox-tinymce { border: none !important; height: 100% !important; }
-                
-                /* O container que força o limite A4 para o TinyMCE */
-                .a4-container {
-                    background-color: #ffffff;
-                    background-image: url('/Receituario_v2.jpg'); 
-                    background-size: 210mm 297mm;
-                    background-repeat: repeat-y;
-                    width: 210mm;
-                    min-height: 297mm;
-                    margin: 20px auto;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-                    border: 1px solid #d1d5db;
-                    position: relative;
-                    /* Estas margens seguram o editor na área branca da folha */
-                    padding-top: 6.0cm;
-                    padding-bottom: 5.5cm;
-                    padding-left: 1.5cm;
-                    padding-right: 1.5cm;
-                    box-sizing: border-box;
-                }
             `}</style>
 
             <AppBar sx={{ position: 'relative', background: '#b71c1c', boxShadow: 'none' }}>
@@ -136,9 +116,9 @@ const LaudosPreviewModalV2 = ({
             {/* ÁREA DE TRABALHO E ROLAGEM GERAL */}
             <Box sx={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#e9ecef', overflowY: 'auto' }}>
                 
-                {/* CONTAINER QUE SEGURA O PAPEL A4 */}
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', pb: 5 }}>
-                    <div className="a4-container">
+                {/* CONTAINER COM ALINHAMENTO CENTRADO */}
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', pb: 5, alignItems: 'center', pt: 3 }}>
+                    <Box sx={{ width: '210mm' }}>
                         <Editor
                         apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
                         onInit={(evt, editor) => editorRef.current = editor}
@@ -156,20 +136,27 @@ const LaudosPreviewModalV2 = ({
                             plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount',
                             toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
                             content_style: `
-                                html { background-color: #e9ecef !important; overflow-y: auto !important; overflow-x: hidden !important; height: 100% !important; padding: 20px 0 !important; margin: 0; }
+                                html { background-color: transparent !important; margin: 0; }
                                 body { 
+                                    position: relative;
                                     font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; line-height: 1.5;
-                                    background-image: url('/Receituario_v2.jpg') !important; background-size: 210mm 297mm !important; background-repeat: repeat-y !important;
+                                    background-image: url('/Receituario_v2.jpg') !important; 
+                                    background-size: 210mm 297mm !important; 
+                                    background-repeat: repeat-y !important;
                                     background-color: #ffffff !important;
-                                    width: 210mm !important; min-height: 297mm !important; box-sizing: border-box !important;
-                                    margin: 0 auto !important; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important; border: 1px solid #d1d5db !important;
-                                    padding: 0 !important; /* PADDING ZERO AQUI! O BLOCO HEADER FAZ O RECUO! */
+                                    width: 210mm !important; 
+                                    min-height: 297mm !important; 
+                                    box-sizing: border-box !important;
+                                    margin: 0 auto !important; 
+                                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important; 
+                                    border: 1px solid #d1d5db !important;
+                                    padding: 6.0cm 1.5cm 5.5cm 1.5cm !important;
                                 }
                                 table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
                                 td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
                                 .mce-pagebreak {
                                     display: block !important; 
-                                    height: 11.5cm !important; /* O Salto Quântico: 5.5cm do rodapé velho + 6.0cm do cabeçalho novo */
+                                    height: 11.5cm !important; 
                                     margin: 0 !important; padding: 0 !important; border: none !important;
                                     border-top: 2px dashed rgba(24, 100, 171, 0.4) !important; 
                                     page-break-after: always !important; break-after: page !important;
@@ -177,12 +164,13 @@ const LaudosPreviewModalV2 = ({
                             `
                         }}
                     />
-                    </div>
+                    </Box>
                 </Box>
 
-                {/* PAINEL LATERAL DE FOTOS */}
+                {/* PAINEL LATERAL DE FOTOS - Permanece Intacto */}
                 {mostrarFotos && (
                     <Box sx={{ width: '310px', background: '#fff', borderLeft: '1px solid #ced4da', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: 'calc(100vh - 48px)' }}>
+                        {/* Seu código do painel (como estava) ... */}
                         <Box sx={{ p: 2, background: '#f0f4f8', borderBottom: '1px solid #e0e6ed' }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1C2E4A', mb: 1.5 }}>
                                 Anexos ({imagens.length})
