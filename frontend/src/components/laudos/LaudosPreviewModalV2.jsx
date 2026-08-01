@@ -56,7 +56,8 @@ const LaudosPreviewModalV2 = ({
                 .tox-notifications-container, .tox-statusbar__branding, .tox-promotion { display: none !important; }
                 .tox-editor-header { box-shadow: none !important; border-bottom: 1px solid #ced4da !important; z-index: 15 !important; }
                 .tox .tox-toolbar__primary { flex-wrap: nowrap !important; overflow-x: auto !important; background-color: #f8f9fa !important; padding: 4px 8px !important; }
-                .tox-tinymce { border: none !important; }
+                .tox-tinymce { border: none !important; width: 100% !important; }
+                .tox-tinymce iframe { width: 100% !important; }
             `}</style>
 
             <AppBar sx={{ position: 'relative', background: '#b71c1c', boxShadow: 'none' }}>
@@ -118,7 +119,7 @@ const LaudosPreviewModalV2 = ({
                     {/* A CAIXA A4 REAL */}
                     <Box sx={{ 
                         width: '210mm', 
-                        minHeight: '297mm',
+                        // minHeight não é mais necessário — autoresize_min_height já garante 1 folha
                         backgroundColor: '#ffffff',
                         backgroundImage: `url(${process.env.PUBLIC_URL}/Receituario_v2.jpg)`, 
                         backgroundSize: '210mm 297mm',
@@ -131,31 +132,29 @@ const LaudosPreviewModalV2 = ({
                             apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
                             onInit={(evt, editor) => editorRef.current = editor}
                             initialValue={htmlInicial}
-                            iinit={{
-                                height: '100%', 
-                                width: '100%', 
-                                resize: false, 
-                                branding: false, 
-                                promotion: false, 
-                                elementpath: false, 
-                                menubar: false, 
-                                browser_spellcheck: true, 
+                            init={{
+                                // REMOVIDO: height: '100%',  <-- conflitava com autoresize e colapsava o iframe
+                                autoresize_min_height: 1123,   // ~297mm em px (96dpi) -> altura mínima = 1 folha A4
+                                autoresize_bottom_margin: 40,
+                                width: '100%',
+                                resize: false,
+                                branding: false,
+                                promotion: false,
+                                elementpath: false,
+                                menubar: false,
+                                browser_spellcheck: true,
                                 toolbar_mode: 'sliding',
-                                toolbar_sticky: true,          // <-- ADICIONADO
-                                toolbar_sticky_offset: 0,      // <-- ajusta se sobrar espaço/appbar sobrepor
-                                plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize', 
-                                autoresize_bottom_margin: 0,
-                                    toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
+                                toolbar_sticky: true,          // fixa a barra ao rolar
+                                toolbar_sticky_offset: 0,
+                                plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize',
+                                toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
                                 content_style: `
-                                    html { 
-                                        background: transparent !important; 
-                                    }
+                                    html { background: transparent !important; }
                                     body { 
                                         font-family: Arial, Helvetica, sans-serif; 
                                         font-size: 13px; color: #222; line-height: 1.5;
                                         background: transparent !important; 
                                         margin: 0 !important;
-                                        /* Antes: padding: 6.0cm 1.5cm 5.5cm 1.5cm !important; */
                                         padding: 0 1.5cm 5.5cm 1.5cm !important;
                                         box-sizing: border-box !important;
                                     }
