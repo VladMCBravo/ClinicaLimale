@@ -453,9 +453,15 @@ const LaudosPageV2 = () => {
                  </Stack>
              </Box>
              
-             {/* PRÉVIA A4: CORRIGIDA (SEM ENVELOPAMENTO DUPLO) */}
-             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: '#e9ecef', padding: '20px 0', display: 'flex', justifyContent: 'center' }}>
-                <Box sx={{ width: '210mm', minHeight: '297mm' }}>
+             {/* PRÉVIA A4: MINIATURA PERFEITA ESCALONADA (SCALE 55%) */}
+             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: '#e9ecef', padding: '20px 0', display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+                <Box sx={{ 
+                    width: '210mm', 
+                    minHeight: '297mm',
+                    transform: 'scale(0.55)', /* Reduz o tamanho da folha A4 proporcionalmente */
+                    transformOrigin: 'top center',
+                    marginBottom: '-133mm', /* Compensa o espaço vazio deixado pela redução da altura */
+                }}>
                     <Editor
                         apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
                         value={htmlPronto}
@@ -477,15 +483,11 @@ const LaudosPageV2 = () => {
                                     margin: 0 auto !important;
                                     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18) !important;
                                     border: 1px solid #d1d5db !important;
-                                    padding: 6.0cm 1.5cm 5.5cm 1.5cm !important; /* Respeita a arte do fundo */
+                                    padding: 6.0cm 1.5cm 5.5cm 1.5cm !important; 
                                     box-sizing: border-box !important;
                                 }
                                 table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
                                 td, th { padding: 4px; text-align: left; font-size: 13px; border: 1px dotted #bbb; }
-                                .mce-pagebreak {
-                                    display: block !important; height: 11.5cm !important; margin: 0 !important; padding: 0 !important; border: none !important;
-                                    border-top: 2px dashed rgba(24, 100, 171, 0.4) !important; page-break-after: always !important; break-after: page !important;
-                                }
                             `
                         }}
                     />

@@ -135,13 +135,15 @@ export const gerarConteudoParaEditor = ({
     const corpoHtml = parseLaudoToHtml(textoLaudo);
 
     return `
-<div id="header_content_v2" contenteditable="false" style="position: absolute; top: 1.5cm; left: 11.2cm; width: 8.3cm; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; z-index: 10;">
+<div id="header_content_v2" contenteditable="false" style="float: right; width: 8.5cm; margin-top: -4.5cm; font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1C2E4A; line-height: 1.6; text-align: left; z-index: 10;">
     <div><span style="font-weight: bold;">PACIENTE:</span> ${nomePct}</div>
     <div><span style="font-weight: bold;">NASC.:</span> ${dataNascPct} &nbsp;&nbsp;|&nbsp;&nbsp; <span style="font-weight: bold;">IDADE:</span> ${idadePct}</div>
     <div><span style="font-weight: bold;">SEXO:</span> ${sexoPct}</div>
     <div><span style="font-weight: bold;">DATA:</span> ${dataFmt}</div>
     <div><span style="font-weight: bold;">SOLICITANTE:</span> ${solicitante}</div>
-</div><!-- FIM_HEADER_V2 -->
+</div>
+<div style="clear: both; margin-bottom: 20px;"></div>
+<!-- FIM_HEADER_V2 -->
 
 <h3 style="text-align: center; color: #1C2E4A; font-size: 12pt; font-weight: bold; margin-top: 0; margin-bottom: 20px; text-transform: uppercase;">
     ${titulo}
