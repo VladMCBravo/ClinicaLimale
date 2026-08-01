@@ -31,20 +31,33 @@ function pxToMm(px) {
  * insere UMA quebra por vez, e reavalia do zero — simples e robusto
  * para documentos de tamanho típico de um laudo (dezenas de blocos).
  */
+function flattenBlocks(elements) {
+    let out = [];
+    for (const el of elements) {
+        if (el.classList.contains('laudo-header-area')) continue;
+        if (el.classList.contains('mce-pagebreak')) continue;
+        // Se for um wrapper "invisível" (não tem conteúdo próprio, só agrupa),
+        // mergulha nos filhos dele em vez de tratá-lo como bloco atômico.
+        if (el.classList.contains('corpo-laudo-wrapper') || el.classList.contains('corpo-laudo-v2')) {
+            out.push(...flattenBlocks(Array.from(el.children)));
+        } else {
+            out.push(el);
+        }
+    }
+    return out;
+}
+
 function autoPaginarConteudo(editor) {
     if (!editor || editor.removed) return;
 
     const body = editor.getBody();
     if (!body) return;
 
-    // Preserva a posição do cursor antes de mexer no DOM
     const bookmark = editor.selection.getBookmark(2, true);
 
-    // Remove quebras inseridas automaticamente antes (recalcula do zero).
-    // Quebras manuais (inseridas pelo botão do toolbar, sem data-auto) são preservadas.
     Array.from(body.querySelectorAll('.mce-pagebreak[data-auto="1"]')).forEach(el => el.remove());
 
-    const MAX_PASSES = 60; // trava de segurança contra loop infinito
+    const MAX_PASSES = 60;
     let passes = 0;
     let inseriuAlgo = false;
 
@@ -53,46 +66,25 @@ function autoPaginarConteudo(editor) {
 
         const bodyTop = body.getBoundingClientRect().top;
 
-        // Blocos de nível superior a considerar (ignora o header da paciente,
-        // que já reserva seu próprio espaço fixo no topo do documento).
-        const candidatos = Array.from(body.children).filter(el => {
-            if (el.classList.contains('laudo-header-area')) return false;
-            if (el.classList.contains('mce-pagebreak')) return false;
-            return el.offsetHeight > 0;
-        });
+        // ANTES: só olhava filhos diretos do body e abria 1 nível de "corpo-laudo-wrapper".
+        // AGORA: flattenBlocks mergulha recursivamente até achar os blocos reais
+        // (p, h4, table, etc.) — são esses que precisam ser medidos individualmente.
+        const blocos = flattenBlocks(Array.from(body.children))
+            .filter(el => el.offsetHeight > 0);
 
-        // Reconstroi a lista "achatada" incluindo filhos diretos do wrapper do corpo,
-        // já que o HTML gerado por gerarConteudoParaEditor envolve tudo em .corpo-laudo-wrapper
-        let blocos = [];
-        candidatos.forEach(el => {
-            if (el.classList.contains('corpo-laudo-wrapper')) {
-                blocos.push(...Array.from(el.children));
-            } else {
-                blocos.push(el);
-            }
-        });
-
-        // Zonas de página: cada "ciclo" de 297mm tem uma janela útil de 182mm,
-        // já contando o próprio cabeçalho embutido no fluxo (primeiro bloco).
-        let zonaFimMm = HEADER_MM + USABLE_MM; // fim da 1ª janela útil (242mm)
+        let zonaFimMm = HEADER_MM + USABLE_MM;
         let quebrouNestaPassada = false;
 
         for (const bloco of blocos) {
-            // Se topo do bloco em relação ao body cair depois de uma quebra manual/auto
-            // já existente, avança a zona (não deveríamos reinserir).
             const rect = bloco.getBoundingClientRect();
             const topMm = pxToMm(rect.top - bodyTop);
             const bottomMm = pxToMm(rect.bottom - bodyTop);
 
-            // Se o bloco já começa depois do fim da zona atual, apenas avança a
-            // zona para o próximo ciclo até "alcançar" o bloco (pode haver mais
-            // de uma quebra manual antes dele).
             while (topMm > zonaFimMm) {
                 zonaFimMm += PAGE_HEIGHT_MM;
             }
 
             if (bottomMm > zonaFimMm) {
-                // Este bloco estoura a página atual: insere quebra automática ANTES dele.
                 const pagebreak = editor.getDoc().createElement('div');
                 pagebreak.className = 'mce-pagebreak';
                 pagebreak.setAttribute('data-auto', '1');
@@ -101,11 +93,11 @@ function autoPaginarConteudo(editor) {
 
                 inseriuAlgo = true;
                 quebrouNestaPassada = true;
-                break; // reinicia a varredura do zero (DOM mudou, offsets mudaram)
+                break;
             }
         }
 
-        if (!quebrouNestaPassada) break; // nenhuma quebra necessária nesta passada -> convergiu
+        if (!quebrouNestaPassada) break;
     }
 
     if (inseriuAlgo) {
