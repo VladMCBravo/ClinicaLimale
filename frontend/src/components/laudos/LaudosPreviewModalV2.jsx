@@ -9,12 +9,117 @@ import {
 } from 'react-icons/fa';
 import { Editor } from '@tinymce/tinymce-react';
 
+// === PAGINAÇÃO AUTOMÁTICA (Opção B) ===
+// Constantes derivadas das mesmas margens usadas no editor E no backend (xhtml2pdf).
+// Se mudar o padding do body no content_style, atualize aqui também.
+const MM_TO_PX = 96 / 25.4; // conversão padrão do browser (96dpi)
+const PAGE_HEIGHT_MM = 297;
+const HEADER_MM = 60;   // 6.0cm reservados no topo de cada página
+const FOOTER_MM = 55;   // 5.5cm reservados no rodapé de cada página
+const USABLE_MM = PAGE_HEIGHT_MM - HEADER_MM - FOOTER_MM; // 182mm úteis por página
+
+function pxToMm(px) {
+    return px / MM_TO_PX;
+}
+
+/**
+ * Varre os blocos de nível superior do corpo do editor e insere
+ * <div class="mce-pagebreak" data-auto="1"> automaticamente sempre
+ * que um bloco ultrapassa o limite da página atual.
+ * 
+ * Estratégia: mede com getBoundingClientRect (valores reais pós-reflow),
+ * insere UMA quebra por vez, e reavalia do zero — simples e robusto
+ * para documentos de tamanho típico de um laudo (dezenas de blocos).
+ */
+function autoPaginarConteudo(editor) {
+    if (!editor || editor.removed) return;
+
+    const body = editor.getBody();
+    if (!body) return;
+
+    // Preserva a posição do cursor antes de mexer no DOM
+    const bookmark = editor.selection.getBookmark(2, true);
+
+    // Remove quebras inseridas automaticamente antes (recalcula do zero).
+    // Quebras manuais (inseridas pelo botão do toolbar, sem data-auto) são preservadas.
+    Array.from(body.querySelectorAll('.mce-pagebreak[data-auto="1"]')).forEach(el => el.remove());
+
+    const MAX_PASSES = 60; // trava de segurança contra loop infinito
+    let passes = 0;
+    let inseriuAlgo = false;
+
+    while (passes < MAX_PASSES) {
+        passes++;
+
+        const bodyTop = body.getBoundingClientRect().top;
+
+        // Blocos de nível superior a considerar (ignora o header da paciente,
+        // que já reserva seu próprio espaço fixo no topo do documento).
+        const candidatos = Array.from(body.children).filter(el => {
+            if (el.classList.contains('laudo-header-area')) return false;
+            if (el.classList.contains('mce-pagebreak')) return false;
+            return el.offsetHeight > 0;
+        });
+
+        // Reconstroi a lista "achatada" incluindo filhos diretos do wrapper do corpo,
+        // já que o HTML gerado por gerarConteudoParaEditor envolve tudo em .corpo-laudo-wrapper
+        let blocos = [];
+        candidatos.forEach(el => {
+            if (el.classList.contains('corpo-laudo-wrapper')) {
+                blocos.push(...Array.from(el.children));
+            } else {
+                blocos.push(el);
+            }
+        });
+
+        // Zonas de página: cada "ciclo" de 297mm tem uma janela útil de 182mm,
+        // já contando o próprio cabeçalho embutido no fluxo (primeiro bloco).
+        let zonaFimMm = HEADER_MM + USABLE_MM; // fim da 1ª janela útil (242mm)
+        let quebrouNestaPassada = false;
+
+        for (const bloco of blocos) {
+            // Se topo do bloco em relação ao body cair depois de uma quebra manual/auto
+            // já existente, avança a zona (não deveríamos reinserir).
+            const rect = bloco.getBoundingClientRect();
+            const topMm = pxToMm(rect.top - bodyTop);
+            const bottomMm = pxToMm(rect.bottom - bodyTop);
+
+            // Se o bloco já começa depois do fim da zona atual, apenas avança a
+            // zona para o próximo ciclo até "alcançar" o bloco (pode haver mais
+            // de uma quebra manual antes dele).
+            while (topMm > zonaFimMm) {
+                zonaFimMm += PAGE_HEIGHT_MM;
+            }
+
+            if (bottomMm > zonaFimMm) {
+                // Este bloco estoura a página atual: insere quebra automática ANTES dele.
+                const pagebreak = editor.getDoc().createElement('div');
+                pagebreak.className = 'mce-pagebreak';
+                pagebreak.setAttribute('data-auto', '1');
+                pagebreak.setAttribute('contenteditable', 'false');
+                bloco.parentNode.insertBefore(pagebreak, bloco);
+
+                inseriuAlgo = true;
+                quebrouNestaPassada = true;
+                break; // reinicia a varredura do zero (DOM mudou, offsets mudaram)
+            }
+        }
+
+        if (!quebrouNestaPassada) break; // nenhuma quebra necessária nesta passada -> convergiu
+    }
+
+    if (inseriuAlgo) {
+        editor.selection.moveToBookmark(bookmark);
+    }
+}
+
 const LaudosPreviewModalV2 = ({ 
     open, onClose, htmlInicial, imagensIniciais, 
     onFinalizar, onAbrirNuvem, onSalvarRascunho,
     nomePaciente
 }) => {
     const editorRef = useRef(null);
+    const paginacaoTimeoutRef = useRef(null); // <-- NOVO
     const [imagens, setImagens] = useState([]);
     const [dataExameModal, setDataExameModal] = useState(new Date().toISOString().split('T')[0]);
     const [mostrarFotos, setMostrarFotos] = useState(true);
@@ -61,10 +166,25 @@ const LaudosPreviewModalV2 = ({
                     background: #f8f9fa !important;
                 }
                 .tox .tox-toolbar__primary { flex-wrap: nowrap !important; overflow-x: auto !important; background-color: #f8f9fa !important; padding: 4px 8px !important; }
-                .tox-tinymce { border: none !important; width: 100% !important; }
+                
+                /* CRÍTICO: o skin padrão trava a altura/overflow do container,
+                impedindo que o autoresize repasse a altura real pro Box pai
+                e a barra de rolagem do navegador nunca aparece */
+                .tox-tinymce { 
+                    border: none !important; 
+                    width: 100% !important; 
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+                .tox-editor-container {
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+                .tox-edit-area {
+                    height: auto !important;
+                    overflow: visible !important;
+                }
 
-                /* CRÍTICO: remove o fundo branco padrão que o TinyMCE injeta no iframe,
-                permitindo que o background da "folha" venha do <body> interno */
                 .tox-edit-area, .tox-edit-area__iframe, .tox-editor-container { 
                     background: transparent !important; 
                 }
@@ -144,6 +264,24 @@ const LaudosPreviewModalV2 = ({
                             toolbar_sticky_offset: 0,
                             plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize',
                             toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
+                            
+                            // === NOVO: dispara a paginação automática ===
+                            setup: (editor) => {
+                                const dispararPaginacaoDebounced = () => {
+                                    if (paginacaoTimeoutRef.current) clearTimeout(paginacaoTimeoutRef.current);
+                                    paginacaoTimeoutRef.current = setTimeout(() => {
+                                        autoPaginarConteudo(editor);
+                                    }, 600); // espera o usuário parar de digitar
+                                };
+
+                                editor.on('input', dispararPaginacaoDebounced);
+                                editor.on('SetContent', dispararPaginacaoDebounced);
+                                editor.on('init', () => {
+                                    // primeira paginação ao carregar o conteúdo inicial
+                                    setTimeout(() => autoPaginarConteudo(editor), 300);
+                                });
+                            },
+                            
                             content_style: `
                                 html { 
                                     background: #e9ecef !important; 
@@ -153,20 +291,16 @@ const LaudosPreviewModalV2 = ({
                                 body { 
                                     font-family: Arial, Helvetica, sans-serif; 
                                     font-size: 13px; color: #222; line-height: 1.5;
-                                    
                                     width: 210mm;
                                     min-height: 297mm;
                                     margin: 0 auto !important;
                                     box-sizing: border-box;
-                                    
                                     background-color: #ffffff;
                                     background-image: url('${process.env.PUBLIC_URL}/Receituario_v2.jpg');
                                     background-size: 210mm 297mm;
                                     background-repeat: repeat-y;
                                     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
                                     border: 1px solid #d1d5db;
-                                    
-                                    /* ANTES: padding: 6.0cm 1.5cm 5.5cm 1.5cm !important;  <- duplicava o espaço da logo */
                                     padding: 0 1.5cm 5.5cm 1.5cm !important;
                                 }
                                 table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
@@ -182,6 +316,7 @@ const LaudosPreviewModalV2 = ({
                         }}
                     />
                 </Box>
+                
 
                 {/* PAINEL LATERAL DE FOTOS */}
                 {mostrarFotos && (
