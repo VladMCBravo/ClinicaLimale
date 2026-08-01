@@ -141,7 +141,7 @@ const LaudosPreviewModalV2 = ({
                                 menubar: false, 
                                 browser_spellcheck: true, 
                                 toolbar_mode: 'sliding',
-                                plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize', // Autoresize é crucial
+                                plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize', 
                                 autoresize_bottom_margin: 0,
                                 toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
                                 content_style: `
@@ -151,10 +151,10 @@ const LaudosPreviewModalV2 = ({
                                     body { 
                                         font-family: Arial, Helvetica, sans-serif; 
                                         font-size: 13px; color: #222; line-height: 1.5;
-                                        background: transparent !important; /* O fundo é o do Box exterior */
+                                        background: transparent !important; 
                                         margin: 0 !important;
                                         /* Estas margens precisam ser exatas para encaixar na máscara A4 do React/PDF */
-                                        padding: 5.5cm 1.5cm 5.5cm 1.5cm !important;
+                                        padding: 6.0cm 1.5cm 5.5cm 1.5cm !important;
                                         box-sizing: border-box !important;
                                     }
                                     table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
