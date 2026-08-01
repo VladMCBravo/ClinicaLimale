@@ -1,7 +1,7 @@
 // src/pages/LaudosPageV2.jsx
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { 
-  FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, 
+  FaFileSignature, FaSpinner, FaEraser, FaUserMd, 
   FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaWhatsapp, 
   FaEnvelope, FaCheckCircle 
 } from 'react-icons/fa';
@@ -11,9 +11,8 @@ import {
   Tooltip, IconButton, Divider 
 } from '@mui/material';
 import '../components/laudos/Laudos.css';
-import '../atendimento.css';
+import '../atendimento.css'; // <--- IMPORTAÇÃO DO CSS NOVO
 
-// A EXPORTAÇÃO EXATA
 import { gerarConteudoParaEditor } from '../utils/htmlParser';
 
 import FormObstetrico from '../components/laudos/obstetrico/FormObstetrico';
@@ -298,7 +297,7 @@ const LaudosPageV2 = () => {
       {/* COLUNA ESQUERDA */}
       <div className="tasy-flat-panel" style={{ flex: 2, minWidth: '700px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #dee2e6', minHeight: 0 }}>
         
-        {/* BARRA DE FERRAMENTAS */}
+        {/* BARRA DE FERRAMENTAS SUPERIOR (IDENTIFICAÇÃO) */}
         <div style={{ background: '#f8f9fa', borderBottom: `1px solid ${theme.border}`, padding: '10px 16px', display: 'grid', gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px', gap: '12px', alignItems: 'center', flexShrink: 0, zIndex: 20 }}>
             {/* PACIENTE */}
             <div className="tasy-compact-input" style={{position: 'relative', background: '#fff', border: '1px solid #ced4da', borderRadius: '3px', display: 'flex', alignItems: 'center', height: '32px'}}> 
@@ -399,7 +398,7 @@ const LaudosPageV2 = () => {
             </div>
         </div>
 
-        {/* ÁREA DO FORMULÁRIO DINÂMICO */}
+        {/* ÁREA DO FORMULÁRIO DINÂMICO DE MEDIDAS */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: '#ffffff' }}> 
             <div className="tasy-section-header">Preenchimento Clínico</div>
             {tipoExame === 'OBSTETRICO' && <FormObstetrico key={`${paciente?.id || 'novo'}-${dadosEstruturados?.sexo || ''}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
@@ -411,7 +410,7 @@ const LaudosPageV2 = () => {
         </div>
       </div> 
 
-      {/* COLUNA DIREITA (PREVIEW RÁPIDO VIA DIV PURE - ULTRA RESPOSITIVO) */}
+      {/* COLUNA DIREITA (PREVIEW RÁPIDO DO TASY) */}
       <div style={{ flex: 1, minWidth: '400px', display: 'flex', flexDirection: 'column', background: theme.bg, minHeight: 0, paddingLeft: '8px' }}>
          <div className="tasy-flat-panel" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
@@ -452,61 +451,25 @@ const LaudosPageV2 = () => {
                  </Stack>
              </Box>
              
-             {/* PRÉVIA MINIATURA NATIVA (SEM IFRAME) */}
-             <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', background: '#e9ecef', padding: '20px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <Box 
-                    className="laudo-preview-container"
-                    sx={{ 
-                        width: '100%', 
-                        maxWidth: '500px', // Limita a largura máxima da prévia
-                        aspectRatio: '210 / 297', // Mantém a proporção exata de uma folha A4
-                        backgroundColor: '#ffffff',
-                        backgroundImage: "url('/Receituario_v2.jpg')", 
-                        backgroundSize: 'cover', // Faz o fundo cobrir a div proporcionalmente
-                        backgroundPosition: 'center top',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.18)',
-                        border: '1px solid #d1d5db',
-                        position: 'relative',
-                        // O padding é baseado em porcentagem para acompanhar o tamanho da div
-                        paddingTop: '20%', 
-                        paddingBottom: '15%',
-                        paddingLeft: '7%',
-                        paddingRight: '7%',
-                        boxSizing: 'border-box',
-                        overflow: 'hidden', // Evita que o texto vaze se for muito longo
-                        '& p, & div, & h3, & h4, & span, & td': {
-                            // Diminui a fonte geral na prévia para simular a miniatura
-                            fontSize: '0.65rem !important',
-                            lineHeight: '1.2 !important',
-                        },
-                        '& table': {
-                            marginBottom: '6px !important'
-                        },
-                        '& h3': {
-                            marginBottom: '10px !important'
-                        },
-                        '& h4': {
-                            marginTop: '8px !important',
-                            marginBottom: '2px !important'
-                        },
-                        '& #header_content_v2': {
-                            // Ajuste do cabeçalho flutuante para a miniatura
-                            width: '40% !important',
-                            marginTop: '-15% !important',
-                            fontSize: '0.6rem !important'
-                        }
-                    }}
-                >
-                    <div 
-                        dangerouslySetInnerHTML={{ __html: htmlPronto }} 
-                        style={{ width: '100%', height: '100%' }}
-                    />
-                </Box>
+             {/* NOVA E DEFINITIVA PRÉVIA ESCALONADA VIA CLASSE CSS */}
+             <div className="tasy-preview-miniatura-container">
+                <div className="tasy-preview-wrapper">
+                    <Box 
+                        className="tasy-preview-a4-real"
+                        sx={{ backgroundImage: `url(${process.env.PUBLIC_URL}/Receituario_v2.jpg)` }}
+                    >
+                        <div 
+                            className="tasy-preview-content"
+                            dangerouslySetInnerHTML={{ __html: htmlPronto }} 
+                        />
+                    </Box>
+                </div>
              </div>
+             
          </div>
       </div>
 
-      {/* MODAIS */}
+      {/* MODAIS (EDIÇÃO VISUAL, FOTOS DA NUVEM, ATESTADOS E CONFIRMAÇÃO) */}
       <LaudosPreviewModalV2 
           open={modalRevisaoOpen} 
           onClose={() => setModalRevisaoOpen(false)} 
@@ -520,6 +483,7 @@ const LaudosPageV2 = () => {
               setModalRevisaoOpen(false);
           }}
       />
+      
       <ImagensNuvemModal open={modalNuvemOpen} onClose={() => setModalNuvemOpen(false)} paciente={paciente} onConfirmar={handleImportarDaNuvem} />
       <AtestadoModal open={modalAtestadoOpen} onClose={() => setModalAtestadoOpen(false)} paciente={paciente} medicoNome={medicoNome} medicoCrm={medicoCrm} usaAssinaturaDigital={usuarioTemCertificado} />
 
