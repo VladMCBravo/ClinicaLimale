@@ -55,3 +55,59 @@
     font-size: 0.80rem;
     text-transform: uppercase;
 }
+
+/* 5. A NOVA CLASSE DE MINIATURA A4 DO TASY/TURING */
+.tasy-preview-miniatura-container {
+    flex: 1; 
+    min-height: 0; 
+    overflow-y: auto; 
+    overflow-x: hidden; 
+    background-color: #e9ecef; 
+    padding: 20px 0; 
+    display: flex; 
+    justify-content: center; 
+    pointer-events: none; /* Impede a seleção do texto, deixando igual ao Tasy */
+}
+
+.tasy-preview-wrapper {
+    /* 
+      Toda folha A4 tem proporção de ~1:1.414. 
+      Com 400px de largura, a altura deve ser 566px.
+    */
+    width: 400px;
+    height: 566px; 
+    position: relative;
+}
+
+.tasy-preview-a4-real {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 210mm; /* A4 Largura Real */
+    min-height: 297mm; /* A4 Altura Real */
+    
+    /* Esta linha é a MÁGICA. Ela pega a folha gigante de 210mm e reduz a 50.38%
+       do tamanho, fazendo ela caber ESSECIALMENTE no buraco de 400px do Wrapper. */
+    transform: scale(0.5038); 
+    transform-origin: top left;
+    
+    background-color: #ffffff;
+    background-image: url('/Receituario_v2.jpg'); /* Arte da Clínica */
+    background-size: 210mm 297mm; 
+    background-repeat: repeat-y;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    border: 1px solid #d1d5db;
+    
+    /* As margens do papel, idênticas ao backend (xhtml2pdf) */
+    padding: 6.0cm 1.5cm 5.5cm 1.5cm;
+    box-sizing: border-box;
+}
+
+.tasy-preview-content {
+    width: 100%;
+    height: 100%;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    color: #222;
+    line-height: 1.5;
+}
