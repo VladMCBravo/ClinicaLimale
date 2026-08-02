@@ -29,7 +29,6 @@ import PontoKioskPage from './pages/PontoKioskPage'; // <-- NOVO IMPORT
 import ConfiguracoesPage from './pages/ConfiguracoesPage'; 
 
 import CRMKanbanPage from './pages/CRM/CRMKanbanPage';
-import DashboardExecutivoPage from './pages/CRM/DashboardExecutivoPage';
 import ProntuarioWorkspace from './pages/PainelMedico/ProntuarioWorkspace';
 
 const RotaInicialDinamica = () => {
