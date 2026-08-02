@@ -80,10 +80,7 @@ const LaudosPreviewModalV2 = ({
                     height: auto !important;
                     overflow: visible !important;
                 }
-                .tox-edit-area__iframe {
-                    height: 100% !important;
-                }
-
+                
                 .tox-edit-area, .tox-edit-area__iframe, .tox-editor-container { 
                     background: transparent !important; 
                 }
