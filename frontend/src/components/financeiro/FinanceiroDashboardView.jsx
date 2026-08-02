@@ -7,59 +7,35 @@ import {
 import { FaMoneyBillWave, FaChartLine, FaRegClock, FaExclamationTriangle } from 'react-icons/fa';
 import { faturamentoService } from '../../services/faturamentoService';
 
-// Cores corporativas (Estilo Tasy / ERP)
-const COLORS = ['#2e5b99', '#4b88d3', '#6caddf', '#96ccee']; 
+const COLORS = ['#2e5b99', '#4b88d3', '#6caddf', '#96ccee', '#b8daff', '#e9ecef']; 
 const ALERT_COLOR = '#d9534f';
 const SUCCESS_COLOR = '#5cb85c';
 
-// --- MOCKS TEMPORÁRIOS (Até ajustarmos a views.py do Django) ---
-const mockConsultasProc = [
-    { mes: 'Jan', consultas: 120, procedimentos: 45 },
-    { mes: 'Fev', consultas: 135, procedimentos: 52 },
-    { mes: 'Mar', consultas: 110, procedimentos: 38 },
-    { mes: 'Abr', consultas: 140, procedimentos: 60 },
-    { mes: 'Mai', consultas: 155, procedimentos: 65 },
-    { mes: 'Jun', consultas: 160, procedimentos: 72 },
-];
-
-const mockMedicos = [
-    { nome: 'Dr. Daniel', atendimentos: 145 },
-    { nome: 'Dra. Ana', atendimentos: 110 },
-    { nome: 'Dr. Carlos', atendimentos: 85 },
-    { nome: 'Dra. Julia', atendimentos: 50 },
-];
-
-const mockRecebimentos = [
-    { nome: 'Cartão de Crédito', valor: 45000 },
-    { nome: 'PIX', valor: 32000 },
-    { nome: 'Cartão de Débito', valor: 15000 },
-    { nome: 'Dinheiro', valor: 5000 },
-];
-
 export default function FinanceiroDashboardView() {
+    // 1. Estados para KPIs e Gráficos (começam vazios)
     const [kpis, setKpis] = useState({
-        valorOperacional: 0,
-        totalDespesas: 0,
-        saldo: 0,
-        ticketMedio: 0,
-        totalReceber: 0,
-        totalAtrasado: 0
+        valorOperacional: 0, totalDespesas: 0, saldo: 0, ticketMedio: 0, totalReceber: 0, totalAtrasado: 0
     });
+    const [consultasProc, setConsultasProc] = useState([]);
+    const [medicos, setMedicos] = useState([]);
+    const [recebimentos, setRecebimentos] = useState([]);
 
+    // 2. Busca os dados reais ao carregar o componente
     useEffect(() => {
-        // Busca os KPIs reais do seu backend já existente
         faturamentoService.getDashboardFinanceiro()
             .then(res => {
-                if(res.data && res.data.kpis) {
-                    setKpis(res.data.kpis);
+                if(res.data) {
+                    if(res.data.kpis) setKpis(res.data.kpis);
+                    if(res.data.grafico_consultas_proc) setConsultasProc(res.data.grafico_consultas_proc);
+                    if(res.data.grafico_medicos) setMedicos(res.data.grafico_medicos);
+                    if(res.data.grafico_recebimentos) setRecebimentos(res.data.grafico_recebimentos);
                 }
             })
-            .catch(err => console.error("Erro ao carregar KPIs:", err));
+            .catch(err => console.error("Erro ao carregar Dashboard Financeiro:", err));
     }, []);
 
     const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
-    // Sub-componente compacto para os KPIs (Tasy-like)
     const KpiCard = ({ titulo, valor, cor, icone }) => (
         <Paper className="tasy-flat-panel" sx={{ p: 1.5, display: 'flex', alignItems: 'center', height: '100%', borderLeft: `4px solid ${cor}` }}>
             <Box sx={{ flexGrow: 1 }}>
@@ -93,7 +69,7 @@ export default function FinanceiroDashboardView() {
             {/* 2. ÁREA DOS GRÁFICOS (Flex Grow para preencher a tela toda) */}
             <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0 }}>
                 
-                {/* Linha Superior de Gráficos (50% da altura restante) */}
+                {/* Linha Superior de Gráficos */}
                 <Box sx={{ flex: 1, display: 'flex', gap: 1, minHeight: 0 }}>
                     
                     {/* Gráfico 1: Consultas vs Procedimentos */}
@@ -101,7 +77,8 @@ export default function FinanceiroDashboardView() {
                         <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Consultas vs Procedimentos (6 Meses)</div>
                         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={mockConsultasProc} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                {/* CORREÇÃO AQUI: data={consultasProc} */}
+                                <BarChart data={consultasProc} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e9ecef"/>
                                     <XAxis dataKey="mes" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
                                     <YAxis tick={{fontSize: 11}} axisLine={false} tickLine={false} />
@@ -120,8 +97,10 @@ export default function FinanceiroDashboardView() {
                         <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex', alignItems: 'center' }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
-                                    <Pie data={mockRecebimentos} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="valor">
-                                        {mockRecebimentos.map((entry, index) => (
+                                    {/* CORREÇÃO AQUI: data={recebimentos} */}
+                                    <Pie data={recebimentos} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="valor">
+                                        {/* CORREÇÃO AQUI: recebimentos.map */}
+                                        {recebimentos.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
@@ -133,7 +112,7 @@ export default function FinanceiroDashboardView() {
                     </Paper>
                 </Box>
 
-                {/* Linha Inferior de Gráficos (50% da altura restante) */}
+                {/* Linha Inferior de Gráficos */}
                 <Box sx={{ flex: 1, display: 'flex', gap: 1, minHeight: 0 }}>
                     
                     {/* Gráfico 3: Atendimentos por Médico */}
@@ -141,7 +120,8 @@ export default function FinanceiroDashboardView() {
                         <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Atendimentos por Médico</div>
                         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={mockMedicos} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                                {/* CORREÇÃO AQUI: data={medicos} */}
+                                <BarChart data={medicos} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e9ecef"/>
                                     <XAxis type="number" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
                                     <YAxis dataKey="nome" type="category" tick={{fontSize: 11}} width={80} axisLine={false} tickLine={false} />
@@ -152,13 +132,13 @@ export default function FinanceiroDashboardView() {
                         </Box>
                     </Paper>
 
-                    {/* Espaço Extra / Gráfico 4: Evolução Financeira */}
+                    {/* Gráfico 4: Evolução Financeira */}
                     <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1 }}>
                         <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Evolução de Saldo (Fictício)</div>
                         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                {/* Utilizando um ComposedChart para mostrar uma linha de tendência */}
-                                <ComposedChart data={mockConsultasProc} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                {/* CORREÇÃO AQUI: data={consultasProc} */}
+                                <ComposedChart data={consultasProc} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                     <XAxis dataKey="mes" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
                                     <YAxis tick={{fontSize: 11}} axisLine={false} tickLine={false} />
