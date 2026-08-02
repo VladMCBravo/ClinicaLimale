@@ -44,7 +44,6 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
     const [historico, setHistorico] = useState([]);
     const [loadingHistorico, setLoadingHistorico] = useState(false);
 
-    // Reset ao abrir o Drawer
     useEffect(() => {
         if (open && item) {
             setActiveTab(0);
@@ -73,12 +72,8 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
         }
     };
 
-    // -----------------------------------------------------
-    // CÁLCULOS DINÂMICOS
-    // -----------------------------------------------------
     const valorOriginal = useMemo(() => parseFloat(item?.valor || 0), [item]);
     
-    // Calcula Matriz de Renegociação (Aba 1)
     useEffect(() => {
         if (!item || activeTab !== 1) return;
         
@@ -87,7 +82,7 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
         const final = Math.max(0, (valorOriginal + acrescimo) - desc);
 
         const qtd = Math.max(1, parseInt(configReneg.qtdParcelas) || 1);
-        const valParc = Math.floor((final / qtd) * 100) / 100; // Trunca em 2 casas
+        const valParc = Math.floor((final / qtd) * 100) / 100; 
         
         let acumulado = 0;
         const novas = [];
@@ -130,7 +125,6 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
     // AÇÕES DE BACKEND
     // -----------------------------------------------------
 
-    // Ação: ABA 0 (Baixa Direta)
     const handleConfirmarBaixaRapida = async () => {
         setSubmitting(true);
         try {
@@ -138,7 +132,6 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
             const isGrouped = item.ids && item.ids.length > 1;
 
             if (isGrouped) {
-                // Rateia o desconto entre os itens do lote (ex: 2 exames juntos)
                 const descontoPorItem = descTotal / item.originais.length;
                 await Promise.all(item.originais.map(orig => 
                     faturamentoService.realizarRecebimento(orig.id, {
@@ -146,7 +139,7 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
                         qtd_parcelas: formaPgto === 'CartaoCredito' ? parcelasSimples : 1,
                         data_pagamento: dataPgto.format('YYYY-MM-DD'),
                         desconto: descontoPorItem,
-                        valor_entrada: 0 // Sem entrada parcial, quita o item integralmente
+                        valor_entrada: 0 
                     })
                 ));
             } else {
@@ -166,7 +159,6 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
         } finally { setSubmitting(false); }
     };
 
-    // Ação: ABA 1 (Matriz de Renegociação Avançada)
     const handleConfirmarRenegociacao = async () => {
         setSubmitting(true);
         try {
@@ -185,7 +177,6 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
         } finally { setSubmitting(false); }
     };
 
-    // Ação: Cancelamento ou Reversão
     const handleAlterarStatus = async (novoStatus) => {
         setAnchorEl(null);
         if (!window.confirm(`Confirma alteração de status para: ${novoStatus.toUpperCase()}?`)) return;
@@ -209,7 +200,8 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
     const isCancelado = item.status === 'Cancelado';
 
     return (
-        <Box sx={{ width: { xs: '100%', md: 500 }, height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#f8f9fa' }}>
+        // CORREÇÃO APLICADA AQUI: width fixada em 100% para respeitar o limite do Drawer Pai.
+        <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#f8f9fa', overflowX: 'hidden' }}>
             
             {/* CABEÇALHO COMPACTO TASY */}
             <Box sx={{ px: 2, py: 1.5, bgcolor: '#ffffff', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -233,23 +225,21 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
                 </Box>
             </Box>
 
-            {/* ABAS */}
+            {/* ABAS COM NOMES MAIS CURTOS PARA CABEREM NO MONITOR */}
             <Tabs 
                 value={activeTab} 
                 onChange={(e, v) => setActiveTab(v)} 
                 variant="fullWidth" 
-                sx={{ bgcolor: '#ffffff', borderBottom: '1px solid #dee2e6', minHeight: 36, '& .MuiTab-root': { minHeight: 36, fontSize: '0.75rem', py: 0, fontWeight: 'bold' } }}
+                sx={{ bgcolor: '#ffffff', borderBottom: '1px solid #dee2e6', minHeight: 36, '& .MuiTab-root': { minHeight: 36, fontSize: '0.70rem', py: 0, fontWeight: 'bold' } }}
             >
-                <Tab icon={<AttachMoney fontSize="small"/>} iconPosition="start" label="Quitação Rápida" />
-                <Tab icon={<Handshake fontSize="small"/>} iconPosition="start" label="Matriz de Parcelas" />
-                <Tab icon={<History fontSize="small"/>} iconPosition="start" label="Extrato do Paciente" disabled={!item.paciente} />
+                <Tab icon={<AttachMoney fontSize="small"/>} iconPosition="start" label="Pagar" />
+                <Tab icon={<Handshake fontSize="small"/>} iconPosition="start" label="Parcelar" />
+                <Tab icon={<History fontSize="small"/>} iconPosition="start" label="Extrato" disabled={!item.paciente} />
             </Tabs>
 
             <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
                 
-                {/* ---------------------------------------------------------------- */}
-                {/* ABA 0: BAIXA RÁPIDA (À VISTA OU CARTÃO DIRETO)                   */}
-                {/* ---------------------------------------------------------------- */}
+                {/* ABA 0: BAIXA RÁPIDA */}
                 {activeTab === 0 && (
                     isPago ? (
                         <Box textAlign="center" py={4} bgcolor="#fff" borderRadius={2} border="1px solid #dee2e6">
@@ -272,8 +262,6 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
                         </Box>
                     ) : (
                         <Box display="flex" flexDirection="column" gap={2}>
-                            
-                            {/* CARD DE VALORES */}
                             <Paper variant="outlined" sx={{ p: 2, bgcolor: '#ffffff', borderColor: '#ced4da' }}>
                                 <Grid container justifyContent="space-between" alignItems="center">
                                     <Grid item>
@@ -350,9 +338,7 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
                     )
                 )}
 
-                {/* ---------------------------------------------------------------- */}
-                {/* ABA 1: MATRIZ DE RENEGOCIAÇÃO (MÚLTIPLOS MEIOS / ENTRADAS)      */}
-                {/* ---------------------------------------------------------------- */}
+                {/* ABA 1: MATRIZ DE RENEGOCIAÇÃO */}
                 {activeTab === 1 && !isPago && !isCancelado && (
                     <Box>
                         <Grid container spacing={1.5} sx={{ mb: 2 }}>
@@ -402,7 +388,6 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
                                                     />
                                                 </TableCell>
                                             </TableRow>
-                                            {/* Sub-linha para escolher a forma de pagamento se marcar "Pagar Agora" */}
                                             {p.pago_agora && (
                                                 <TableRow sx={{ bgcolor: '#e8f5e9' }}>
                                                     <TableCell colSpan={4} sx={{ pt: 0, pb: 1, borderBottom: 'none' }}>
@@ -435,9 +420,7 @@ export default function DrawerRecebimento({ open, onClose, item, onUpdate }) {
                     </Box>
                 )}
 
-                {/* ---------------------------------------------------------------- */}
-                {/* ABA 2: EXTRATO DO PACIENTE                                       */}
-                {/* ---------------------------------------------------------------- */}
+                {/* ABA 2: EXTRATO DO PACIENTE */}
                 {activeTab === 2 && (
                     <Box>
                         {loadingHistorico ? (
