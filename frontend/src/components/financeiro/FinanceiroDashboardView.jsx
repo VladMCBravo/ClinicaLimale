@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Grid, Paper, Typography } from '@mui/material';
 import { 
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-    PieChart, Pie, Cell, ComposedChart, Line
+    PieChart, Pie, Cell, ComposedChart, Line, LabelList
 } from 'recharts';
 import { FaMoneyBillWave, FaChartLine, FaRegClock, FaExclamationTriangle } from 'react-icons/fa';
 import { faturamentoService } from '../../services/faturamentoService';
