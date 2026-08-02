@@ -340,7 +340,7 @@ export default function ContasReceberView() {
                 PaperProps={{ sx: { width: { xs: '100%', md: 450 }, p: 0 } }}
             >
                 {selectedItem && (
-                    <DrawerRecebimento item={selectedItem} onClose={() => setDrawerOpen(false)} onUpdate={carregarDados} />
+                    <DrawerRecebimento open={drawerOpen} item={selectedItem} onClose={() => setDrawerOpen(false)} onUpdate={carregarDados} />
                 )}
             </Drawer>
             
