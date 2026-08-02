@@ -8,8 +8,8 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
 
 import { faturamentoService } from '../../services/faturamentoService';
-import LancamentoCaixaModal from './LancamentoCaixaModal';
-import { PatientDrawerContent } from './PatientPaymentDrawer';
+import ModalLancamentoAvulso from './ModalLancamentoAvulso';
+import DrawerRecebimento from './DrawerRecebimento';
 import { gerarPdfContasReceber } from '../../utils/pdfFinanceiro';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -330,19 +330,20 @@ export default function ContasReceberView() {
                 </Box>
             </Paper>
 
-            <LancamentoCaixaModal 
+            <ModalLancamentoAvulso 
                 open={modalOpen} 
                 onClose={() => { setModalOpen(false); carregarDados(); }}
-                initialType="receita" initialTab={0}
+                initialType="receita" 
             />
             <Drawer 
                 anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}
                 PaperProps={{ sx: { width: { xs: '100%', md: 450 }, p: 0 } }}
             >
                 {selectedItem && (
-                    <PatientDrawerContent item={selectedItem} onClose={() => setDrawerOpen(false)} onUpdate={carregarDados} />
+                    <DrawerRecebimento item={selectedItem} onClose={() => setDrawerOpen(false)} onUpdate={carregarDados} />
                 )}
             </Drawer>
+            
         </Box>
     );
 }
