@@ -1,268 +1,176 @@
-// src/components/financeiro/FinanceiroDashboardView.jsx
 import React, { useState, useEffect } from 'react';
-import { Button, IconButton, LinearProgress, Alert, Box, Typography } from '@mui/material';
+import { Box, Grid, Paper, Typography } from '@mui/material';
 import { 
-    TrendingDown, AccountBalanceWallet, AttachMoney, 
-    Storefront, Refresh, Public, CalendarMonth
-} from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { 
-    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-    PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar 
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+    PieChart, Pie, Cell, ComposedChart, Line
 } from 'recharts';
-import dayjs from 'dayjs';
-import 'dayjs/locale/pt-br';
-
-// Importa o CSS Unificado
-import './Financeiro.css';
-
+import { FaMoneyBillWave, FaChartLine, FaRegClock, FaExclamationTriangle } from 'react-icons/fa';
 import { faturamentoService } from '../../services/faturamentoService';
-import { agendamentoService } from '../../services/agendamentoService';
 
-dayjs.locale('pt-br');
+// Cores corporativas (Estilo Tasy / ERP)
+const COLORS = ['#2e5b99', '#4b88d3', '#6caddf', '#96ccee']; 
+const ALERT_COLOR = '#d9534f';
+const SUCCESS_COLOR = '#5cb85c';
 
-const COLORS = {
-    receita: '#2e7d32', despesa: '#d32f2f', saldo: '#1976d2',   
-    fixa: '#0288d1', variavel: '#ed6c02', pendente: '#f57c00',
-    atrasado: '#d32f2f', ocupacao: '#009688'
-};
+// --- MOCKS TEMPORÁRIOS (Até ajustarmos a views.py do Django) ---
+const mockConsultasProc = [
+    { mes: 'Jan', consultas: 120, procedimentos: 45 },
+    { mes: 'Fev', consultas: 135, procedimentos: 52 },
+    { mes: 'Mar', consultas: 110, procedimentos: 38 },
+    { mes: 'Abr', consultas: 140, procedimentos: 60 },
+    { mes: 'Mai', consultas: 155, procedimentos: 65 },
+    { mes: 'Jun', consultas: 160, procedimentos: 72 },
+];
 
-const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
-const formatK = (val) => val >= 1000 ? `${(val/1000).toFixed(0)}k` : val;
+const mockMedicos = [
+    { nome: 'Dr. Daniel', atendimentos: 145 },
+    { nome: 'Dra. Ana', atendimentos: 110 },
+    { nome: 'Dr. Carlos', atendimentos: 85 },
+    { nome: 'Dra. Julia', atendimentos: 50 },
+];
+
+const mockRecebimentos = [
+    { nome: 'Cartão de Crédito', valor: 45000 },
+    { nome: 'PIX', valor: 32000 },
+    { nome: 'Cartão de Débito', valor: 15000 },
+    { nome: 'Dinheiro', valor: 5000 },
+];
 
 export default function FinanceiroDashboardView() {
-    const [loading, setLoading] = useState(true);
-    const [filtroData, setFiltroData] = useState(dayjs()); 
-    const [modoGeral, setModoGeral] = useState(false);
-    
-    // Estado inicial seguro
-    const [dados, setDados] = useState({
-        kpis: { valorOperacional: 0, valorAportes: 0, totalDespesas: 0, despesasPagas: 0, saldo: 0, ticketMedio: 0 },
-        grafico_fluxo: [],
-        custos_mes: { fixas: 0, variaveis: 0 }
+    const [kpis, setKpis] = useState({
+        valorOperacional: 0,
+        totalDespesas: 0,
+        saldo: 0,
+        ticketMedio: 0,
+        totalReceber: 0,
+        totalAtrasado: 0
     });
 
-    const [operacional, setOperacional] = useState({ taxa_ocupacao: 0, ticket_medio_hora: 0 });
+    useEffect(() => {
+        // Busca os KPIs reais do seu backend já existente
+        faturamentoService.getDashboardFinanceiro()
+            .then(res => {
+                if(res.data && res.data.kpis) {
+                    setKpis(res.data.kpis);
+                }
+            })
+            .catch(err => console.error("Erro ao carregar KPIs:", err));
+    }, []);
 
-    const fetchDados = async () => {
-        setLoading(true);
-        try {
-            const params = {};
-            if (!modoGeral && filtroData) {
-                params.mes = filtroData.month() + 1;
-                params.ano = filtroData.year();
-            }
+    const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
-            const [resFin, resOp] = await Promise.all([
-                faturamentoService.getDashboardFinanceiro(params).catch(() => ({ data: null })),
-                agendamentoService.getDashboardKPIs ? agendamentoService.getDashboardKPIs(params).catch(() => ({ data: {} })) : { data: {} }
-            ]);
-            
-            if (resFin.data) {
-                // DEBUG: Verifique isso no Console do navegador (F12)
-                console.log("📊 [KPIs RECEBIDOS]:", resFin.data.kpis);
-                console.log("💰 Ticket Médio do Backend:", resFin.data.kpis?.ticketMedio);
-
-                setDados({
-                    ...resFin.data,
-                    grafico_fluxo: Array.isArray(resFin.data.grafico_fluxo) ? resFin.data.grafico_fluxo : []
-                });
-            }
-            if (resOp.data) setOperacional(resOp.data);
-
-        } catch (error) {
-            console.error("Erro dashboard", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => { fetchDados(); }, [filtroData, modoGeral]);
-
-    const kpis = dados?.kpis || {};
-    const custos = dados?.custos_mes || { fixas: 0, variaveis: 0 };
-    const fluxo = dados?.grafico_fluxo || [];
-
-    const dataPie = [
-        { name: 'Fixas', value: custos.fixas || 0 },
-        { name: 'Variáveis', value: custos.variaveis || 0 }
-    ];
-
-    const dataStatus = [
-        { name: 'Pago', valor: (kpis.valorOperacional || 0) + (kpis.valorAportes || 0), fill: COLORS.receita },
-        { name: 'Atrasado', valor: kpis.totalAtrasado || 0, fill: COLORS.atrasado }
-    ];
-
-    // CÁLCULO TOTAL PARA BARRA DE PROGRESSO (CORREÇÃO DO ERRO)
-    const totalRec = dataStatus.reduce((acc, item) => acc + item.valor, 0);
+    // Sub-componente compacto para os KPIs (Tasy-like)
+    const KpiCard = ({ titulo, valor, cor, icone }) => (
+        <Paper className="tasy-flat-panel" sx={{ p: 1.5, display: 'flex', alignItems: 'center', height: '100%', borderLeft: `4px solid ${cor}` }}>
+            <Box sx={{ flexGrow: 1 }}>
+                <Typography sx={{ fontSize: '0.70rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase' }}>
+                    {titulo}
+                </Typography>
+                <Typography sx={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#343a40', mt: 0.5 }}>
+                    {valor}
+                </Typography>
+            </Box>
+            <Box sx={{ color: cor, opacity: 0.8, fontSize: '1.5rem' }}>
+                {icone}
+            </Box>
+        </Paper>
+    );
 
     return (
-        <div className="fin-container">
-            {/* 1. BARRA DE FILTROS */}
-            <div className="fin-toolbar">
-                <div className="fin-filter-group">
-                    <Button 
-                        className="fin-btn-toggle"
-                        variant={modoGeral ? "contained" : "outlined"} 
-                        color={modoGeral ? "primary" : "inherit"}
-                        onClick={() => setModoGeral(!modoGeral)}
-                        startIcon={modoGeral ? <Public fontSize="small"/> : <CalendarMonth fontSize="small"/>}
-                        size="small"
-                    >
-                        {modoGeral ? "Visão Geral" : "Visão Mensal"}
-                    </Button>
+        // O container principal ocupa 100% do espaço que restou abaixo das abas, sem scroll
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 1, backgroundColor: '#f1f3f5', overflow: 'hidden' }}>
+            
+            {/* 1. LINHA DE KPIS (Altura fixa e compacta) */}
+            <Grid container spacing={1} sx={{ mb: 1, flexShrink: 0 }}>
+                <Grid item xs={2}><KpiCard titulo="Faturamento Realizado" valor={formatCurrency(kpis.valorOperacional)} cor={SUCCESS_COLOR} icone={<FaChartLine />} /></Grid>
+                <Grid item xs={2}><KpiCard titulo="Despesas Pagas" valor={formatCurrency(kpis.despesasPagas)} cor={ALERT_COLOR} icone={<FaMoneyBillWave />} /></Grid>
+                <Grid item xs={2}><KpiCard titulo="Saldo em Caixa" valor={formatCurrency(kpis.saldo)} cor={kpis.saldo >= 0 ? SUCCESS_COLOR : ALERT_COLOR} icone={<FaMoneyBillWave />} /></Grid>
+                <Grid item xs={2}><KpiCard titulo="Ticket Médio" valor={formatCurrency(kpis.ticketMedio)} cor="#0275d8" icone={<FaChartLine />} /></Grid>
+                <Grid item xs={2}><KpiCard titulo="Contas a Receber" valor={formatCurrency(kpis.totalReceber)} cor="#f0ad4e" icone={<FaRegClock />} /></Grid>
+                <Grid item xs={2}><KpiCard titulo="Inadimplência (Atraso)" valor={formatCurrency(kpis.totalAtrasado)} cor={ALERT_COLOR} icone={<FaExclamationTriangle />} /></Grid>
+            </Grid>
 
-                    {!modoGeral && (
-                        <DatePicker 
-                            views={['month', 'year']}
-                            value={filtroData}
-                            onChange={(v) => setFiltroData(v)}
-                            slotProps={{ textField: { size: 'small', variant: 'standard', sx: { width: 90 }, InputProps: { disableUnderline: true, style: { fontSize: '0.8rem', fontWeight: 600 } } } }}
-                        />
-                    )}
-                </div>
-                <IconButton size="small" onClick={fetchDados} title="Atualizar"><Refresh fontSize="small" /></IconButton>
-            </div>
-
-            {loading && <LinearProgress sx={{ mb: 1, height: 2 }} />}
-
-            {/* 2. CARDS DE KPI */}
-            <div className="fin-kpi-grid">
-                <KPICard title="FATURAMENTO" value={kpis.valorOperacional} icon={<Storefront />} color="success" subtext={`+ ${formatMoney(kpis.valorAportes)} aportes`} />
-                <KPICard title="DESPESAS" value={kpis.totalDespesas} icon={<TrendingDown />} color="danger" subtext={`Pago: ${formatMoney(kpis.despesasPagas)}`} />
-                <KPICard title="SALDO LÍQUIDO" value={kpis.saldo} icon={<AccountBalanceWallet />} color={(kpis.saldo||0) >= 0 ? "primary" : "danger"} subtext="Realizado" />
+            {/* 2. ÁREA DOS GRÁFICOS (Flex Grow para preencher a tela toda) */}
+            <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0 }}>
                 
-                {/* CARD TICKET MÉDIO COM DEBUG VISUAL (Se for 0 e houver faturamento, mostra alerta) */}
-                <KPICard 
-                    title="TICKET MÉDIO" 
-                    value={kpis.ticketMedio} 
-                    icon={<AttachMoney />} 
-                    color="warning" 
-                    subtext="Por paciente" 
-                />
-            </div>
-
-            {/* 3. GRÁFICOS */}
-            <div className="fin-charts-grid">
-                
-                {/* GRÁFICO PRINCIPAL */}
-                <div className="fin-chart-box">
-                    <div className="fin-chart-header">
-                        <span className="fin-chart-title">
-                            {modoGeral ? "EVOLUÇÃO ANUAL (12 MESES)" : "FLUXO DIÁRIO DO MÊS"}
-                        </span>
-                        <div style={{ display: 'flex', gap: 10, fontSize: '0.65rem' }}>
-                            <span style={{ color: COLORS.receita }}>● Entradas</span>
-                            <span style={{ color: COLORS.despesa }}>● Saídas</span>
-                        </div>
-                    </div>
-                    <div className="fin-chart-content">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={fluxo} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorEntradas" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={COLORS.receita} stopOpacity={0.2}/>
-                                        <stop offset="95%" stopColor={COLORS.receita} stopOpacity={0}/>
-                                    </linearGradient>
-                                    <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={COLORS.despesa} stopOpacity={0.2}/>
-                                        <stop offset="95%" stopColor={COLORS.despesa} stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                                <XAxis dataKey="name" style={{ fontSize: '0.65rem' }} axisLine={false} tickLine={false} dy={5} />
-                                <YAxis tickFormatter={formatK} style={{ fontSize: '0.65rem' }} axisLine={false} tickLine={false} />
-                                <RechartsTooltip formatter={(value) => formatMoney(value)} contentStyle={{ fontSize: '0.8rem', borderRadius: 8 }} />
-                                <Area type="monotone" dataKey="entradas" stroke={COLORS.receita} strokeWidth={2} fill="url(#colorEntradas)" />
-                                <Area type="monotone" dataKey="saidas" stroke={COLORS.despesa} strokeWidth={2} fill="url(#colorSaidas)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* SIDEBAR */}
-                <div className="fin-sidebar-stack">
-                    {/* Operacional */}
-                    <div className="fin-mini-panel" style={{ backgroundColor: '#e0f2f1', borderColor: '#b2dfdb' }}>
-                        <div className="fin-row">
-                            <span style={{ color: COLORS.ocupacao, fontWeight: 'bold' }}>OCUPAÇÃO</span>
-                            <span style={{ color: COLORS.ocupacao, fontWeight: 'bold' }}>{operacional.taxa_ocupacao || 0}%</span>
-                        </div>
-                        <LinearProgress variant="determinate" value={operacional.taxa_ocupacao || 0} sx={{ height: 6, borderRadius: 4, mb: 1, bgcolor: 'white', '& .MuiLinearProgress-bar': { bgcolor: COLORS.ocupacao } }} />
-                        <div className="fin-row">
-                            <span style={{ fontSize: '0.6rem', color: '#555' }}>Faturamento/Hora:</span>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 'bold' }}>{formatMoney(operacional.ticket_medio_hora)}</span>
-                        </div>
-                    </div>
-
-                    {/* Custos */}
-                    <div className="fin-mini-panel">
-                        <div className="fin-chart-title" style={{ marginBottom: 5 }}>CUSTOS</div>
-                        <div style={{ display: 'flex', alignItems: 'center', height: '100%', minHeight: 0 }}>
-                            <div style={{ width: '40%', height: 60 }}>
-                                <ResponsiveContainer>
-                                    <RechartsPieChart>
-                                        <Pie data={dataPie} innerRadius={12} outerRadius={25} paddingAngle={2} dataKey="value">
-                                            {dataPie.map((entry, index) => <Cell key={index} fill={index === 0 ? COLORS.fixa : COLORS.variavel} />)}
-                                        </Pie>
-                                    </RechartsPieChart>
-                                </ResponsiveContainer>
-                            </div>
-                            <div style={{ width: '60%', paddingLeft: 5 }}>
-                                <div className="fin-row"><span style={{ color: COLORS.fixa }}>Fixos</span> <span>{formatK(custos.fixas)}</span></div>
-                                <div className="fin-row"><span style={{ color: COLORS.variavel }}>Var.</span> <span>{formatK(custos.variaveis)}</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* --- RECEBIMENTOS (CORRIGIDO AQUI) --- */}
-                    <div className="fin-mini-panel">
-                        <div className="fin-chart-title" style={{ marginBottom: 10 }}>RECEBIMENTOS</div>
-                        
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            {dataStatus.map((item, index) => (
-                                <Box key={index}>
-                                    <Box display="flex" justifyContent="space-between" mb={0.5}>
-                                        <Typography variant="caption" fontWeight="bold" sx={{ color: item.fill, textTransform: 'uppercase' }}>
-                                            {item.name}
-                                        </Typography>
-                                        <Typography variant="caption" fontWeight="bold">
-                                            {formatMoney(item.valor)}
-                                        </Typography>
-                                    </Box>
-                                    <LinearProgress 
-                                        variant="determinate" 
-                                        // Calcula porcentagem relativa ao total (evita divisão por zero)
-                                        value={totalRec > 0 ? (item.valor / totalRec) * 100 : 0} 
-                                        sx={{ 
-                                            height: 8, 
-                                            borderRadius: 4, 
-                                            bgcolor: '#f5f5f5', 
-                                            '& .MuiLinearProgress-bar': { bgcolor: item.fill } 
-                                        }} 
-                                    />
-                                </Box>
-                            ))}
+                {/* Linha Superior de Gráficos (50% da altura restante) */}
+                <Box sx={{ flex: 1, display: 'flex', gap: 1, minHeight: 0 }}>
+                    
+                    {/* Gráfico 1: Consultas vs Procedimentos */}
+                    <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1 }}>
+                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Consultas vs Procedimentos (6 Meses)</div>
+                        <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={mockConsultasProc} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e9ecef"/>
+                                    <XAxis dataKey="mes" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '2px', border: '1px solid #dee2e6' }} />
+                                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                                    <Bar dataKey="consultas" name="Consultas" fill="#2e5b99" radius={[2, 2, 0, 0]} barSize={20} />
+                                    <Bar dataKey="procedimentos" name="Procedimentos" fill="#6caddf" radius={[2, 2, 0, 0]} barSize={20} />
+                                </BarChart>
+                            </ResponsiveContainer>
                         </Box>
-                    </div>
+                    </Paper>
 
-                </div>
-            </div>
-        </div>
+                    {/* Gráfico 2: Modos de Recebimento */}
+                    <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1 }}>
+                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Modo de Recebimento</div>
+                        <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex', alignItems: 'center' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie data={mockRecebimentos} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="valor">
+                                        {mockRecebimentos.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip formatter={(value) => formatCurrency(value)} contentStyle={{ fontSize: '12px' }} />
+                                    <Legend verticalAlign="middle" align="right" layout="vertical" wrapperStyle={{ fontSize: '11px' }} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </Box>
+                    </Paper>
+                </Box>
+
+                {/* Linha Inferior de Gráficos (50% da altura restante) */}
+                <Box sx={{ flex: 1, display: 'flex', gap: 1, minHeight: 0 }}>
+                    
+                    {/* Gráfico 3: Atendimentos por Médico */}
+                    <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1 }}>
+                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Atendimentos por Médico</div>
+                        <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={mockMedicos} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e9ecef"/>
+                                    <XAxis type="number" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <YAxis dataKey="nome" type="category" tick={{fontSize: 11}} width={80} axisLine={false} tickLine={false} />
+                                    <Tooltip contentStyle={{ fontSize: '12px' }} />
+                                    <Bar dataKey="atendimentos" name="Qtd. Atendimentos" fill="#4b88d3" radius={[0, 2, 2, 0]} barSize={15} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </Box>
+                    </Paper>
+
+                    {/* Espaço Extra / Gráfico 4: Evolução Financeira */}
+                    <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1 }}>
+                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Evolução de Saldo (Fictício)</div>
+                        <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                {/* Utilizando um ComposedChart para mostrar uma linha de tendência */}
+                                <ComposedChart data={mockConsultasProc} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="mes" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{fontSize: 11}} axisLine={false} tickLine={false} />
+                                    <Tooltip contentStyle={{ fontSize: '12px' }} />
+                                    <Line type="monotone" dataKey="consultas" name="Tendência" stroke="#d9534f" strokeWidth={2} dot={{ r: 3 }} />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </Box>
+                    </Paper>
+                </Box>
+            </Box>
+
+        </Box>
     );
 }
-
-const KPICard = ({ title, value, icon, color, subtext }) => (
-    <div className={`fin-card border-l-${color}`}>
-        <div className="fin-card-content">
-            <span className="fin-card-title">{title}</span>
-            <span className="fin-card-value" style={{ color: color === 'danger' ? COLORS.despesa : (color === 'success' ? COLORS.receita : '#1a233b') }}>
-                {formatMoney(value)}
-            </span>
-            <span className="fin-card-sub">{subtext}</span>
-        </div>
-        <div className="fin-card-icon" style={{ color: color === 'danger' ? COLORS.despesa : COLORS.receita }}>
-            {icon}
-        </div>
-    </div>
-);
