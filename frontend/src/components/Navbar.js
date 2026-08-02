@@ -141,7 +141,6 @@ const Navbar = () => {
                                 <>
                                     <NavLink to="/financeiro"><FaFileInvoiceDollar /> <span>Financeiro</span></NavLink>
                                     <NavLink to="/crm/kanban"><FaUserFriends /> <span>Funil CRM</span></NavLink>
-                                    <NavLink to="/crm/executivo"><FaTachometerAlt /> <span>Painel Executivo</span></NavLink>
                                 </>
                             )}
                         </nav>
