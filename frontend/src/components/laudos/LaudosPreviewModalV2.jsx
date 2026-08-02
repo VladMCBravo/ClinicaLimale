@@ -284,27 +284,11 @@ const LaudosPreviewModalV2 = ({
                             plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize',
                             toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
                             
-                            // === NOVO: dispara a paginação automática ===
-                            setup: (editor) => {
-                                const dispararPaginacaoDebounced = () => {
-                                    if (paginacaoTimeoutRef.current) clearTimeout(paginacaoTimeoutRef.current);
-                                    paginacaoTimeoutRef.current = setTimeout(() => {
-                                        autoPaginarConteudo(editor);
-                                    }, 600);
-                                };
-
-                                editor.on('input', dispararPaginacaoDebounced);
-                                editor.on('SetContent', dispararPaginacaoDebounced);
-                                editor.on('init', () => {
-                                    // ANTES: 300ms podia não ser suficiente pro autoresize calcular a altura real do body
-                                    // AGORA: 800ms + só dispara se o editor ainda estiver montado
-                                    setTimeout(() => {
-                                        if (editor && !editor.removed) {
-                                            autoPaginarConteudo(editor);
-                                        }
-                                    }, 800);
-                                });
-                            },
+                            // REMOVIDO: setup: (editor) => { ... autoPaginarConteudo ... }
+                            // O PDF final já pagina corretamente via @page do xhtml2pdf no backend,
+                            // então essa lógica JS era só estética para o preview — e frágil o bastante
+                            // para travar o editor. O botão manual de "pagebreak" na toolbar continua
+                            // disponível pra quem quiser inserir uma quebra visual no preview.
                             
                             content_style: `
                                 html { 
