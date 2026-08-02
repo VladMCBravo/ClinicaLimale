@@ -322,19 +322,22 @@ class FinanceiroDashboardAPIView(APIView):
                 for item in recebimentos_qs if item['valor'] > 0
             ]
 
-            # --- 2. ATENDIMENTOS POR MÉDICO (Gráfico de Barras Horizontais) ---
-            # Consideramos apenas o que de fato aconteceu
+            # --- 2. ATENDIMENTOS E RECEITA POR MÉDICO (Top 6) ---
             medicos_qs = agendamentos_periodo.filter(
                 status__in=['Realizado', 'Em Atendimento', 'Laudando', 'Finalizado'],
                 medico__isnull=False
             ).values('medico__first_name', 'medico__last_name')\
-             .annotate(atendimentos=Count('id'))\
-             .order_by('-atendimentos')[:6] # Top 6 para não quebrar o layout limpo
+             .annotate(
+                 atendimentos=Count('id'),
+                 # Coalesce garante que se não houver pagamento, ele retorne 0 ao invés de null
+                 receita=Coalesce(Sum('pagamento__valor'), Value(0.0), output_field=DecimalField())
+             ).order_by('-receita')[:6] # Agora ordenamos por quem gerou MAIS DINHEIRO
 
             grafico_medicos = [
                 {
-                    "nome": f"Dr(a). {m['medico__first_name']}",
-                    "atendimentos": m['atendimentos']
+                    "nome": f"{m['medico__first_name']}",
+                    "atendimentos": m['atendimentos'],
+                    "receita": float(m['receita'])
                 }
                 for m in medicos_qs
             ]
