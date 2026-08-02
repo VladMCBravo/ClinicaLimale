@@ -292,8 +292,16 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
         }
 
     def get_proxima_acao_imediata(self, obj):
-        acao = obj.acoes.filter(status='PENDENTE').order_by('data_alvo').first()
-        if acao:
+        # 🔥 CORREÇÃO DE PERFORMANCE: Em vez de ir ao banco com obj.acoes.filter(),
+        # nós usamos a lista já carregada na memória (prefetched).
+        acoes = list(obj.acoes.all())
+        acoes_pendentes = [a for a in acoes if a.status == 'PENDENTE']
+        
+        if acoes_pendentes:
+            # Ordena no Python em vez de usar order_by() do banco
+            acoes_pendentes.sort(key=lambda x: x.data_alvo)
+            acao = acoes_pendentes[0]
+            from django.utils import timezone
             return {
                 "descricao": acao.descricao,
                 "data_alvo": acao.data_alvo,
@@ -303,47 +311,35 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
 
     def get_dados_agendamento(self, obj):
         try:
-            # 1. Busca agendamentos vinculados a este ciclo
+            from django.utils import timezone
             hoje = timezone.now().date()
             
-            # Tenta acessar via related_name='agendamentos' (definido no model Agendamento)
-            if hasattr(obj, 'agendamentos'):
-                qs = obj.agendamentos.all()
-            else:
+            # 🔥 CORREÇÃO DE PERFORMANCE: Não usar .exists(), .filter() ou .first()
+            agendamentos = list(obj.agendamentos.all())
+            if not agendamentos:
                 return None
 
-            if not qs.exists():
-                return None
-
-            # Prioridade: Futuros > Hoje > Passado mais recente
-            agendamento = qs.filter(data_hora_inicio__date__gte=hoje).order_by('data_hora_inicio').first()
+            # Filtra no Python
+            futuros = [a for a in agendamentos if a.data_hora_inicio.date() >= hoje]
             
-            # Se não tiver futuro, pega o último realizado (para cards em F3/F4)
-            if not agendamento:
-                agendamento = qs.order_by('-data_hora_inicio').first()
+            if futuros:
+                futuros.sort(key=lambda x: x.data_hora_inicio)
+                agendamento = futuros[0]
+            else:
+                agendamentos.sort(key=lambda x: x.data_hora_inicio, reverse=True)
+                agendamento = agendamentos[0]
 
-            if not agendamento:
-                return None
-
-            # 2. Busca Status Financeiro de forma segura
+            # Busca Status Financeiro de forma segura
             status_pag = "Pendente"
             try:
-                # Tenta acesso direto se tiver relacionamento
-                if hasattr(agendamento, 'pagamento'):
+                if hasattr(agendamento, 'pagamento') and agendamento.pagamento:
                     status_pag = agendamento.pagamento.status
-                # Tenta acesso reverso padrão do Django
                 elif hasattr(agendamento, 'pagamento_set'):
-                    pag = agendamento.pagamento_set.first()
-                    if pag: status_pag = pag.status
-                # Última tentativa: busca direta no banco
-                else:
-                    Pagamento = apps.get_model('faturamento', 'Pagamento')
-                    pag = Pagamento.objects.filter(agendamento=agendamento).first()
-                    if pag: status_pag = pag.status
+                    pagamentos = list(agendamento.pagamento_set.all())
+                    if pagamentos: status_pag = pagamentos[0].status
             except Exception:
-                pass # Mantém como Pendente se der erro
+                pass
 
-            # 3. Nome do Procedimento
             procedimento_nome = "Consulta"
             if agendamento.procedimento:
                 procedimento_nome = agendamento.procedimento.descricao
@@ -357,8 +353,6 @@ class CicloKanbanSerializer(serializers.ModelSerializer):
                 "status_pag": status_pag
             }
         except Exception as e:
-            # Log silencioso para não quebrar a API inteira por um card com erro
-            print(f"Erro ao processar card {obj.id}: {e}")
             return None
 
 # --- 3. SERIALIZER DETALHADO (PESADO - PARA A FICHA DO CICLO) ---

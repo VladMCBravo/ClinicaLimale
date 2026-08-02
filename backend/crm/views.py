@@ -92,26 +92,31 @@ class CicloViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def kanban(self, request):
-        """
-        Retorna os dados agrupados.
-        """
-        # Filtra primeiro
-        queryset = self.filter_queryset(self.get_queryset().filter(status='ativo'))
+        import time
+        t0 = time.time()
         
-        # Serializa
+        # 1. Filtro e Query
+        queryset = self.filter_queryset(self.get_queryset().filter(status='ativo'))
+        t1 = time.time()
+        
+        # 2. Serialização (Onde a lentidão provavelmente mora)
         serializer = self.get_serializer(queryset, many=True)
         data_serializada = serializer.data
+        t2 = time.time()
 
-        # Agrupa os dados para o Frontend
-        # --- AQUI ESTÁ A CORREÇÃO DA F5 ---
+        print(f"⏱️ [CRM DEBUG] Busca no Banco: {t1 - t0:.3f}s | Serialização (O Gargalo): {t2 - t1:.3f}s")
+
+        # 3. Agrupamento
         kanban_data = { "F1": [], "F2": [], "F3": [], "F4": [], "F5": [], "ENCERRADO": [] }
-        
         for item in data_serializada:
             fase = item.get('fase_atual', 'F1')
             if fase in kanban_data:
                 kanban_data[fase].append(item)
             else:
                 kanban_data.setdefault(fase, []).append(item)
+                
+        t3 = time.time()
+        print(f"⏱️ [CRM DEBUG] Agrupamento Final: {t3 - t2:.3f}s | TEMPO TOTAL: {t3 - t0:.3f}s")
 
         return Response(kanban_data)
 
