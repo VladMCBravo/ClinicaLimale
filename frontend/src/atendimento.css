@@ -110,3 +110,46 @@
     padding: 0 1.5cm 5.5cm 1.5cm;
     box-sizing: border-box;
 }
+
+/* 6. PAINÉIS COMPACTOS DO FORMULÁRIO (Dashboard) */
+.tasy-panel {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-left: 3px solid var(--panel-accent, #868e96);
+    border-radius: 2px;
+    margin-bottom: 6px;
+}
+
+.tasy-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    cursor: pointer;
+    background: #fafbfc;
+    user-select: none;
+}
+.tasy-panel-header:hover { background: #f1f3f5; }
+.tasy-panel-header.open { border-bottom: 1px solid #e9ecef; }
+
+.tasy-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    color: #495057;
+}
+
+.tasy-panel-body {
+    padding: 8px 10px;
+}
+
+/* Acento de cor por tema — só a borda esquerda, mantendo o flat design */
+.tasy-panel.theme-purple { --panel-accent: #7048e8; }
+.tasy-panel.theme-blue   { --panel-accent: #1c7ed6; }
+.tasy-panel.theme-green  { --panel-accent: #2f9e44; }
+.tasy-panel.theme-red    { --panel-accent: #e03131; }
+.tasy-panel.theme-orange { --panel-accent: #e8590c; }
