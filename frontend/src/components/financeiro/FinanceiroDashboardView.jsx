@@ -7,59 +7,35 @@ import {
 import { FaMoneyBillWave, FaChartLine, FaRegClock, FaExclamationTriangle } from 'react-icons/fa';
 import { faturamentoService } from '../../services/faturamentoService';
 
-// Cores corporativas (Estilo Tasy / ERP)
-const COLORS = ['#2e5b99', '#4b88d3', '#6caddf', '#96ccee']; 
+const COLORS = ['#2e5b99', '#4b88d3', '#6caddf', '#96ccee', '#b8daff', '#e9ecef']; 
 const ALERT_COLOR = '#d9534f';
 const SUCCESS_COLOR = '#5cb85c';
 
-// --- MOCKS TEMPORÁRIOS (Até ajustarmos a views.py do Django) ---
-const mockConsultasProc = [
-    { mes: 'Jan', consultas: 120, procedimentos: 45 },
-    { mes: 'Fev', consultas: 135, procedimentos: 52 },
-    { mes: 'Mar', consultas: 110, procedimentos: 38 },
-    { mes: 'Abr', consultas: 140, procedimentos: 60 },
-    { mes: 'Mai', consultas: 155, procedimentos: 65 },
-    { mes: 'Jun', consultas: 160, procedimentos: 72 },
-];
-
-const mockMedicos = [
-    { nome: 'Dr. Daniel', atendimentos: 145 },
-    { nome: 'Dra. Ana', atendimentos: 110 },
-    { nome: 'Dr. Carlos', atendimentos: 85 },
-    { nome: 'Dra. Julia', atendimentos: 50 },
-];
-
-const mockRecebimentos = [
-    { nome: 'Cartão de Crédito', valor: 45000 },
-    { nome: 'PIX', valor: 32000 },
-    { nome: 'Cartão de Débito', valor: 15000 },
-    { nome: 'Dinheiro', valor: 5000 },
-];
-
 export default function FinanceiroDashboardView() {
+    // 1. Estados para KPIs e Gráficos (começam vazios)
     const [kpis, setKpis] = useState({
-        valorOperacional: 0,
-        totalDespesas: 0,
-        saldo: 0,
-        ticketMedio: 0,
-        totalReceber: 0,
-        totalAtrasado: 0
+        valorOperacional: 0, totalDespesas: 0, saldo: 0, ticketMedio: 0, totalReceber: 0, totalAtrasado: 0
     });
+    const [consultasProc, setConsultasProc] = useState([]);
+    const [medicos, setMedicos] = useState([]);
+    const [recebimentos, setRecebimentos] = useState([]);
 
+    // 2. Busca os dados reais ao carregar o componente
     useEffect(() => {
-        // Busca os KPIs reais do seu backend já existente
         faturamentoService.getDashboardFinanceiro()
             .then(res => {
-                if(res.data && res.data.kpis) {
-                    setKpis(res.data.kpis);
+                if(res.data) {
+                    if(res.data.kpis) setKpis(res.data.kpis);
+                    if(res.data.grafico_consultas_proc) setConsultasProc(res.data.grafico_consultas_proc);
+                    if(res.data.grafico_medicos) setMedicos(res.data.grafico_medicos);
+                    if(res.data.grafico_recebimentos) setRecebimentos(res.data.grafico_recebimentos);
                 }
             })
-            .catch(err => console.error("Erro ao carregar KPIs:", err));
+            .catch(err => console.error("Erro ao carregar Dashboard Financeiro:", err));
     }, []);
 
     const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
-    // Sub-componente compacto para os KPIs (Tasy-like)
     const KpiCard = ({ titulo, valor, cor, icone }) => (
         <Paper className="tasy-flat-panel" sx={{ p: 1.5, display: 'flex', alignItems: 'center', height: '100%', borderLeft: `4px solid ${cor}` }}>
             <Box sx={{ flexGrow: 1 }}>

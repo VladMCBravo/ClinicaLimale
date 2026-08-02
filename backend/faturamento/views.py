@@ -252,7 +252,7 @@ class PagamentoViewSet(viewsets.ModelViewSet):
 
 class FinanceiroDashboardAPIView(APIView):
     """
-    Dashboard Compacto e Otimizado.
+    Dashboard Compacto e Otimizado - Estilo ERP Tasy
     """
     permission_classes = [IsAuthenticated]
 
@@ -278,27 +278,25 @@ class FinanceiroDashboardAPIView(APIView):
 
             # --- PREPARAÇÃO DOS DADOS DE KPI (FILTRADOS) ---
             if modo_mensal:
-                # Filtragem Mensal
                 receitas_kpi = receitas_qs.filter(data_vencimento__month=mes, data_vencimento__year=ano)
                 despesas_kpi = despesas_qs.filter(data_despesa__month=mes, data_despesa__year=ano)
-                
-                # Pagos (Usamos data_pagamento para efetivação)
                 receitas_pagas = receitas_qs.filter(status='Pago', data_pagamento__month=mes, data_pagamento__year=ano)
                 despesas_pagas = despesas_qs.filter(pago=True, data_pagamento__month=mes, data_pagamento__year=ano)
+                
+                # Para agendamentos
+                agendamentos_periodo = Agendamento.objects.filter(data_hora_inicio__month=mes, data_hora_inicio__year=ano)
             else:
-                # Filtragem Geral (Acumulada)
                 receitas_kpi = receitas_qs
                 despesas_kpi = despesas_qs
                 receitas_pagas = receitas_qs.filter(status='Pago')
                 despesas_pagas = despesas_qs.filter(pago=True)
+                agendamentos_periodo = Agendamento.objects.all()
 
-            # --- CÁLCULO KPIS ---
+            # --- CÁLCULO KPIS (Já existia no seu código) ---
             total_operacional = receitas_pagas.filter(paciente__isnull=False).aggregate(t=Sum('valor'))['t'] or 0
             total_aportes = receitas_pagas.filter(paciente__isnull=True).aggregate(t=Sum('valor'))['t'] or 0
-            
             total_pendente = receitas_kpi.filter(status='Pendente').aggregate(t=Sum('valor'))['t'] or 0
             
-            # Atrasado sempre olha para o passado global se estiver no modo geral
             if modo_mensal:
                 total_atrasado = receitas_kpi.filter(status='Pendente', data_vencimento__lt=timezone.localdate()).aggregate(t=Sum('valor'))['t'] or 0
             else:
@@ -307,65 +305,74 @@ class FinanceiroDashboardAPIView(APIView):
             total_despesas_cadastradas = despesas_kpi.aggregate(t=Sum('valor'))['t'] or 0
             total_despesas_pagas_val = despesas_pagas.aggregate(t=Sum('valor'))['t'] or 0
             
-            # --- CORREÇÃO TICKET MÉDIO ---
             qtd_atendimentos = receitas_pagas.filter(paciente__isnull=False).count()
+            ticket_medio = total_operacional / qtd_atendimentos if qtd_atendimentos > 0 else 0
+
+            # =================================================================
+            # NOVOS GRÁFICOS PARA O DASHBOARD (PROCESSAMENTO DIRETO NO BD)
+            # =================================================================
             
-            if qtd_atendimentos > 0:
-                ticket_medio = total_operacional / qtd_atendimentos
-            else:
-                ticket_medio = 0
+            # --- 1. MODO DE RECEBIMENTO (Gráfico de Pizza) ---
+            recebimentos_qs = receitas_pagas.values('forma_pagamento').annotate(valor=Sum('valor')).order_by('-valor')
+            grafico_recebimentos = [
+                {
+                    "nome": item['forma_pagamento'] if item['forma_pagamento'] else "Não Informado",
+                    "valor": float(item['valor'])
+                }
+                for item in recebimentos_qs if item['valor'] > 0
+            ]
 
-            # --- GRÁFICO (FLUXO) ---
-            grafico_fluxo = []
+            # --- 2. ATENDIMENTOS POR MÉDICO (Gráfico de Barras Horizontais) ---
+            # Consideramos apenas o que de fato aconteceu
+            medicos_qs = agendamentos_periodo.filter(
+                status__in=['Realizado', 'Em Atendimento', 'Laudando', 'Finalizado'],
+                medico__isnull=False
+            ).values('medico__first_name', 'medico__last_name')\
+             .annotate(atendimentos=Count('id'))\
+             .order_by('-atendimentos')[:6] # Top 6 para não quebrar o layout limpo
+
+            grafico_medicos = [
+                {
+                    "nome": f"Dr(a). {m['medico__first_name']}",
+                    "atendimentos": m['atendimentos']
+                }
+                for m in medicos_qs
+            ]
+
+            # --- 3. CONSULTAS VS PROCEDIMENTOS (Últimos 6 Meses) ---
+            from dateutil.relativedelta import relativedelta # Garantindo o import
+            hoje = timezone.localdate()
+            limite_6m = (hoje.replace(day=1) - relativedelta(months=5))
             
-            if modo_mensal:
-                # Gráfico Diário
-                r_dia = receitas_pagas.annotate(dia=TruncDate('data_pagamento')).values('dia').annotate(total=Sum('valor'))
-                d_dia = despesas_pagas.annotate(dia=TruncDate('data_pagamento')).values('dia').annotate(total=Sum('valor'))
-                
-                mapa_r = {item['dia']: item['total'] for item in r_dia}
-                mapa_d = {item['dia']: item['total'] for item in d_dia}
-                
-                from calendar import monthrange
-                _, dias_no_mes = monthrange(ano, mes)
-                
-                for d in range(1, dias_no_mes + 1):
-                    data_obj = date(ano, mes, d)
-                    grafico_fluxo.append({
-                        "name": str(d),
-                        "entradas": float(mapa_r.get(data_obj, 0)),
-                        "saidas": float(mapa_d.get(data_obj, 0))
-                    })
-            else:
-                # Gráfico Mensal (Últimos 12 meses)
-                # IMPORTANTE: Usamos data_pagamento para refletir caixa real
-                limite = timezone.now().date() - timezone.timedelta(days=365)
-                
-                r_mes = receitas_qs.filter(status='Pago', data_pagamento__gte=limite)\
-                    .annotate(m=TruncMonth('data_pagamento')).values('m').annotate(total=Sum('valor'))
-                d_mes = despesas_qs.filter(pago=True, data_pagamento__gte=limite)\
-                    .annotate(m=TruncMonth('data_pagamento')).values('m').annotate(total=Sum('valor'))
+            evolucao_qs = Agendamento.objects.filter(
+                data_hora_inicio__date__gte=limite_6m,
+                status__in=['Realizado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Finalizado']
+            ).annotate(m=TruncMonth('data_hora_inicio'))\
+             .values('m', 'tipo_agendamento')\
+             .annotate(total=Count('id'))
 
-                # Formata chaves como "YYYY-MM" para o mapa
-                mapa_r = {item['m'].strftime('%Y-%m'): item['total'] for item in r_mes if item['m']}
-                mapa_d = {item['m'].strftime('%Y-%m'): item['total'] for item in d_mes if item['m']}
+            # Cria o esqueleto vazio para garantir que os meses apareçam mesmo se zerados
+            mapa_6m = {}
+            # Nomes dos meses em português simplificado
+            meses_pt = {1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun', 7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'}
+            
+            for i in range(5, -1, -1):
+                d_ref = hoje.replace(day=1) - relativedelta(months=i)
+                key = d_ref.strftime('%Y-%m')
+                mapa_6m[key] = {"mes": meses_pt[d_ref.month], "consultas": 0, "procedimentos": 0}
 
-                for i in range(11, -1, -1):
-                    # Gera as datas dos últimos 12 meses corretamente
-                    d_ref = (timezone.now().date().replace(day=1) - timezone.timedelta(days=30*i))
-                    # Ajuste fino para garantir mês correto
-                    key = d_ref.strftime('%Y-%m')
-                    label = d_ref.strftime('%b') # Ex: Fev
-                    
-                    grafico_fluxo.append({
-                        "name": label,
-                        "entradas": float(mapa_r.get(key, 0)),
-                        "saidas": float(mapa_d.get(key, 0))
-                    })
+            # Preenche o mapa com a resposta do banco de dados
+            for item in evolucao_qs:
+                if item['m']:
+                    key = item['m'].strftime('%Y-%m')
+                    if key in mapa_6m:
+                        tipo = str(item['tipo_agendamento']).lower()
+                        if 'consulta' in tipo:
+                            mapa_6m[key]["consultas"] += item['total']
+                        else:
+                            mapa_6m[key]["procedimentos"] += item['total']
 
-            # --- CUSTOS PIZZA ---
-            fixas = despesas_kpi.filter(categoria__tipo='Fixa').aggregate(t=Sum('valor'))['t'] or 0
-            variaveis = despesas_kpi.filter(categoria__tipo__in=['Variavel', 'Variavel (Consumo/Eventual)']).aggregate(t=Sum('valor'))['t'] or 0
+            grafico_consultas_proc = list(mapa_6m.values())
 
             return Response({
                 "kpis": {
@@ -378,11 +385,10 @@ class FinanceiroDashboardAPIView(APIView):
                     "totalReceber": float(total_pendente),
                     "totalAtrasado": float(total_atrasado)
                 },
-                    "grafico_fluxo": grafico_fluxo,
-                    "custos_mes": {
-                    "fixas": float(fixas),
-                    "variaveis": float(variaveis)
-                }
+                # Retornos recém processados para o Frontend
+                "grafico_recebimentos": grafico_recebimentos,
+                "grafico_medicos": grafico_medicos,
+                "grafico_consultas_proc": grafico_consultas_proc
             })
         except Exception as e:
             return Response({"erro": str(e)}, status=500)
