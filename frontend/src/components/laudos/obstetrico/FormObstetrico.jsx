@@ -45,15 +45,15 @@ const styles = {
 // COMPONENTE WRAPPER ATUALIZADO (Limpo e baseado em CSS)
 const DashboardPanel = ({ id, title, theme, icon: Icon, children, isOpen, onToggle }) => {
     return (
-        <div className={`dashboard-panel theme-${theme}`}>
-            <div className={`dashboard-panel-header ${isOpen ? 'open' : ''}`} onClick={() => onToggle(id)}>
-                <div className="dashboard-panel-title">
-                    {Icon && <Icon size={14} style={{ opacity: 0.8 }} />}
+        <div className={`tasy-panel theme-${theme}`}>
+            <div className={`tasy-panel-header ${isOpen ? 'open' : ''}`} onClick={() => onToggle(id)}>
+                <div className="tasy-panel-title">
+                    {Icon && <Icon size={12} style={{ opacity: 0.8 }} />}
                     <span>{title}</span>
                 </div>
-                {isOpen ? <FaChevronUp size={12} color="#999"/> : <FaChevronDown size={12} color="#999"/>}
+                {isOpen ? <FaChevronUp size={11} color="#adb5bd"/> : <FaChevronDown size={11} color="#adb5bd"/>}
             </div>
-            {isOpen && <div className="p-2">{children}</div>}
+            {isOpen && <div className="tasy-panel-body">{children}</div>}
         </div>
     );
 };
