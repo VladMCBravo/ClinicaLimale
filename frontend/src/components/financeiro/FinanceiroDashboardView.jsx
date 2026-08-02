@@ -69,7 +69,7 @@ export default function FinanceiroDashboardView() {
             {/* 2. ÁREA DOS GRÁFICOS (Flex Grow para preencher a tela toda) */}
             <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0 }}>
                 
-                {/* Linha Superior de Gráficos (50% da altura restante) */}
+                {/* Linha Superior de Gráficos */}
                 <Box sx={{ flex: 1, display: 'flex', gap: 1, minHeight: 0 }}>
                     
                     {/* Gráfico 1: Consultas vs Procedimentos */}
@@ -77,7 +77,8 @@ export default function FinanceiroDashboardView() {
                         <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Consultas vs Procedimentos (6 Meses)</div>
                         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={mockConsultasProc} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                {/* CORREÇÃO AQUI: data={consultasProc} */}
+                                <BarChart data={consultasProc} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e9ecef"/>
                                     <XAxis dataKey="mes" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
                                     <YAxis tick={{fontSize: 11}} axisLine={false} tickLine={false} />
@@ -96,8 +97,10 @@ export default function FinanceiroDashboardView() {
                         <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex', alignItems: 'center' }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
-                                    <Pie data={mockRecebimentos} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="valor">
-                                        {mockRecebimentos.map((entry, index) => (
+                                    {/* CORREÇÃO AQUI: data={recebimentos} */}
+                                    <Pie data={recebimentos} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="valor">
+                                        {/* CORREÇÃO AQUI: recebimentos.map */}
+                                        {recebimentos.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
                                     </Pie>
@@ -109,7 +112,7 @@ export default function FinanceiroDashboardView() {
                     </Paper>
                 </Box>
 
-                {/* Linha Inferior de Gráficos (50% da altura restante) */}
+                {/* Linha Inferior de Gráficos */}
                 <Box sx={{ flex: 1, display: 'flex', gap: 1, minHeight: 0 }}>
                     
                     {/* Gráfico 3: Atendimentos por Médico */}
@@ -117,7 +120,8 @@ export default function FinanceiroDashboardView() {
                         <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Atendimentos por Médico</div>
                         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={mockMedicos} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                                {/* CORREÇÃO AQUI: data={medicos} */}
+                                <BarChart data={medicos} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e9ecef"/>
                                     <XAxis type="number" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
                                     <YAxis dataKey="nome" type="category" tick={{fontSize: 11}} width={80} axisLine={false} tickLine={false} />
@@ -128,13 +132,13 @@ export default function FinanceiroDashboardView() {
                         </Box>
                     </Paper>
 
-                    {/* Espaço Extra / Gráfico 4: Evolução Financeira */}
+                    {/* Gráfico 4: Evolução Financeira */}
                     <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1 }}>
                         <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Evolução de Saldo (Fictício)</div>
                         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                {/* Utilizando um ComposedChart para mostrar uma linha de tendência */}
-                                <ComposedChart data={mockConsultasProc} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                {/* CORREÇÃO AQUI: data={consultasProc} */}
+                                <ComposedChart data={consultasProc} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                     <XAxis dataKey="mes" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
                                     <YAxis tick={{fontSize: 11}} axisLine={false} tickLine={false} />
