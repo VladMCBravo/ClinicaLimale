@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from django.db import transaction
 from django.db.models import Sum, Count, Case, When, Value, DecimalField, Q
 from django.db.models.functions import TruncDate, TruncMonth, Coalesce
-
+from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -252,172 +252,122 @@ class PagamentoViewSet(viewsets.ModelViewSet):
 
 class FinanceiroDashboardAPIView(APIView):
     """
-    Dashboard Compacto e Otimizado - Estilo ERP Tasy
+    Dashboard TASY - Fixo em 6 Meses com Drill-Down de Médicos e Procedimentos
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
-            # 1. Filtros (Convertendo para Inteiro com Segurança)
-            mes = request.query_params.get('mes')
-            ano = request.query_params.get('ano')
+            hoje = timezone.localdate()
+            limite_6m = hoje.replace(day=1) - relativedelta(months=5)
+
+            # --- 1. KPIS GERAIS (Últimos 6 Meses) ---
+            receitas_kpi = Pagamento.objects.filter(data_vencimento__gte=limite_6m)
+            despesas_kpi = Despesa.objects.filter(data_despesa__gte=limite_6m)
             
-            modo_mensal = False
-            if mes and ano and mes != 'undefined' and ano != 'undefined':
-                modo_mensal = True
-                mes = int(mes)
-                ano = int(ano)
-            else:
-                hoje = timezone.localdate()
-                mes = hoje.month
-                ano = hoje.year
+            receitas_pagas = Pagamento.objects.filter(status='Pago', data_pagamento__gte=limite_6m)
+            despesas_pagas = Despesa.objects.filter(pago=True, data_pagamento__gte=limite_6m)
 
-            # 2. Querysets Base
-            receitas_qs = Pagamento.objects.all()
-            despesas_qs = Despesa.objects.all()
-
-            # --- PREPARAÇÃO DOS DADOS DE KPI (FILTRADOS) ---
-            if modo_mensal:
-                receitas_kpi = receitas_qs.filter(data_vencimento__month=mes, data_vencimento__year=ano)
-                despesas_kpi = despesas_qs.filter(data_despesa__month=mes, data_despesa__year=ano)
-                receitas_pagas = receitas_qs.filter(status='Pago', data_pagamento__month=mes, data_pagamento__year=ano)
-                despesas_pagas = despesas_qs.filter(pago=True, data_pagamento__month=mes, data_pagamento__year=ano)
-                
-                # Para agendamentos
-                agendamentos_periodo = Agendamento.objects.filter(data_hora_inicio__month=mes, data_hora_inicio__year=ano)
-            else:
-                receitas_kpi = receitas_qs
-                despesas_kpi = despesas_qs
-                receitas_pagas = receitas_qs.filter(status='Pago')
-                despesas_pagas = despesas_qs.filter(pago=True)
-                agendamentos_periodo = Agendamento.objects.all()
-
-            # --- CÁLCULO KPIS (Já existia no seu código) ---
             total_operacional = receitas_pagas.filter(paciente__isnull=False).aggregate(t=Sum('valor'))['t'] or 0
             total_aportes = receitas_pagas.filter(paciente__isnull=True).aggregate(t=Sum('valor'))['t'] or 0
             total_pendente = receitas_kpi.filter(status='Pendente').aggregate(t=Sum('valor'))['t'] or 0
-            
-            if modo_mensal:
-                total_atrasado = receitas_kpi.filter(status='Pendente', data_vencimento__lt=timezone.localdate()).aggregate(t=Sum('valor'))['t'] or 0
-            else:
-                total_atrasado = receitas_qs.filter(status='Pendente', data_vencimento__lt=timezone.localdate()).aggregate(t=Sum('valor'))['t'] or 0
-
+            total_atrasado = receitas_kpi.filter(status='Pendente', data_vencimento__lt=hoje).aggregate(t=Sum('valor'))['t'] or 0
             total_despesas_cadastradas = despesas_kpi.aggregate(t=Sum('valor'))['t'] or 0
-            total_despesas_pagas_val = despesas_pagas.aggregate(t=Sum('valor'))['t'] or 0
+            despesas_pagas_val = despesas_pagas.aggregate(t=Sum('valor'))['t'] or 0
             
             qtd_atendimentos = receitas_pagas.filter(paciente__isnull=False).count()
             ticket_medio = total_operacional / qtd_atendimentos if qtd_atendimentos > 0 else 0
 
-            # =================================================================
-            # NOVOS GRÁFICOS PARA O DASHBOARD (PROCESSAMENTO DIRETO NO BD)
-            # =================================================================
-            
-            # --- 1. MODO DE RECEBIMENTO (Gráfico de Pizza) ---
+            # --- 2. MODO DE RECEBIMENTO (Pizza - 6 Meses) ---
             recebimentos_qs = receitas_pagas.values('forma_pagamento').annotate(valor=Sum('valor')).order_by('-valor')
             grafico_recebimentos = [
-                {
-                    "nome": item['forma_pagamento'] if item['forma_pagamento'] else "Não Informado",
-                    "valor": float(item['valor'])
-                }
+                {"nome": item['forma_pagamento'] if item['forma_pagamento'] else "Não Informado", "valor": float(item['valor'])}
                 for item in recebimentos_qs if item['valor'] > 0
             ]
 
-            # --- 2. ATENDIMENTOS E RECEITA POR MÉDICO (Top 6) ---
-            medicos_qs = agendamentos_periodo.filter(
-                status__in=['Realizado', 'Em Atendimento', 'Laudando', 'Finalizado'],
-                medico__isnull=False
-            ).values('medico__first_name', 'medico__last_name')\
-             .annotate(
-                 atendimentos=Count('id'),
-                 # Coalesce garante que se não houver pagamento, ele retorne 0 ao invés de null
-                 receita=Coalesce(Sum('pagamento__valor'), Value(0.0), output_field=DecimalField())
-             ).order_by('-receita')[:6] # Agora ordenamos por quem gerou MAIS DINHEIRO
-
-            grafico_medicos = [
-                {
-                    "nome": f"{m['medico__first_name']}",
-                    "atendimentos": m['atendimentos'],
-                    "receita": float(m['receita'])
-                }
-                for m in medicos_qs
-            ]
-
-            # --- 3. CONSULTAS VS PROCEDIMENTOS (Últimos 6 Meses) ---
-            from dateutil.relativedelta import relativedelta # Garantindo o import
-            hoje = timezone.localdate()
-            limite_6m = (hoje.replace(day=1) - relativedelta(months=5))
-            
-            evolucao_qs = Agendamento.objects.filter(
-                data_hora_inicio__date__gte=limite_6m,
-                status__in=['Realizado', 'Confirmado', 'Em Atendimento', 'Laudando', 'Finalizado']
-            ).annotate(m=TruncMonth('data_hora_inicio'))\
-             .values('m', 'tipo_agendamento')\
-             .annotate(total=Count('id'))
-
-            # Cria o esqueleto vazio para garantir que os meses apareçam mesmo se zerados
-            mapa_6m = {}
-            # Nomes dos meses em português simplificado
+            # PREPARAÇÃO DE CHAVES DOS ÚLTIMOS 6 MESES
             meses_pt = {1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun', 7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'}
+            lista_meses_keys = [(hoje.replace(day=1) - relativedelta(months=i)) for i in range(5, -1, -1)]
+
+            # --- 3. CONSULTAS VS PROCEDIMENTOS (Com Valores para o Modal) ---
+            agendamentos_6m = Agendamento.objects.filter(
+                data_hora_inicio__date__gte=limite_6m,
+                status__in=['Realizado', 'Em Atendimento', 'Laudando', 'Finalizado']
+            )
             
-            for i in range(5, -1, -1):
-                d_ref = hoje.replace(day=1) - relativedelta(months=i)
-                key = d_ref.strftime('%Y-%m')
-                mapa_6m[key] = {"mes": meses_pt[d_ref.month], "consultas": 0, "procedimentos": 0}
+            grafico_consultas_proc = []
+            for d_ref in lista_meses_keys:
+                ag_mes = agendamentos_6m.filter(data_hora_inicio__year=d_ref.year, data_hora_inicio__month=d_ref.month)
+                
+                # Agregando QTD e VALOR no mesmo laço
+                consultas = ag_mes.filter(tipo_agendamento='Consulta').aggregate(qtd=Count('id'), val=Coalesce(Sum('pagamento__valor'), Value(0.0), output_field=DecimalField()))
+                procedimentos = ag_mes.filter(tipo_agendamento='Procedimento').aggregate(qtd=Count('id'), val=Coalesce(Sum('pagamento__valor'), Value(0.0), output_field=DecimalField()))
+                
+                grafico_consultas_proc.append({
+                    "mes": meses_pt[d_ref.month],
+                    "consultas_qtd": consultas['qtd'],
+                    "consultas_valor": float(consultas['val']),
+                    "procedimentos_qtd": procedimentos['qtd'],
+                    "procedimentos_valor": float(procedimentos['val'])
+                })
 
-            # Preenche o mapa com a resposta do banco de dados
-            for item in evolucao_qs:
-                if item['m']:
-                    key = item['m'].strftime('%Y-%m')
-                    if key in mapa_6m:
-                        tipo = str(item['tipo_agendamento']).lower()
-                        if 'consulta' in tipo:
-                            mapa_6m[key]["consultas"] += item['total']
-                        else:
-                            mapa_6m[key]["procedimentos"] += item['total']
+            # --- 4. MÉDICOS (Todos os ativos, com quebra mensal para o Modal) ---
+            User = get_user_model()
+            medicos_ativos = User.objects.filter(cargo='medico', is_active=True).order_by('first_name')
+            grafico_medicos = []
 
-            grafico_consultas_proc = list(mapa_6m.values())
+            for medico in medicos_ativos:
+                ag_medico = agendamentos_6m.filter(medico=medico)
+                atend_total = ag_medico.count()
+                rec_total = ag_medico.aggregate(v=Coalesce(Sum('pagamento__valor'), Value(0.0), output_field=DecimalField()))['v']
+                
+                # Monta a tabela mensal que vai aparecer quando clicar no gráfico
+                detalhe_mensal = []
+                for d_ref in lista_meses_keys:
+                    ag_med_mes = ag_medico.filter(data_hora_inicio__year=d_ref.year, data_hora_inicio__month=d_ref.month)
+                    qtd_m = ag_med_mes.count()
+                    val_m = ag_med_mes.aggregate(v=Coalesce(Sum('pagamento__valor'), Value(0.0), output_field=DecimalField()))['v']
+                    detalhe_mensal.append({
+                        "mes": meses_pt[d_ref.month],
+                        "qtd": qtd_m,
+                        "valor": float(val_m)
+                    })
 
-            # --- 4. EVOLUÇÃO FINANCEIRA (Últimos 6 Meses) ---
-            mapa_fin = {}
-            for i in range(5, -1, -1):
-                d_ref = hoje.replace(day=1) - relativedelta(months=i)
-                key = d_ref.strftime('%Y-%m')
-                mapa_fin[key] = {"mes": meses_pt[d_ref.month], "receitas": 0, "despesas": 0}
+                nome_limpo = f"Dr(a). {medico.first_name}"
+                grafico_medicos.append({
+                    "nome": nome_limpo,
+                    "atendimentos": atend_total,
+                    "receita": float(rec_total),
+                    "detalhes": detalhe_mensal # <-- A mágica do drill-down vai aqui
+                })
 
-            # Receitas dos últimos 6 meses
-            rec_6m = receitas_pagas.filter(data_pagamento__gte=limite_6m)\
-                .annotate(m=TruncMonth('data_pagamento')).values('m').annotate(total=Sum('valor'))
-            for item in rec_6m:
-                if item['m']:
-                    key = item['m'].strftime('%Y-%m')
-                    if key in mapa_fin: mapa_fin[key]["receitas"] = float(item['total'])
+            # Ordenar médicos por receita decrescente (Os zerados vão pro final)
+            grafico_medicos.sort(key=lambda x: x['receita'], reverse=True)
 
-            # Despesas dos últimos 6 meses
-            desp_6m = despesas_pagas.filter(data_pagamento__gte=limite_6m)\
-                .annotate(m=TruncMonth('data_pagamento')).values('m').annotate(total=Sum('valor'))
-            for item in desp_6m:
-                if item['m']:
-                    key = item['m'].strftime('%Y-%m')
-                    if key in mapa_fin: mapa_fin[key]["despesas"] = float(item['total'])
-
-            # Calcula o Saldo Real
-            for k in mapa_fin:
-                mapa_fin[k]["saldo"] = mapa_fin[k]["receitas"] - mapa_fin[k]["despesas"]
-
-            grafico_evolucao = list(mapa_fin.values())
+            # --- 5. EVOLUÇÃO DE SALDO EM CAIXA ---
+            grafico_evolucao = []
+            for d_ref in lista_meses_keys:
+                rec_m = receitas_pagas.filter(data_pagamento__year=d_ref.year, data_pagamento__month=d_ref.month).aggregate(v=Sum('valor'))['v'] or 0
+                desp_m = despesas_pagas.filter(data_pagamento__year=d_ref.year, data_pagamento__month=d_ref.month).aggregate(v=Sum('valor'))['v'] or 0
+                
+                grafico_evolucao.append({
+                    "mes": meses_pt[d_ref.month],
+                    "receitas": float(rec_m),
+                    "despesas": float(desp_m),
+                    "saldo": float(rec_m) - float(desp_m)
+                })
 
             return Response({
                 "kpis": {
                     "valorOperacional": float(total_operacional),
                     "valorAportes": float(total_aportes),
                     "totalDespesas": float(total_despesas_cadastradas),
-                    "despesasPagas": float(total_despesas_pagas_val),
-                    "saldo": float(total_operacional + total_aportes - total_despesas_pagas_val),                    
+                    "despesasPagas": float(despesas_pagas_val),
+                    "saldo": float(total_operacional + total_aportes - despesas_pagas_val),                    
                     "ticketMedio": float(ticket_medio),
                     "totalReceber": float(total_pendente),
                     "totalAtrasado": float(total_atrasado)
                 },
-                # Retornos recém processados para o Frontend
                 "grafico_recebimentos": grafico_recebimentos,
                 "grafico_medicos": grafico_medicos,
                 "grafico_consultas_proc": grafico_consultas_proc,

@@ -1,52 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Grid, Paper, Typography, IconButton } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { ChevronLeft, ChevronRight } from '@mui/icons-material';
+import { 
+    Box, Grid, Paper, Typography, Dialog, DialogTitle, DialogContent, 
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton
+} from '@mui/material';
+import { Close } from '@mui/icons-material';
 import { 
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell, ComposedChart, Line, LabelList
 } from 'recharts';
 import { FaMoneyBillWave, FaChartLine, FaRegClock, FaExclamationTriangle } from 'react-icons/fa';
-import dayjs from 'dayjs';
-import 'dayjs/locale/pt-br';
-
 import { faturamentoService } from '../../services/faturamentoService';
-
-dayjs.locale('pt-br');
 
 const COLORS = ['#2e5b99', '#4b88d3', '#6caddf', '#96ccee', '#b8daff', '#e9ecef']; 
 const ALERT_COLOR = '#d9534f';
 const SUCCESS_COLOR = '#5cb85c';
 
-// --- NAVEGADOR DE MÊS INTEGRADO ---
-const NavegadorMes = ({ filtroData, setFiltroData }) => {
-    const irParaMesAnterior = () => setFiltroData(prev => prev.subtract(1, 'month'));
-    const irParaProximoMes = () => setFiltroData(prev => prev.add(1, 'month'));
-    const irParaMesAtual = () => setFiltroData(dayjs());
-    const nomeMes = filtroData.format('MMM').toLowerCase();
-
-    return (
-        <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#e9ecef', borderRadius: 1, px: 0.5, py: 0.2, height: 32 }}>
-            <IconButton size="small" onClick={irParaMesAnterior} sx={{ p: 0.5 }}>
-                <ChevronLeft fontSize="small" sx={{ color: '#495057' }} />
-            </IconButton>
-            <Typography 
-                variant="caption" onClick={irParaMesAtual} 
-                sx={{ cursor: 'pointer', fontWeight: 'bold', color: '#343a40', px: 1, minWidth: 35, textAlign: 'center', textTransform: 'uppercase', '&:hover': { color: 'primary.main' } }}
-            >
-                {nomeMes}
-            </Typography>
-            <IconButton size="small" onClick={irParaProximoMes} sx={{ p: 0.5 }}>
-                <ChevronRight fontSize="small" sx={{ color: '#495057' }} />
-            </IconButton>
-        </Box>
-    );
-};
+const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
 export default function FinanceiroDashboardView() {
-    // 1. Estados
-    const [filtroData, setFiltroData] = useState(dayjs()); // <-- Estado Global do Dashboard
-    
     const [kpis, setKpis] = useState({
         valorOperacional: 0, totalDespesas: 0, saldo: 0, ticketMedio: 0, totalReceber: 0, totalAtrasado: 0
     });
@@ -55,14 +26,16 @@ export default function FinanceiroDashboardView() {
     const [recebimentos, setRecebimentos] = useState([]);
     const [evolucao, setEvolucao] = useState([]);
 
-    // 2. Dispara a busca toda vez que o mês mudar
-    useEffect(() => {
-        const params = {
-            mes: filtroData.month() + 1,
-            ano: filtroData.year()
-        };
+    // Modais de Drill-Down
+    const [modalMesOpen, setModalMesOpen] = useState(false);
+    const [detalheMes, setDetalheMes] = useState(null);
+    
+    const [modalMedOpen, setModalMedOpen] = useState(false);
+    const [detalheMed, setDetalheMed] = useState(null);
 
-        faturamentoService.getDashboardFinanceiro(params)
+    // Busca os dados sem filtro de data (Backend gerencia os 6 meses)
+    useEffect(() => {
+        faturamentoService.getDashboardFinanceiro()
             .then(res => {
                 if(res.data) {
                     if(res.data.kpis) setKpis(res.data.kpis);
@@ -72,10 +45,22 @@ export default function FinanceiroDashboardView() {
                     if(res.data.grafico_evolucao) setEvolucao(res.data.grafico_evolucao);
                 }
             })
-            .catch(err => console.error("Erro ao carregar Dashboard:", err));
-    }, [filtroData]); // Dependência adicionada aqui!
+            .catch(err => console.error("Erro ao carregar Dashboard Financeiro:", err));
+    }, []);
 
-    const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
+    const handleOpenMes = (data) => {
+        if(data && data.activePayload) {
+            setDetalheMes(data.activePayload[0].payload);
+            setModalMesOpen(true);
+        }
+    };
+
+    const handleOpenMed = (data) => {
+        if(data && data.activePayload) {
+            setDetalheMed(data.activePayload[0].payload);
+            setModalMedOpen(true);
+        }
+    };
 
     const KpiCard = ({ titulo, valor, cor, icone }) => (
         <Paper className="tasy-flat-panel" sx={{ p: 1.5, display: 'flex', alignItems: 'center', height: '100%', borderLeft: `4px solid ${cor}` }}>
@@ -93,30 +78,14 @@ export default function FinanceiroDashboardView() {
         </Paper>
     );
 
-    // Remove o "Dr(a). " da string que vem do backend para caber limpo na barra
     const medicosLimpos = medicos.map(m => ({
         ...m,
-        nome: m.nome.replace('Dr(a). ', '').replace('Dr. ', '').replace('Dra. ', '')
+        nomeLimpo: m.nome.replace('Dr(a). ', '').replace('Dr. ', '').replace('Dra. ', '')
     }));
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 1, backgroundColor: '#f1f3f5', overflow: 'hidden' }}>
             
-            {/* 0. BARRA DE FILTRO GERAL DO DASHBOARD */}
-            <Paper className="tasy-flat-panel" sx={{ p: 1, mb: 1, display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                <Typography variant="subtitle2" fontWeight="bold" color="#343a40" sx={{ ml: 1, textTransform: 'uppercase', fontSize: '0.75rem' }}>
-                    Competência do Dashboard:
-                </Typography>
-                <DatePicker 
-                    views={['month', 'year']} 
-                    value={filtroData} 
-                    onChange={(v) => setFiltroData(v)} 
-                    className="tasy-compact-input"
-                    slotProps={{ textField: { size: 'small', sx: { width: 130 } } }}
-                />
-                <NavegadorMes filtroData={filtroData} setFiltroData={setFiltroData} />
-            </Paper>
-
             {/* 1. LINHA DE KPIS */}
             <Grid container spacing={1} sx={{ mb: 1, flexShrink: 0 }}>
                 <Grid item xs={2}><KpiCard titulo="Faturamento Realizado" valor={formatCurrency(kpis.valorOperacional)} cor={SUCCESS_COLOR} icone={<FaChartLine />} /></Grid>
@@ -131,25 +100,30 @@ export default function FinanceiroDashboardView() {
             <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0 }}>
                 
                 <Box sx={{ flex: 1, display: 'flex', gap: 1, minHeight: 0 }}>
+                    {/* Gráfico 1: Consultas vs Procedimentos */}
                     <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1 }}>
-                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Consultas vs Procedimentos (Histórico de 6 Meses)</div>
-                        <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Consultas vs Procedimentos (Qtd. 6 Meses) - Clique na barra para detalhes</div>
+                        <Box sx={{ flexGrow: 1, minHeight: 0, cursor: 'pointer' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={consultasProc} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                <BarChart data={consultasProc} margin={{ top: 5, right: 10, left: -20, bottom: 0 }} onClick={handleOpenMes}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e9ecef"/>
                                     <XAxis dataKey="mes" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
                                     <YAxis tick={{fontSize: 11}} axisLine={false} tickLine={false} />
+                                    
+                                    {/* Tooltip mostra a quantidade, mas o modal mostra os valores */}
                                     <Tooltip contentStyle={{ fontSize: '12px', borderRadius: '4px', border: '1px solid #dee2e6' }} cursor={{fill: '#f8f9fa'}} />
                                     <Legend wrapperStyle={{ fontSize: '11px' }} />
-                                    <Bar dataKey="consultas" name="Consultas" fill="#2e5b99" radius={[2, 2, 0, 0]} barSize={20} />
-                                    <Bar dataKey="procedimentos" name="Procedimentos" fill="#6caddf" radius={[2, 2, 0, 0]} barSize={20} />
+                                    
+                                    <Bar dataKey="consultas_qtd" name="Qtd. Consultas" fill="#2e5b99" radius={[2, 2, 0, 0]} barSize={20} />
+                                    <Bar dataKey="procedimentos_qtd" name="Qtd. Procedimentos" fill="#6caddf" radius={[2, 2, 0, 0]} barSize={20} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </Box>
                     </Paper>
 
+                    {/* Gráfico 2: Modos de Recebimento */}
                     <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1 }}>
-                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Recebimento por Meio de Pagamento (Mês Atual)</div>
+                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Modo de Recebimento (6 Meses)</div>
                         <Box sx={{ flexGrow: 1, minHeight: 0, display: 'flex', alignItems: 'center' }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
@@ -167,16 +141,16 @@ export default function FinanceiroDashboardView() {
                 </Box>
 
                 <Box sx={{ flex: 1, display: 'flex', gap: 1, minHeight: 0 }}>
+                    {/* Gráfico 3: Atendimentos por Médico */}
                     <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1 }}>
-                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Geração de Receita por Médico (Mês Atual)</div>
-                        <Box sx={{ flexGrow: 1, minHeight: 0 }}>
+                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Geração de Receita por Médico (6 Meses) - Clique na barra para detalhes</div>
+                        <Box sx={{ flexGrow: 1, minHeight: 0, cursor: 'pointer' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={medicosLimpos} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                                <BarChart data={medicosLimpos} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 0 }} onClick={handleOpenMed}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e9ecef"/>
                                     <XAxis type="number" hide /> 
-                                    <YAxis dataKey="nome" type="category" hide /> 
+                                    <YAxis dataKey="nomeLimpo" type="category" hide /> 
                                     
-                                    {/* TOOLTIP CUSTOMIZADO PARA MOSTRAR DINHEIRO E QUANTIDADE */}
                                     <Tooltip 
                                         cursor={{fill: '#f8f9fa'}}
                                         content={({ active, payload }) => {
@@ -186,10 +160,10 @@ export default function FinanceiroDashboardView() {
                                                     <Paper sx={{ p: 1.5, border: '1px solid #dee2e6', borderRadius: 1 }}>
                                                         <Typography variant="subtitle2" fontWeight="bold" color="#343a40">{data.nome}</Typography>
                                                         <Typography variant="body2" color="success.main" fontWeight="bold" mt={0.5}>
-                                                            Receita Gerada: {formatCurrency(data.receita)}
+                                                            Receita: {formatCurrency(data.receita)}
                                                         </Typography>
                                                         <Typography variant="caption" color="text.secondary" display="block">
-                                                            Pacientes Atendidos: {data.atendimentos}
+                                                            Atendimentos (6m): {data.atendimentos}
                                                         </Typography>
                                                     </Paper>
                                                 );
@@ -198,9 +172,8 @@ export default function FinanceiroDashboardView() {
                                         }}
                                     />
 
-                                    {/* A BARRA AGORA CRESCE BASEADA NO DINHEIRO (dataKey="receita") */}
                                     <Bar dataKey="receita" name="Receita" fill="#4b88d3" radius={[0, 2, 2, 0]} barSize={22}>
-                                        <LabelList dataKey="nome" position="insideLeft" fill="#ffffff" fontSize={11} offset={8} />
+                                        <LabelList dataKey="nomeLimpo" position="insideLeft" fill="#ffffff" fontSize={11} offset={8} />
                                         <LabelList dataKey="receita" formatter={(val) => formatCurrency(val)} position="insideRight" fill="#ffffff" fontSize={11} offset={8} />
                                     </Bar>
                                 </BarChart>
@@ -208,8 +181,9 @@ export default function FinanceiroDashboardView() {
                         </Box>
                     </Paper>
 
+                    {/* Gráfico 4: Evolução Financeira */}
                     <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 1 }}>
-                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Evolução de Saldo em Caixa (Histórico de 6 Meses)</div>
+                        <div className="tasy-section-header" style={{ margin: '-8px -8px 8px -8px' }}>Evolução de Saldo em Caixa (6 Meses)</div>
                         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <ComposedChart data={evolucao} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -224,6 +198,96 @@ export default function FinanceiroDashboardView() {
                     </Paper>
                 </Box>
             </Box>
+
+            {/* ========================================================= */}
+            {/* MODAL 1: DETALHES DO MÊS (Consultas vs Procedimentos)     */}
+            {/* ========================================================= */}
+            <Dialog open={modalMesOpen} onClose={() => setModalMesOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ p: 2, bgcolor: '#f8f9fa', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                        Detalhamento Operacional: {detalheMes?.mes}
+                    </Typography>
+                    <IconButton size="small" onClick={() => setModalMesOpen(false)}><Close /></IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ p: 0 }}>
+                    <TableContainer>
+                        <Table>
+                            <TableHead sx={{ bgcolor: '#e9ecef' }}>
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Tipo de Serviço</TableCell>
+                                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Quantidade</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Receita Gerada</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                <TableRow>
+                                    <TableCell>Consultas Médicas</TableCell>
+                                    <TableCell align="center">{detalheMes?.consultas_qtd}</TableCell>
+                                    <TableCell align="right" sx={{ color: '#2e7d32', fontWeight: 'bold' }}>{formatCurrency(detalheMes?.consultas_valor)}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                    <TableCell>Procedimentos / Exames</TableCell>
+                                    <TableCell align="center">{detalheMes?.procedimentos_qtd}</TableCell>
+                                    <TableCell align="right" sx={{ color: '#2e7d32', fontWeight: 'bold' }}>{formatCurrency(detalheMes?.procedimentos_valor)}</TableCell>
+                                </TableRow>
+                                <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>TOTAL DO MÊS</TableCell>
+                                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                                        {(detalheMes?.consultas_qtd || 0) + (detalheMes?.procedimentos_qtd || 0)}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: '900', color: '#1a233b' }}>
+                                        {formatCurrency((detalheMes?.consultas_valor || 0) + (detalheMes?.procedimentos_valor || 0))}
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </DialogContent>
+            </Dialog>
+
+            {/* ========================================================= */}
+            {/* MODAL 2: DETALHES DO MÉDICO (Quebra Mensal)               */}
+            {/* ========================================================= */}
+            <Dialog open={modalMedOpen} onClose={() => setModalMedOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle sx={{ p: 2, bgcolor: '#f8f9fa', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                        Detalhamento: {detalheMed?.nome}
+                    </Typography>
+                    <IconButton size="small" onClick={() => setModalMedOpen(false)}><Close /></IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ p: 0 }}>
+                    <TableContainer>
+                        <Table size="small">
+                            <TableHead sx={{ bgcolor: '#e9ecef' }}>
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Mês</TableCell>
+                                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>Atendimentos</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: 'bold' }}>Receita Gerada</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {detalheMed?.detalhes?.map((row, idx) => (
+                                    <TableRow key={idx} hover>
+                                        <TableCell>{row.mes}</TableCell>
+                                        <TableCell align="center">{row.qtd}</TableCell>
+                                        <TableCell align="right" sx={{ color: row.valor > 0 ? '#2e7d32' : '#999', fontWeight: row.valor > 0 ? 'bold' : 'normal' }}>
+                                            {formatCurrency(row.valor)}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                <TableRow sx={{ bgcolor: '#f8f9fa' }}>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>ACUMULADO (6 MESES)</TableCell>
+                                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>{detalheMed?.atendimentos}</TableCell>
+                                    <TableCell align="right" sx={{ fontWeight: '900', color: '#1a233b' }}>
+                                        {formatCurrency(detalheMed?.receita)}
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </DialogContent>
+            </Dialog>
+
         </Box>
     );
 }
