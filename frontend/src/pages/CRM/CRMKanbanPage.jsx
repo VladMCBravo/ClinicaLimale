@@ -1,13 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
-  Box, Typography, LinearProgress, TextField, InputAdornment, Paper, ToggleButton, ToggleButtonGroup, Button, Grid
+  Box, Typography, LinearProgress, TextField, InputAdornment, Paper, Button
 } from '@mui/material';
-import { FaSearch, FaListUl, FaChartBar, FaFilePdf } from 'react-icons/fa';
+import { FaSearch, FaFilePdf } from 'react-icons/fa';
 import CicloDetalhesModal from './CicloDetalhesModal';
 import { crmService } from '../../services/crmService';
 
 import TableView from './TableView';
-import GraficosView from './GraficosView';
 // Import do CSS TASY
 import '../../atendimento.css';
 
@@ -18,7 +17,6 @@ export default function CRMPage() {
   const [kpis, setKpis] = useState({ totalPacientes: 0, receitaTotal: 0 });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('table'); 
   
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCicloId, setSelectedCicloId] = useState(null);
@@ -28,8 +26,6 @@ export default function CRMPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      // O backend ainda retorna no formato kanban {F1: [], F2: []}, 
-      // mas vamos achatar (flat) tudo em uma única lista de alta performance.
       const response = await crmService.getKanban();
       
       const todasFases = [
@@ -40,16 +36,14 @@ export default function CRMPage() {
         ...(response.data.F5 || [])
       ];
 
-      // Ordena cronologicamente por agendamento ou data de início
       const listaOrdenada = todasFases.sort((a, b) => {
           const dateA = a.dados_agendamento?.data ? new Date(a.dados_agendamento.data) : new Date(a.data_inicio || 0);
           const dateB = b.dados_agendamento?.data ? new Date(b.dados_agendamento.data) : new Date(b.data_inicio || 0);
-          return dateB - dateA; // Mais recentes primeiro
+          return dateB - dateA;
       });
 
       setFlatData(listaOrdenada);
       
-      // Calcula KPIs rápidos para o topo
       setKpis({
         totalPacientes: listaOrdenada.length,
         receitaTotal: listaOrdenada.reduce((acc, curr) => acc + (parseFloat(curr.receita_acumulada) || 0), 0)
@@ -86,7 +80,6 @@ export default function CRMPage() {
   if (loading) return <LinearProgress />;
 
   return (
-    // Utilizando a classe tasy-workspace para o controle fino das barras de rolagem
     <Box className="tasy-workspace" sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', p: 1.5, bgcolor: '#f4f5f7', overflow: 'hidden' }}>
       
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5, flexShrink: 0 }}>
@@ -96,14 +89,7 @@ export default function CRMPage() {
           <Button variant="outlined" size="small" startIcon={<FaFilePdf />} onClick={() => window.print()} sx={{ bgcolor: 'white', height: 32, fontSize: '0.75rem' }}>
             Imprimir
           </Button>
-
-          {/* Kanban removido. Apenas Tabela e Gráficos */}
-          <ToggleButtonGroup value={viewMode} exclusive onChange={(e, n) => n && setViewMode(n)} size="small" sx={{ bgcolor: 'white', height: 32 }}>
-            <ToggleButton value="table" sx={{ py: 0, px: 1.5, fontSize: '0.75rem' }}><FaListUl style={{ marginRight: '6px' }} /> Tabela</ToggleButton>
-            <ToggleButton value="graficos" sx={{ py: 0, px: 1.5, fontSize: '0.75rem' }}><FaChartBar style={{ marginRight: '6px' }} /> Dashboard</ToggleButton>
-          </ToggleButtonGroup>
           
-          {/* Aplicação do TASY Input Compacto */}
           <TextField 
             className="tasy-compact-input"
             size="small" 
@@ -116,7 +102,6 @@ export default function CRMPage() {
         </Box>
       </Box>
 
-      {/* Tira os blocos coloridos do Kanban e adiciona um Header discreto estilo TASY */}
       <Paper elevation={0} className="tasy-flat-panel" sx={{ p: 1, mb: 1.5, display: 'flex', gap: 3, bgcolor: '#fff' }}>
         <Typography variant="body2" sx={{ color: '#495057', fontSize: '13px' }}>
           <strong>Total Ativos:</strong> {kpis.totalPacientes} pacientes
@@ -126,11 +111,8 @@ export default function CRMPage() {
         </Typography>
       </Paper>
 
-      {/* ÁREA DE CONTEÚDO */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', minHeight: 0 }}>
-        {viewMode === 'table' && <TableView displayedCards={displayedCards} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />}
-        {/* GráficosView permanece compatível pois você já importava as PHASES lá dentro no arquivo antigo, caso quebre, basta passar os dados limpos */}
-        {viewMode === 'graficos' && <GraficosView rawData={flatData} />}
+        <TableView displayedCards={displayedCards} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />
       </Box>
 
       <CicloDetalhesModal open={modalOpen} onClose={() => setModalOpen(false)} cicloId={selectedCicloId} onUpdate={loadData} />
