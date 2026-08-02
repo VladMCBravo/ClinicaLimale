@@ -313,6 +313,7 @@ export default function DespesasView() {
             >
                 {selectedItem && (
                     <DrawerDespesa 
+                        open={drawerOpen} 
                         item={selectedItem} 
                         onClose={() => setDrawerOpen(false)} 
                         onUpdate={carregarDados} 
