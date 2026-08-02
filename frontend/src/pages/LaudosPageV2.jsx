@@ -298,7 +298,13 @@ const LaudosPageV2 = () => {
       <div className="tasy-flat-panel" style={{ flex: 2, minWidth: '700px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #dee2e6', minHeight: 0 }}>
         
         {/* BARRA DE FERRAMENTAS SUPERIOR (IDENTIFICAÇÃO) */}
-        <div style={{ background: '#f8f9fa', borderBottom: `1px solid ${theme.border}`, padding: '10px 16px', display: 'grid', gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px', gap: '12px', alignItems: 'center', flexShrink: 0, zIndex: 20 }}>
+        <div style={{ 
+            background: '#f8f9fa', borderBottom: `1px solid ${theme.border}`, 
+            padding: '0 16px', height: '48px',   // <-- era '10px 16px'
+            display: 'grid', 
+            gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px', 
+            gap: '12px', alignItems: 'center', flexShrink: 0, zIndex: 20 
+        }}>
             {/* PACIENTE */}
             <div className="tasy-compact-input" style={{position: 'relative', background: '#fff', border: '1px solid #ced4da', borderRadius: '3px', display: 'flex', alignItems: 'center', height: '32px'}}> 
                 <div style={{ padding: '0 10px', color: '#6c757d' }}><FaUserInjured size={13} /></div>
@@ -399,8 +405,7 @@ const LaudosPageV2 = () => {
         </div>
 
         {/* ÁREA DO FORMULÁRIO DINÂMICO DE MEDIDAS */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: '#ffffff' }}> 
-            <div className="tasy-section-header">Preenchimento Clínico</div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 16px 16px', background: '#ffffff' }}> 
             {tipoExame === 'OBSTETRICO' && <FormObstetrico key={`${paciente?.id || 'novo'}-${dadosEstruturados?.sexo || ''}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
             {tipoExame === 'ABDOME' && <FormAbdome key={`${paciente?.id || 'novo'}-${dadosEstruturados?.sexo || ''}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
             {tipoExame === 'TRANSVAGINAL' && <FormTransvaginal key={`${paciente?.id || 'novo'}-${tipoExame}`} onUpdate={handleFormUpdate} initialValues={dadosEstruturados} />}
@@ -415,7 +420,10 @@ const LaudosPageV2 = () => {
          <div className="tasy-flat-panel" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
              
              {/* BARRA DE AÇÕES */}
-             <Box sx={{ px: 2, background: '#f8f9fa', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '45px', flexShrink: 0 }}>
+             <Box sx={{ px: 2, background: '#f8f9fa', borderBottom: '1px solid #dee2e6', 
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                height: '48px',   // <-- era '45px'
+                flexShrink: 0 }}>
                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                      <FaFileSignature color="#495057" size={14} />
                      <Typography variant="caption" sx={{ fontWeight: 600, color: '#495057', fontSize: '12px', textTransform: 'uppercase' }}>Pré-visualização</Typography>
@@ -444,9 +452,21 @@ const LaudosPageV2 = () => {
                             if (!textoFinal) return alert("Preencha as medidas para gerar o laudo.");
                             setModalRevisaoOpen(true);
                         }} 
-                        sx={{ background: '#1864ab', textTransform: 'none', fontWeight: '600', fontSize: '11px', ml: 1, boxShadow: 'none', '&:hover': { background: '#1971c2', boxShadow: 'none' } }}
+                        sx={{ 
+                            background: '#1864ab', 
+                            textTransform: 'uppercase', 
+                            fontWeight: 700, 
+                            fontSize: '11px', 
+                            ml: 1, 
+                            height: '30px',
+                            minWidth: 'auto',
+                            px: 2,
+                            whiteSpace: 'nowrap',
+                            boxShadow: 'none', 
+                            '&:hover': { background: '#1971c2', boxShadow: 'none' } 
+                        }}
                     >
-                        Abrir Editor Visual
+                        Editor
                     </Button>
                  </Stack>
              </Box>
