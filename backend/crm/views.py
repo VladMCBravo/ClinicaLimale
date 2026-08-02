@@ -16,7 +16,18 @@ from .serializers import (
 from .services import CRMService
 
 class CicloViewSet(viewsets.ModelViewSet):
-    queryset = Ciclo.objects.all().order_by('-data_inicio')
+    # ========================================================
+    # OTIMIZAÇÃO DE PERFORMANCE (FIM DA LENTIDÃO)
+    # ========================================================
+    queryset = Ciclo.objects.select_related(
+        'paciente', 
+        'responsavel',
+        'paciente__perfil_comportamental' # Otimiza a busca do resumo comportamental
+    ).prefetch_related(
+        'agendamentos', # Otimiza o get_dados_agendamento
+        'acoes'         # Otimiza o get_proxima_acao_imediata
+    ).all().order_by('-data_inicio')
+    
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['fase_atual', 'tipo', 'status', 'responsavel']
     search_fields = ['paciente__nome_completo', 'paciente__telefone_celular']
