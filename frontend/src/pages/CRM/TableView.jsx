@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Box, Avatar, Typography, IconButton, TableSortLabel } from '@mui/material';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Box, Typography, IconButton, TableSortLabel, Chip } from '@mui/material';
 import { FaWhatsapp, FaExclamationTriangle } from 'react-icons/fa';
+import '../../atendimento.css';
 
 export default function TableView({ displayedCards, handleOpenDetalhes, handleWhatsappClick }) {
   const [order, setOrder] = useState('asc');
@@ -12,7 +13,6 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
     setOrderBy(property);
   };
 
-  // Lógica de ordenação dinâmica das colunas
   const sortedCards = useMemo(() => {
     return [...displayedCards].sort((a, b) => {
       let valA, valB;
@@ -23,12 +23,9 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
       } else if (orderBy === 'paciente') {
         valA = a.paciente_nome?.toLowerCase() || '';
         valB = b.paciente_nome?.toLowerCase() || '';
-      } else if (orderBy === 'ig') {
-        valA = a.alerta_clinico ? (a.alerta_clinico.semanas * 7 + a.alerta_clinico.dias) : 0;
-        valB = b.alerta_clinico ? (b.alerta_clinico.semanas * 7 + b.alerta_clinico.dias) : 0;
-      } else if (orderBy === 'procedimento') {
-        valA = a.dados_agendamento?.procedimento?.toLowerCase() || '';
-        valB = b.dados_agendamento?.procedimento?.toLowerCase() || '';
+      } else if (orderBy === 'fase') {
+        valA = a.fase_atual || '';
+        valB = b.fase_atual || '';
       }
 
       if (valA < valB) return order === 'asc' ? -1 : 1;
@@ -37,43 +34,40 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
     });
   }, [displayedCards, order, orderBy]);
 
-  if (!displayedCards || displayedCards.length === 0) return <Typography sx={{ p: 2 }}>Nenhum paciente encontrado.</Typography>;
+  if (!displayedCards || displayedCards.length === 0) return <Typography sx={{ p: 2, fontSize: '13px', color: '#666' }}>Nenhum dado localizado.</Typography>;
 
   return (
-    <TableContainer component={Paper} sx={{ borderRadius: 1, height: '100%', overflow: 'auto' }}>
+    <TableContainer component={Paper} className="tasy-flat-panel" sx={{ height: '100%', overflow: 'auto' }}>
       <Table stickyHeader size="small">
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
+            <TableCell sx={{ fontWeight: '600', fontSize: '12px', bgcolor: '#f8f9fa', color: '#495057' }}>
               <TableSortLabel active={orderBy === 'data'} direction={orderBy === 'data' ? order : 'asc'} onClick={() => handleRequestSort('data')}>
-                Data
+                Data/Contato
               </TableSortLabel>
             </TableCell>
             
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
+            <TableCell sx={{ fontWeight: '600', fontSize: '12px', bgcolor: '#f8f9fa', color: '#495057' }}>
               <TableSortLabel active={orderBy === 'paciente'} direction={orderBy === 'paciente' ? order : 'asc'} onClick={() => handleRequestSort('paciente')}>
                 Paciente
               </TableSortLabel>
             </TableCell>
 
-            {/* COLUNA ORIGEM - AGORA FORA DO PACIENTE */}
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
+            <TableCell sx={{ fontWeight: '600', fontSize: '12px', bgcolor: '#f8f9fa', color: '#495057' }}>
+              <TableSortLabel active={orderBy === 'fase'} direction={orderBy === 'fase' ? order : 'asc'} onClick={() => handleRequestSort('fase')}>
+                Fase (Funil)
+              </TableSortLabel>
+            </TableCell>
+
+            <TableCell sx={{ fontWeight: '600', fontSize: '12px', bgcolor: '#f8f9fa', color: '#495057' }}>
               Origem
             </TableCell>
 
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
-              <TableSortLabel active={orderBy === 'ig'} direction={orderBy === 'ig' ? order : 'asc'} onClick={() => handleRequestSort('ig')}>
-                IG & Alerta Clínico
-              </TableSortLabel>
+            <TableCell sx={{ fontWeight: '600', fontSize: '12px', bgcolor: '#f8f9fa', color: '#495057' }}>
+              Idade Gestacional / Procedimento
             </TableCell>
             
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>
-              <TableSortLabel active={orderBy === 'procedimento'} direction={orderBy === 'procedimento' ? order : 'asc'} onClick={() => handleRequestSort('procedimento')}>
-                Procedimento
-              </TableSortLabel>
-            </TableCell>
-            
-            <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', bgcolor: '#f8f9fa' }}>Próxima Ação</TableCell>
+            <TableCell sx={{ fontWeight: '600', fontSize: '12px', bgcolor: '#f8f9fa', color: '#495057' }}>Ação e Alertas</TableCell>
             <TableCell align="right" sx={{ bgcolor: '#f8f9fa' }}></TableCell>
           </TableRow>
         </TableHead>
@@ -81,93 +75,63 @@ export default function TableView({ displayedCards, handleOpenDetalhes, handleWh
         <TableBody>
           {sortedCards.map((ciclo) => {
             const isAtrasado = ciclo.proxima_acao_imediata?.atrasada;
-            let rowBgColor = 'inherit';
-            if (ciclo.alerta_whatsapp?.tipo_alerta === '7 Dias') rowBgColor = '#ffebee';
-            else if (ciclo.alerta_whatsapp?.tipo_alerta === '15 Dias') rowBgColor = '#fff3e0';
-            else if (isAtrasado) rowBgColor = '#fff5f5';
-
-            const alertTextColor = ciclo.alerta_whatsapp?.tipo_alerta === '7 Dias' ? '#d32f2f' : '#ef6c00';
+            let rowStyle = { cursor: 'pointer', borderBottom: '1px solid #e9ecef' };
+            if (isAtrasado) rowStyle.backgroundColor = '#fff5f5';
 
             return (
-              <TableRow key={ciclo.id} hover onClick={() => handleOpenDetalhes(ciclo.id)} sx={{ cursor: 'pointer', bgcolor: rowBgColor }}>
+              <TableRow key={ciclo.id} hover onClick={() => handleOpenDetalhes(ciclo.id)} sx={rowStyle}>
                 
-                {/* 1. CÉLULA: DATA E 1º CONTATO */}
-                <TableCell sx={{ fontSize: '0.75rem' }}>
+                <TableCell sx={{ fontSize: '13px', color: '#495057', py: 1 }}>
                   {ciclo.dados_agendamento ? (
                     new Date(ciclo.dados_agendamento.data).toLocaleDateString('pt-BR')
                   ) : (
-                    <Box>
-                      <span style={{ color: '#9e9e9e', fontStyle: 'italic', display: 'block' }}>sem agendamento</span>
-                      {ciclo.data_inicio && (
-                        <span style={{ color: '#757575', fontSize: '0.65rem', display: 'block', marginTop: '2px' }}>
-                          1º contato: {new Date(ciclo.data_inicio).toLocaleDateString('pt-BR')}
-                        </span>
-                      )}
-                    </Box>
+                    <span style={{ color: '#868e96' }}>{ciclo.data_inicio && new Date(ciclo.data_inicio).toLocaleDateString('pt-BR')} (1º ctt)</span>
                   )}
                 </TableCell>
 
-                {/* 2. CÉLULA: PACIENTE */}
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Avatar sx={{ width: 24, height: 24, fontSize: '0.7rem' }}>{ciclo.paciente_nome?.charAt(0)}</Avatar>
-                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{ciclo.paciente_nome}</Typography>
-                  </Box>
+                <TableCell sx={{ fontSize: '13px', color: '#212529', fontWeight: 500 }}>
+                  {ciclo.paciente_nome}
                 </TableCell>
 
-                {/* 3. CÉLULA: ORIGEM */}
                 <TableCell>
+                    <Chip label={ciclo.fase_atual} size="small" sx={{ height: '20px', fontSize: '10px', fontWeight: 'bold', borderRadius: '4px' }} />
+                </TableCell>
+
+                <TableCell sx={{ fontSize: '13px' }}>
                   {ciclo.comportamento_resumo?.origem && ciclo.comportamento_resumo.origem !== "Não Informado" ? (
-                    <Box sx={{ display: 'inline-block', bgcolor: '#e0f7fa', color: '#006064', px: 1, py: 0.2, borderRadius: 1, fontSize: '0.65rem', fontWeight: 'bold', border: '1px solid #b2ebf2' }}>
-                      {ciclo.comportamento_resumo.origem}
-                    </Box>
+                    <span style={{ color: '#495057' }}>{ciclo.comportamento_resumo.origem}</span>
                   ) : (
-                    <span style={{ color: '#9e9e9e', fontSize: '0.75rem' }}>--</span>
+                    <span style={{ color: '#ced4da' }}>--</span>
                   )}
                 </TableCell>
 
-                {/* 4. CÉLULA: IG & ALERTA CLÍNICO */}
                 <TableCell>
                   {ciclo.alerta_clinico ? (
-                    <Box sx={{ display: 'inline-flex', bgcolor: '#ffffff80', color: '#e65100', px: 1, borderRadius: 1, fontSize: '0.7rem', fontWeight: 'bold', border: '1px solid #ffcc80' }}>
+                    <Box sx={{ fontSize: '12px', color: '#e65100', fontWeight: '600' }}>
                       {ciclo.alerta_clinico.semanas}s + {ciclo.alerta_clinico.dias}d • {ciclo.alerta_clinico.texto}
                     </Box>
-                  ) : '--'}
-                </TableCell>
-                
-                {/* 5. CÉLULA: PROCEDIMENTO */}
-                <TableCell sx={{ fontSize: '0.75rem' }}>
-                  {ciclo.dados_agendamento?.procedimento ? (
-                      ciclo.dados_agendamento.procedimento
                   ) : (
-                      <span style={{ color: '#9e9e9e', fontStyle: 'italic' }}>--</span>
+                    <Box sx={{ fontSize: '12px', color: '#495057' }}>{ciclo.dados_agendamento?.procedimento || '--'}</Box>
                   )}
                 </TableCell>
                 
-                {/* 6. CÉLULA: PRÓXIMA AÇÃO E ALERTAS */}
-                <TableCell>
-                  {ciclo.alerta_whatsapp && (
-                    <Box sx={{ mb: 0.5, color: alertTextColor, fontSize: '0.65rem', fontWeight: 'bold' }}>
-                      🔔 {ciclo.alerta_whatsapp.tipo_alerta}
-                    </Box>
-                  )}
+                <TableCell sx={{ py: 1 }}>
                   {ciclo.alerta_operacional && (
-                    <Box sx={{ mb: 0.5, color: ciclo.alerta_operacional.cor, fontSize: '0.65rem', fontWeight: 'bold' }}>
+                    <Typography sx={{ color: ciclo.alerta_operacional.cor, fontSize: '11px', fontWeight: 'bold', display: 'block', mb: 0.5 }}>
                       {ciclo.alerta_operacional.icone} {ciclo.alerta_operacional.texto}
-                    </Box>
+                    </Typography>
                   )}
                   {ciclo.proxima_acao_imediata?.descricao && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: isAtrasado ? '#d32f2f' : '#1976d2' }}>
-                      {isAtrasado && <FaExclamationTriangle size={12} />}
-                      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                      {isAtrasado && <FaExclamationTriangle size={11} />}
+                      <Typography sx={{ fontSize: '12px' }}>
                         {ciclo.proxima_acao_imediata.descricao}
                       </Typography>
                     </Box>
                   )}
                 </TableCell>
                 
-                {/* 7. CÉLULA: AÇÕES (WHATSAPP) */}
-                <TableCell align="right">
+                <TableCell align="right" sx={{ py: 0.5 }}>
                   <IconButton size="small" onClick={(e) => handleWhatsappClick(e, ciclo.paciente_whatsapp, ciclo.paciente_nome, ciclo.alerta_whatsapp?.mensagem)}>
                     <FaWhatsapp color="#25D366" size={16} />
                   </IconButton>

@@ -83,7 +83,6 @@ function App() {
                   <Route element={<AdminRoute />}>
                       <Route path="/financeiro/*" element={<FinanceiroPage />} />
                       <Route path="/crm/kanban" element={<CRMKanbanPage />} />
-                      <Route path="/crm/executivo" element={<DashboardExecutivoPage />} />
                   </Route>
 
                 </Route>
