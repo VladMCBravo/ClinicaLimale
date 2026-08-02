@@ -19,6 +19,7 @@ export default function FinanceiroDashboardView() {
     const [consultasProc, setConsultasProc] = useState([]);
     const [medicos, setMedicos] = useState([]);
     const [recebimentos, setRecebimentos] = useState([]);
+    const [evolucao, setEvolucao] = useState([]);
 
     // 2. Busca os dados reais ao carregar o componente
     useEffect(() => {
@@ -29,6 +30,7 @@ export default function FinanceiroDashboardView() {
                     if(res.data.grafico_consultas_proc) setConsultasProc(res.data.grafico_consultas_proc);
                     if(res.data.grafico_medicos) setMedicos(res.data.grafico_medicos);
                     if(res.data.grafico_recebimentos) setRecebimentos(res.data.grafico_recebimentos);
+                    if(res.data.grafico_evolucao) setEvolucao(res.data.grafico_evolucao);
                 }
             })
             .catch(err => console.error("Erro ao carregar Dashboard Financeiro:", err));
@@ -51,6 +53,12 @@ export default function FinanceiroDashboardView() {
             </Box>
         </Paper>
     );
+
+    // Remove o "Dr(a). " da string que vem do backend
+    const medicosLimpos = medicos.map(m => ({
+        ...m,
+        nome: m.nome.replace('Dr(a). ', '')
+    }));
 
     return (
         // O container principal ocupa 100% do espaço que restou abaixo das abas, sem scroll
@@ -98,7 +106,7 @@ export default function FinanceiroDashboardView() {
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     {/* CORREÇÃO AQUI: data={recebimentos} */}
-                                    <Pie data={recebimentos} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="valor">
+                                    <Pie data={recebimentos} innerRadius="50%" outerRadius="80%" paddingAngle={2} dataKey="valor" nameKey="nome">
                                         {/* CORREÇÃO AQUI: recebimentos.map */}
                                         {recebimentos.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -121,12 +129,17 @@ export default function FinanceiroDashboardView() {
                         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 {/* CORREÇÃO AQUI: data={medicos} */}
-                                <BarChart data={medicos} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                                <BarChart data={medicosLimpos} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e9ecef"/>
-                                    <XAxis type="number" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
-                                    <YAxis dataKey="nome" type="category" tick={{fontSize: 11}} width={80} axisLine={false} tickLine={false} />
+                                    <XAxis type="number" hide /> {/* Escondemos a régua de baixo para ficar mais limpo */}
+                                    <YAxis dataKey="nome" type="category" hide /> {/* Escondemos os nomes fora da barra */}
                                     <Tooltip contentStyle={{ fontSize: '12px' }} />
-                                    <Bar dataKey="atendimentos" name="Qtd. Atendimentos" fill="#4b88d3" radius={[0, 2, 2, 0]} barSize={15} />
+                                    <Bar dataKey="atendimentos" name="Atendimentos" fill="#4b88d3" radius={[0, 2, 2, 0]} barSize={22}>
+                                        {/* Nome do Médico na Esquerda */}
+                                        <LabelList dataKey="nome" position="insideLeft" fill="#ffffff" fontSize={11} offset={8} />
+                                        {/* Quantidade na Direita */}
+                                        <LabelList dataKey="atendimentos" position="insideRight" fill="#ffffff" fontSize={11} offset={8} />
+                                    </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
                         </Box>
@@ -138,12 +151,14 @@ export default function FinanceiroDashboardView() {
                         <Box sx={{ flexGrow: 1, minHeight: 0 }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 {/* CORREÇÃO AQUI: data={consultasProc} */}
-                                <ComposedChart data={consultasProc} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <ComposedChart data={evolucao} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                     <XAxis dataKey="mes" tick={{fontSize: 11}} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{fontSize: 11}} axisLine={false} tickLine={false} />
-                                    <Tooltip contentStyle={{ fontSize: '12px' }} />
-                                    <Line type="monotone" dataKey="consultas" name="Tendência" stroke="#d9534f" strokeWidth={2} dot={{ r: 3 }} />
+                                    {/* Formata o Eixo Y para K (Ex: 15.000 vira 15k) para não comer espaço */}
+                                    <YAxis tick={{fontSize: 11}} axisLine={false} tickLine={false} tickFormatter={(val) => `R$ ${val/1000}k`} />
+                                    <Tooltip formatter={(val) => formatCurrency(val)} contentStyle={{ fontSize: '12px' }} />
+                                    {/* Agora puxando o dataKey="saldo" */}
+                                    <Line type="monotone" dataKey="saldo" name="Saldo do Mês" stroke="#5cb85c" strokeWidth={2} dot={{ r: 4 }} />
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </Box>

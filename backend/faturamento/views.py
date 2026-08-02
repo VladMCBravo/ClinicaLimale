@@ -374,6 +374,35 @@ class FinanceiroDashboardAPIView(APIView):
 
             grafico_consultas_proc = list(mapa_6m.values())
 
+            # --- 4. EVOLUÇÃO FINANCEIRA (Últimos 6 Meses) ---
+            mapa_fin = {}
+            for i in range(5, -1, -1):
+                d_ref = hoje.replace(day=1) - relativedelta(months=i)
+                key = d_ref.strftime('%Y-%m')
+                mapa_fin[key] = {"mes": meses_pt[d_ref.month], "receitas": 0, "despesas": 0}
+
+            # Receitas dos últimos 6 meses
+            rec_6m = receitas_pagas.filter(data_pagamento__gte=limite_6m)\
+                .annotate(m=TruncMonth('data_pagamento')).values('m').annotate(total=Sum('valor'))
+            for item in rec_6m:
+                if item['m']:
+                    key = item['m'].strftime('%Y-%m')
+                    if key in mapa_fin: mapa_fin[key]["receitas"] = float(item['total'])
+
+            # Despesas dos últimos 6 meses
+            desp_6m = despesas_pagas.filter(data_pagamento__gte=limite_6m)\
+                .annotate(m=TruncMonth('data_pagamento')).values('m').annotate(total=Sum('valor'))
+            for item in desp_6m:
+                if item['m']:
+                    key = item['m'].strftime('%Y-%m')
+                    if key in mapa_fin: mapa_fin[key]["despesas"] = float(item['total'])
+
+            # Calcula o Saldo Real
+            for k in mapa_fin:
+                mapa_fin[k]["saldo"] = mapa_fin[k]["receitas"] - mapa_fin[k]["despesas"]
+
+            grafico_evolucao = list(mapa_fin.values())
+
             return Response({
                 "kpis": {
                     "valorOperacional": float(total_operacional),
@@ -388,10 +417,12 @@ class FinanceiroDashboardAPIView(APIView):
                 # Retornos recém processados para o Frontend
                 "grafico_recebimentos": grafico_recebimentos,
                 "grafico_medicos": grafico_medicos,
-                "grafico_consultas_proc": grafico_consultas_proc
+                "grafico_consultas_proc": grafico_consultas_proc,
+                "grafico_evolucao": grafico_evolucao
             })
         except Exception as e:
             return Response({"erro": str(e)}, status=500)
+        
 
 class DashboardOperacionalAPIView(APIView):
     permission_classes = [IsAuthenticated]
