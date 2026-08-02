@@ -1,4 +1,3 @@
-// src/components/financeiro/DespesasView.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     TextField, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -10,13 +9,14 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
 
 import { faturamentoService } from '../../services/faturamentoService';
-import LancamentoCaixaModal from './LancamentoCaixaModal';
-import { ExpenseDrawerContent } from './ExpensePaymentDrawer';
 import CategoriasTab from '../configuracoes/CategoriasTab';
+
+// --- IMPORTANDO OS NOSSOS NOVOS PILARES ---
+import ModalLancamentoAvulso from './ModalLancamentoAvulso';
+import DrawerDespesa from './DrawerDespesa';
 
 import './Financeiro.css';
 
-// Configura o Dayjs para português para podermos mostrar o nome do mês na UI
 dayjs.locale('pt-br');
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -27,31 +27,30 @@ const NavegadorMes = ({ filtroData, setFiltroData, disabled }) => {
     const irParaProximoMes = () => setFiltroData(prev => prev.add(1, 'month'));
     const irParaMesAtual = () => setFiltroData(dayjs());
 
-    // Mostra as 3 primeiras letras do mês atual (ex: "jun")
     const nomeMes = filtroData.format('MMM').toLowerCase();
 
     return (
-        <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#f5f5f5', borderRadius: 4, px: 0.5, py: 0.2, ml: 1, opacity: disabled ? 0.5 : 1, pointerEvents: disabled ? 'none' : 'auto' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#e9ecef', borderRadius: 1, px: 0.5, py: 0.2, opacity: disabled ? 0.5 : 1, pointerEvents: disabled ? 'none' : 'auto', height: 32 }}>
             <IconButton size="small" onClick={irParaMesAnterior} sx={{ p: 0.5 }}>
-                <ChevronLeft fontSize="small" sx={{ color: '#666' }} />
+                <ChevronLeft fontSize="small" sx={{ color: '#495057' }} />
             </IconButton>
             
             <Typography 
                 variant="caption" 
                 onClick={irParaMesAtual} 
-                sx={{ cursor: 'pointer', fontWeight: 'bold', color: '#444', px: 1, minWidth: 35, textAlign: 'center', '&:hover': { color: 'primary.main' } }}
+                sx={{ cursor: 'pointer', fontWeight: 'bold', color: '#343a40', px: 1, minWidth: 35, textAlign: 'center', textTransform: 'uppercase', '&:hover': { color: 'primary.main' } }}
             >
                 {nomeMes}
             </Typography>
             
             <IconButton size="small" onClick={irParaProximoMes} sx={{ p: 0.5 }}>
-                <ChevronRight fontSize="small" sx={{ color: '#666' }} />
+                <ChevronRight fontSize="small" sx={{ color: '#495057' }} />
             </IconButton>
         </Box>
     );
 };
 
-// --- SUBCONPONENTE DE TABELA COMPACTA (COM ORDENAÇÃO E ESTATÍSTICAS) ---
+// --- SUBCONPONENTE DE TABELA COMPACTA (TASY STYLE) ---
 const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
     const [ordem, setOrdem] = useState({ coluna: 'vencimento', direcao: 'asc' });
 
@@ -71,9 +70,7 @@ const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
             if (ordem.coluna === 'descricao') {
                 const descA = (a.descricao || '').toLowerCase();
                 const descB = (b.descricao || '').toLowerCase();
-                if (descA < descB) return ordem.direcao === 'asc' ? -1 : 1;
-                if (descA > descB) return ordem.direcao === 'asc' ? 1 : -1;
-                return 0;
+                return ordem.direcao === 'asc' ? descA.localeCompare(descB) : descB.localeCompare(descA);
             }
             if (ordem.coluna === 'valor') {
                 const valorA = parseFloat(a.valor || 0);
@@ -90,7 +87,6 @@ const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
         return sortableItems;
     }, [data, ordem]);
 
-    // --- NOVA LÓGICA DE ESTATÍSTICAS ---
     const totais = useMemo(() => {
         return data.reduce((acc, item) => {
             const valor = parseFloat(item.valor) || 0;
@@ -109,88 +105,67 @@ const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
     }, [data]);
 
     return (
-        <Paper variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 2, borderTop: `3px solid ${color}` }}>
-            <Box sx={{ px: 1.5, py: 1, bgcolor: `${color}10`, display: 'flex', alignItems: 'center', gap: 1, borderBottom: '1px solid #eee' }}>
-                {React.cloneElement(icon, { sx: { fontSize: 16, color: color } })}
-                <Typography variant="caption" sx={{ fontWeight: '800', color: color, flexGrow: 1, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <Paper className="tasy-flat-panel" sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderTop: `3px solid ${color}` }}>
+            
+            {/* CABEÇALHO DA TABELA */}
+            <div className="tasy-section-header" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8, backgroundColor: '#ffffff', borderBottom: '1px solid #e9ecef', padding: '10px 12px' }}>
+                {React.cloneElement(icon, { sx: { fontSize: 18, color: color } })}
+                <Typography variant="caption" sx={{ fontWeight: '800', color: color, flexGrow: 1, textTransform: 'uppercase' }}>
                     {title}
                 </Typography>
-                <Chip label={data.length} size="small" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 'bold', bgcolor: 'white' }} />
-            </Box>
+                <Chip label={data.length} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold', bgcolor: '#f8f9fa', color: '#495057', border: '1px solid #dee2e6' }} />
+            </div>
 
-            <TableContainer sx={{ flexGrow: 1 }}>
+            <TableContainer sx={{ flexGrow: 1, bgcolor: '#ffffff' }}>
                 <Table size="small" stickyHeader>
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{ fontWeight: 'bold', bgcolor: '#fff', color: '#666', fontSize: '0.75rem' }}>
-                                <TableSortLabel
-                                    active={ordem.coluna === 'vencimento'}
-                                    direction={ordem.coluna === 'vencimento' ? ordem.direcao : 'asc'}
-                                    onClick={() => handleSort('vencimento')}
-                                >
+                            <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', py: 1 }}>
+                                <TableSortLabel active={ordem.coluna === 'vencimento'} direction={ordem.direcao} onClick={() => handleSort('vencimento')}>
                                     Vencimento
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell sx={{ fontWeight: 'bold', bgcolor: '#fff', color: '#666', fontSize: '0.75rem' }}>
-                                <TableSortLabel
-                                    active={ordem.coluna === 'descricao'}
-                                    direction={ordem.coluna === 'descricao' ? ordem.direcao : 'asc'}
-                                    onClick={() => handleSort('descricao')}
-                                >
+                            <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', py: 1 }}>
+                                <TableSortLabel active={ordem.coluna === 'descricao'} direction={ordem.direcao} onClick={() => handleSort('descricao')}>
                                     Descrição
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold', bgcolor: '#fff', color: '#666', fontSize: '0.75rem' }}>
-                                <TableSortLabel
-                                    active={ordem.coluna === 'valor'}
-                                    direction={ordem.coluna === 'valor' ? ordem.direcao : 'asc'}
-                                    onClick={() => handleSort('valor')}
-                                >
-                                    Valor
+                            <TableCell align="right" sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', py: 1 }}>
+                                <TableSortLabel active={ordem.coluna === 'valor'} direction={ordem.direcao} onClick={() => handleSort('valor')}>
+                                    Valor (R$)
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{ fontWeight: 'bold', bgcolor: '#fff', color: '#666', fontSize: '0.75rem' }}>
-                                <TableSortLabel
-                                    active={ordem.coluna === 'status'}
-                                    direction={ordem.coluna === 'status' ? ordem.direcao : 'asc'}
-                                    onClick={() => handleSort('status')}
-                                >
-                                    Status
-                                </TableSortLabel>
-                            </TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', py: 1 }}>Status</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {listaOrdenada.length === 0 ? (
-                            <TableRow><TableCell colSpan={4} align="center" sx={{ py: 3, color: '#999', fontSize: '0.8rem' }}>Sem despesas</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={4} align="center" sx={{ py: 6, color: '#868e96' }}>Sem despesas neste período.</TableCell></TableRow>
                         ) : listaOrdenada.map((item) => {
                             const dataDisplay = item.data_vencimento ? dayjs(item.data_vencimento) : dayjs(item.data_despesa);
                             const isVencida = !item.pago && dataDisplay.isBefore(dayjs(), 'day');
                             
                             return (
-                                <TableRow 
-                                    key={item.id} 
-                                    hover 
-                                    onClick={() => onRowClick(item)}
-                                    sx={{ cursor: 'pointer', '&:hover': { bgcolor: '#f5f5f5 !important' } }}
-                                >
-                                    <TableCell sx={{ fontSize: '0.75rem', color: isVencida ? '#d32f2f' : '#444', fontWeight: isVencida ? 600 : 400 }}>
-                                        {dataDisplay.format('DD/MM/YY')}
+                                <TableRow key={item.id} hover onClick={() => onRowClick(item)} sx={{ cursor: 'pointer' }}>
+                                    <TableCell sx={{ color: isVencida ? '#d32f2f' : '#495057', py: 1.5 }}>
+                                        <Typography variant="body2" sx={{ fontSize: '0.85rem', fontWeight: isVencida ? 600 : 500 }}>
+                                            {dataDisplay.format('DD/MM/YYYY')}
+                                        </Typography>
                                     </TableCell>
-                                    <TableCell sx={{ py: 0.5 }}>
-                                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: '#333' }}>{item.descricao}</Typography>
-                                        <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.65rem' }}>{item.categoria_nome}</Typography>
+                                    <TableCell>
+                                        <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#343a40' }}>{item.descricao}</Typography>
+                                        <Typography variant="caption" sx={{ color: '#868e96', fontSize: '0.75rem' }}>{item.categoria_nome}</Typography>
                                     </TableCell>
-                                    <TableCell align="right" sx={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#555' }}>
+                                    <TableCell align="right" sx={{ fontWeight: 700, color: '#495057', fontSize: '0.90rem' }}>
                                         {formatMoney(item.valor)}
                                     </TableCell>
                                     <TableCell align="center">
                                         <Chip 
-                                            label={item.pago ? "Pago" : (isVencida ? "Atrasado" : "Aberto")} 
+                                            label={item.pago ? "Pago" : (isVencida ? "Atrasado" : "Pendente")} 
                                             size="small" 
-                                            color={item.pago ? "success" : (isVencida ? "error" : "default")}
+                                            color={item.pago ? "success" : (isVencida ? "error" : "warning")}
                                             variant={item.pago ? "filled" : "outlined"}
-                                            sx={{ height: 18, fontSize: '0.6rem', fontWeight: 'bold' }}
+                                            sx={{ height: 22, fontSize: '0.70rem', fontWeight: 'bold', borderRadius: 1 }}
                                         />
                                     </TableCell>
                                 </TableRow>
@@ -200,25 +175,22 @@ const DespesaTable = ({ data, title, icon, color, onRowClick }) => {
                 </Table>
             </TableContainer>
 
-            {/* --- NOVO RODAPÉ COM ESTATÍSTICAS --- */}
-            <Box sx={{ p: 1, borderTop: '1px solid #eee', bgcolor: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-                
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+            {/* RODAPÉ ESTATÍSTICO TASY */}
+            <Box sx={{ p: 1.5, borderTop: '1px solid #e9ecef', bgcolor: '#f8f9fa', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 3 }}>
+                    <Typography variant="caption" sx={{ color: '#6c757d', fontSize: '0.75rem' }}>
                         PAGOS: <b style={{ color: '#2e7d32' }}>{formatMoney(totais.pago)}</b>
                     </Typography>
-                    <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+                    <Typography variant="caption" sx={{ color: '#6c757d', fontSize: '0.75rem' }}>
                         ATRASADOS: <b style={{ color: '#d32f2f' }}>{formatMoney(totais.atrasado)}</b>
                     </Typography>
                 </Box>
-
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                    <Typography variant="caption" color="text.secondary" fontSize="0.7rem">TOTAL:</Typography>
-                    <Typography variant="caption" fontWeight="800" color={color} fontSize="0.85rem">
+                    <Typography variant="caption" color="text.secondary" fontSize="0.75rem">TOTAL GERAL:</Typography>
+                    <Typography variant="body2" fontWeight="900" color={color} sx={{ fontSize: '0.95rem' }}>
                         {formatMoney(totais.total)}
                     </Typography>
                 </Box>
-
             </Box>
         </Paper>
     );
@@ -269,84 +241,70 @@ export default function DespesasView() {
     };
 
     return (
-        <div className="fin-container" style={{ padding: '10px 20px' }}>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 1, backgroundColor: '#f1f3f5' }}>
             
-            <div className="fin-toolbar" style={{ marginBottom: 10 }}>
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {/* TOOLBAR ESTILO TASY */}
+            <Paper className="tasy-flat-panel" sx={{ p: 1.5, mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                     <DatePicker 
                         views={['month', 'year']} 
                         value={filtroData} 
                         onChange={(v) => { setFiltroData(v); setBusca(''); }} 
-                        slotProps={{ textField: { size: 'small', variant: 'standard', sx: { width: 100 } } }}
+                        className="tasy-compact-input"
+                        slotProps={{ textField: { size: 'small', sx: { width: 130 } } }}
                         disabled={busca.length > 0}
                     />
                     
-                    {/* --- O NOVO COMPONENTE DE NAVEGAÇÃO --- */}
-                    <NavegadorMes 
-                        filtroData={filtroData} 
-                        setFiltroData={setFiltroData} 
-                        disabled={busca.length > 0} 
-                    />
+                    <NavegadorMes filtroData={filtroData} setFiltroData={setFiltroData} disabled={busca.length > 0} />
 
                     <TextField 
                         size="small" 
+                        className="tasy-compact-input"
                         placeholder="Buscar Despesa..." 
                         value={busca} 
                         onChange={(e) => setBusca(e.target.value)} 
-                        variant="standard"
                         InputProps={{ 
                             startAdornment: (<InputAdornment position="start"><Search fontSize="small"/></InputAdornment>),
-                            disableUnderline: true,
-                            style: { fontSize: '0.9rem' }
                         }}
-                        sx={{ width: 200, borderBottom: '1px solid #ddd', ml: 2 }} 
+                        sx={{ width: 250, ml: 1 }} 
                     />
                 </Box>
 
-                <Box display="flex" gap={1}>
+                <Box display="flex" gap={1.5}>
                     <Button 
-                        size="small" onClick={() => setOpenCategorias(true)} startIcon={<Settings fontSize="small"/>} 
-                        sx={{ color: '#666', textTransform: 'none' }}
+                        size="small" variant="outlined" color="inherit"
+                        onClick={() => setOpenCategorias(true)} startIcon={<Settings fontSize="small"/>} 
+                        sx={{ color: '#495057', borderColor: '#ced4da', textTransform: 'none', borderRadius: 1 }}
                     >
                         Categorias
                     </Button>
                     <Button 
                         variant="contained" color="error" size="small" startIcon={<Add />}
                         onClick={() => setModalOpen(true)}
-                        sx={{ fontWeight: 'bold', textTransform: 'none', borderRadius: 6, px: 3 }}
+                        sx={{ fontWeight: 'bold', textTransform: 'none', borderRadius: 1 }}
                     >
                         Nova Despesa
                     </Button>
                 </Box>
-            </div>
+            </Paper>
 
-            <Box sx={{ flexGrow: 1, display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' }, overflow: 'hidden', position: 'relative' }}>
+            {/* ÁREA DOS GRIDS DE DESPESA (LADO A LADO) */}
+            <Box sx={{ flexGrow: 1, display: 'flex', gap: 1, flexDirection: { xs: 'column', md: 'row' }, overflow: 'hidden', position: 'relative' }}>
                 {loading && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }} />}
 
-                <DespesaTable 
-                    data={fixas} 
-                    title="DESPESAS FIXAS" 
-                    icon={<Domain />} 
-                    color="#1565c0" 
-                    onRowClick={handleRowClick}
-                />
-                
-                <DespesaTable 
-                    data={variaveis} 
-                    title="DESPESAS VARIÁVEIS" 
-                    icon={<LocalCafe />} 
-                    color="#e65100" 
-                    onRowClick={handleRowClick}
-                />
+                <DespesaTable data={fixas} title="Despesas Fixas" icon={<Domain />} color="#1565c0" onRowClick={handleRowClick} />
+                <DespesaTable data={variaveis} title="Despesas Variáveis" icon={<LocalCafe />} color="#e65100" onRowClick={handleRowClick} />
             </Box>
 
-            <LancamentoCaixaModal 
+            {/* --- PILAR 1: MODAL DE CRIAÇÃO --- */}
+            <ModalLancamentoAvulso 
                 open={modalOpen} 
-                onClose={() => { setModalOpen(false); carregarDados(); }}
+                onClose={() => setModalOpen(false)}
+                onSuccess={carregarDados}
                 initialType="despesa"
-                initialTab={0}
             />
 
+            {/* --- PILAR 3: DRAWER DE EDIÇÃO E QUITAÇÃO --- */}
             <Drawer 
                 anchor="right" 
                 open={drawerOpen} 
@@ -354,7 +312,7 @@ export default function DespesasView() {
                 PaperProps={{ sx: { width: { xs: '100%', md: 450 }, p: 0 } }}
             >
                 {selectedItem && (
-                    <ExpenseDrawerContent 
+                    <DrawerDespesa 
                         item={selectedItem} 
                         onClose={() => setDrawerOpen(false)} 
                         onUpdate={carregarDados} 
@@ -362,11 +320,12 @@ export default function DespesasView() {
                 )}
             </Drawer>
 
+            {/* DRAWER DE CATEGORIAS (MANTIDO) */}
             <Drawer anchor="right" open={openCategorias} onClose={() => { setOpenCategorias(false); carregarDados(); }}>
                 <Box sx={{ width: 400, p: 2 }}>
                     <CategoriasTab />
                 </Box>
             </Drawer>
-        </div>
+        </Box>
     );
 }
