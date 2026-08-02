@@ -1,9 +1,30 @@
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import Pagamento, TransacaoFinanceira
+from agendamentos.models import Agendamento
 
+
+@receiver(post_save, sender=Agendamento)
+def auto_cancelar_divida(sender, instance, **kwargs):
+    """
+    Regra de Negócio: Se o paciente cancelar ou faltar, a dívida gerada
+    é automaticamente anulada (desde que ele já não tenha pago antecipado).
+    """
+    # Se o agendamento assumiu um status inativo
+    if instance.status in ['Cancelado', 'Faltou']:
+        # Verifica se existe um pagamento vinculado
+        if hasattr(instance, 'pagamento') and instance.pagamento:
+            pagamento = instance.pagamento
+            
+            # TRAVA DE SEGURANÇA: Só cancelamos automaticamente se estiver Pendente ou Atrasado.
+            # Se o paciente já pagou, a recepção precisa estornar manualmente para não furar o caixa!
+            if pagamento.status in ['Pendente', 'Atrasado']:
+                pagamento.status = 'Cancelado'
+                pagamento.observacoes = f"Cancelado automaticamente pelo sistema pois o status do agendamento mudou para '{instance.status}'."
+                pagamento.save()
+                
 def enviar_alerta_email(instancia, modelo_nome, status_antigo, status_novo):
     """Função auxiliar para montar e enviar o e-mail"""
     paciente_nome = instancia.paciente.nome_completo if instancia.paciente else "Cliente Avulso/Fornecedor"
