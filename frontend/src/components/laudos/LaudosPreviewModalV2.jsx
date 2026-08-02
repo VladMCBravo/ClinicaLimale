@@ -62,24 +62,12 @@ const LaudosPreviewModalV2 = ({
                     background: #f8f9fa !important;
                 }
                 .tox .tox-toolbar__primary { flex-wrap: nowrap !important; overflow-x: auto !important; background-color: #f8f9fa !important; padding: 4px 8px !important; }
-                
-                /* CRÍTICO: o skin padrão trava a altura/overflow do container,
-                impedindo que o autoresize repasse a altura real pro Box pai
-                e a barra de rolagem do navegador nunca aparece */
-                .tox-tinymce { 
-                    border: none !important; 
-                    width: 100% !important; 
-                    height: auto !important;
-                    overflow: visible !important;
-                }
-                .tox-editor-container {
-                    height: auto !important;
-                    overflow: visible !important;
-                }
-                .tox-edit-area {
-                    height: auto !important;
-                    overflow: visible !important;
-                }
+                .tox-tinymce { border: none !important; width: 100% !important; }
+
+                /* REMOVIDO: os overrides de height:auto/overflow:visible em 
+                .tox-tinymce / .tox-editor-container / .tox-edit-area — 
+                agora controlamos a altura manualmente via JS, então essas 
+                regras só causavam conflito com o cálculo do plugin */
 
                 .tox-edit-area, .tox-edit-area__iframe, .tox-editor-container { 
                     background: transparent !important; 
@@ -146,51 +134,45 @@ const LaudosPreviewModalV2 = ({
                         onInit={(evt, editor) => {
                             editorRef.current = editor;
 
-                            // === DEBUG TEMPORÁRIO — remover depois de identificar o problema ===
-                            setTimeout(() => {
+                            const ajustarAlturaIframe = () => {
                                 try {
                                     const body = editor.getBody();
-                                    const iframe = editor.getContentAreaContainer()?.querySelector('iframe');
-                                    const doc = editor.getDoc();
+                                    const container = editor.getContentAreaContainer();
+                                    const iframe = container?.querySelector('iframe');
+                                    if (!body || !iframe) return;
 
-                                    console.log('[DEBUG TinyMCE] ===== DIAGNÓSTICO =====');
-                                    console.log('[DEBUG] body existe?', !!body);
-                                    console.log('[DEBUG] body.offsetHeight:', body?.offsetHeight);
-                                    console.log('[DEBUG] body.offsetWidth:', body?.offsetWidth);
-                                    console.log('[DEBUG] body innerHTML length:', body?.innerHTML?.length);
-                                    console.log('[DEBUG] body innerHTML (primeiros 300 chars):', body?.innerHTML?.substring(0, 300));
-                                    
-                                    const computedBody = window.getComputedStyle(body);
-                                    console.log('[DEBUG] computed display:', computedBody.display);
-                                    console.log('[DEBUG] computed width:', computedBody.width);
-                                    console.log('[DEBUG] computed height:', computedBody.height);
-                                    console.log('[DEBUG] computed background:', computedBody.backgroundColor);
-                                    console.log('[DEBUG] computed visibility:', computedBody.visibility);
-                                    console.log('[DEBUG] computed opacity:', computedBody.opacity);
-
-                                    console.log('[DEBUG] iframe existe?', !!iframe);
-                                    if (iframe) {
-                                        const iframeRect = iframe.getBoundingClientRect();
-                                        console.log('[DEBUG] iframe rect:', iframeRect);
-                                        console.log('[DEBUG] iframe computed style height:', window.getComputedStyle(iframe).height);
-                                        console.log('[DEBUG] iframe inline style:', iframe.getAttribute('style'));
-                                    }
-
-                                    const editorContainer = editor.getContainer();
-                                    console.log('[DEBUG] editorContainer rect:', editorContainer?.getBoundingClientRect());
-                                    console.log('[DEBUG] editorContainer computed height:', window.getComputedStyle(editorContainer).height);
-                                    
-                                    console.log('[DEBUG] ===== FIM DIAGNÓSTICO =====');
+                                    // scrollHeight reflete o conteúdo real, mesmo se offsetHeight
+                                    // do body ainda não tiver "assentado" no layout
+                                    const alturaReal = Math.max(body.scrollHeight, 1123); // nunca menor que 1 folha A4 (~297mm em px)
+                                    iframe.style.height = `${alturaReal}px`;
                                 } catch (err) {
-                                    console.error('[DEBUG] Erro ao coletar diagnóstico:', err);
+                                    console.error('[ajustarAlturaIframe] erro:', err);
                                 }
-                            }, 1000); // espera autoresize terminar de calcular
-                            // === FIM DEBUG TEMPORÁRIO ===
+                            };
+
+                            // Ajusta assim que o editor termina de montar
+                            setTimeout(ajustarAlturaIframe, 100);
+
+                            // Reajusta sempre que o conteúdo mudar (digitação, colar, etc.)
+                            editor.on('NodeChange input SetContent Undo Redo', () => {
+                                // pequeno debounce via rAF evita recalcular dezenas de vezes por segundo
+                                requestAnimationFrame(ajustarAlturaIframe);
+                            });
+
+                            // ResizeObserver cobre casos que os eventos acima não pegam
+                            // (ex: imagem carregando e mudando a altura depois)
+                            try {
+                                const body = editor.getBody();
+                                if (body && window.ResizeObserver) {
+                                    const observer = new ResizeObserver(() => ajustarAlturaIframe());
+                                    observer.observe(body);
+                                }
+                            } catch (err) {
+                                console.warn('[ResizeObserver] não disponível ou falhou:', err);
+                            }
                         }}
                         initialValue={htmlInicial}
                         init={{
-                            autoresize_min_height: 1123,
-                            autoresize_bottom_margin: 0,
                             width: '100%',
                             resize: false,
                             branding: false,
@@ -201,15 +183,8 @@ const LaudosPreviewModalV2 = ({
                             toolbar_mode: 'sliding',
                             toolbar_sticky: true,
                             toolbar_sticky_offset: 0,
-                            plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount autoresize',
+                            plugins: 'advlist autolink lists charmap preview searchreplace visualblocks pagebreak table wordcount',
                             toolbar: 'undo redo | fontfamily fontsize | bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | table pagebreak | bullist numlist | removeformat',
-                            
-                            // REMOVIDO: setup: (editor) => { ... autoPaginarConteudo ... }
-                            // O PDF final já pagina corretamente via @page do xhtml2pdf no backend,
-                            // então essa lógica JS era só estética para o preview — e frágil o bastante
-                            // para travar o editor. O botão manual de "pagebreak" na toolbar continua
-                            // disponível pra quem quiser inserir uma quebra visual no preview.
-                            
                             content_style: `
                                 html { 
                                     background: #e9ecef !important; 
