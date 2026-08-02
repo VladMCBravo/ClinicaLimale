@@ -9,128 +9,6 @@ import {
 } from 'react-icons/fa';
 import { Editor } from '@tinymce/tinymce-react';
 
-// === PAGINAÇÃO AUTOMÁTICA (Opção B) ===
-// Constantes derivadas das mesmas margens usadas no editor E no backend (xhtml2pdf).
-// Se mudar o padding do body no content_style, atualize aqui também.
-const MM_TO_PX = 96 / 25.4; // conversão padrão do browser (96dpi)
-const PAGE_HEIGHT_MM = 297;
-const HEADER_MM = 60;   // 6.0cm reservados no topo de cada página
-const FOOTER_MM = 55;   // 5.5cm reservados no rodapé de cada página
-const USABLE_MM = PAGE_HEIGHT_MM - HEADER_MM - FOOTER_MM; // 182mm úteis por página
-
-function pxToMm(px) {
-    return px / MM_TO_PX;
-}
-
-/**
- * Varre os blocos de nível superior do corpo do editor e insere
- * <div class="mce-pagebreak" data-auto="1"> automaticamente sempre
- * que um bloco ultrapassa o limite da página atual.
- * 
- * Estratégia: mede com getBoundingClientRect (valores reais pós-reflow),
- * insere UMA quebra por vez, e reavalia do zero — simples e robusto
- * para documentos de tamanho típico de um laudo (dezenas de blocos).
- */
-function flattenBlocks(elements) {
-    let out = [];
-    for (const el of elements) {
-        if (el.classList.contains('laudo-header-area')) continue;
-        if (el.classList.contains('mce-pagebreak')) continue;
-        // Se for um wrapper "invisível" (não tem conteúdo próprio, só agrupa),
-        // mergulha nos filhos dele em vez de tratá-lo como bloco atômico.
-        if (el.classList.contains('corpo-laudo-wrapper') || el.classList.contains('corpo-laudo-v2')) {
-            out.push(...flattenBlocks(Array.from(el.children)));
-        } else {
-            out.push(el);
-        }
-    }
-    return out;
-}
-
-function autoPaginarConteudo(editor) {
-    try {
-        if (!editor || editor.removed) return;
-
-        const body = editor.getBody();
-        if (!body) return;
-
-        // Guarda de timing: se o body ainda não tem altura real medível,
-        // o iframe não terminou de renderizar — tenta de novo em breve.
-        if (body.offsetHeight === 0) {
-            console.warn('[autoPaginar] body sem altura ainda, adiando...');
-            return;
-        }
-
-        const bookmark = editor.selection.getBookmark(2, true);
-
-        Array.from(body.querySelectorAll('.mce-pagebreak[data-auto="1"]')).forEach(el => el.remove());
-
-        const MAX_PASSES = 30; // reduzido — um laudo real não deveria precisar de mais que isso
-        let passes = 0;
-        let inseriuAlgo = false;
-        let quebrasInseridas = 0;
-        const MAX_QUEBRAS_TOTAL = 15; // teto absoluto de segurança
-
-        while (passes < MAX_PASSES && quebrasInseridas < MAX_QUEBRAS_TOTAL) {
-            passes++;
-
-            const bodyRect = body.getBoundingClientRect();
-            const bodyTop = bodyRect.top;
-
-            const blocos = flattenBlocks(Array.from(body.children))
-                .filter(el => el.offsetHeight > 0);
-
-            let zonaFimMm = HEADER_MM + USABLE_MM;
-            let quebrouNestaPassada = false;
-
-            for (const bloco of blocos) {
-                const rect = bloco.getBoundingClientRect();
-                
-                // Guarda extra: ignora medidas absurdas (elemento fora do fluxo normal)
-                if (rect.height === 0 && rect.width === 0) continue;
-
-                const topMm = pxToMm(rect.top - bodyTop);
-                const bottomMm = pxToMm(rect.bottom - bodyTop);
-
-                let voltas = 0;
-                while (topMm > zonaFimMm && voltas < 20) {
-                    zonaFimMm += PAGE_HEIGHT_MM;
-                    voltas++;
-                }
-
-                if (bottomMm > zonaFimMm) {
-                    const pagebreak = editor.getDoc().createElement('div');
-                    pagebreak.className = 'mce-pagebreak';
-                    pagebreak.setAttribute('data-auto', '1');
-                    pagebreak.setAttribute('contenteditable', 'false');
-                    
-                    if (bloco.parentNode) {
-                        bloco.parentNode.insertBefore(pagebreak, bloco);
-                        inseriuAlgo = true;
-                        quebrouNestaPassada = true;
-                        quebrasInseridas++;
-                    }
-                    break;
-                }
-            }
-
-            if (!quebrouNestaPassada) break;
-        }
-
-        if (inseriuAlgo) {
-            try {
-                editor.selection.moveToBookmark(bookmark);
-            } catch (bookmarkErr) {
-                console.warn('[autoPaginar] falha ao restaurar cursor:', bookmarkErr);
-                // não é crítico — o conteúdo já foi paginado corretamente
-            }
-        }
-    } catch (err) {
-        // CRÍTICO: nunca deixa um erro aqui quebrar o editor inteiro.
-        // Loga no console pra investigarmos, mas o editor continua usável.
-        console.error('[autoPaginar] erro inesperado, paginação automática pulada:', err);
-    }
-}
 
 const LaudosPreviewModalV2 = ({ 
     open, onClose, htmlInicial, imagensIniciais, 
@@ -138,8 +16,7 @@ const LaudosPreviewModalV2 = ({
     nomePaciente
 }) => {
     const editorRef = useRef(null);
-    const paginacaoTimeoutRef = useRef(null); // <-- NOVO
-    const [imagens, setImagens] = useState([]);
+        const [imagens, setImagens] = useState([]);
     const [dataExameModal, setDataExameModal] = useState(new Date().toISOString().split('T')[0]);
     const [mostrarFotos, setMostrarFotos] = useState(true);
 
