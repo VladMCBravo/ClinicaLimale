@@ -62,15 +62,36 @@ const LaudosPreviewModalV2 = ({
                     background: #f8f9fa !important;
                 }
                 .tox .tox-toolbar__primary { flex-wrap: nowrap !important; overflow-x: auto !important; background-color: #f8f9fa !important; padding: 4px 8px !important; }
-                .tox-tinymce { border: none !important; width: 100% !important; }
-
-                /* REMOVIDO: os overrides de height:auto/overflow:visible em 
-                .tox-tinymce / .tox-editor-container / .tox-edit-area — 
-                agora controlamos a altura manualmente via JS, então essas 
-                regras só causavam conflito com o cálculo do plugin */
+                
+                /* Agora seguro reintroduzir: sem o plugin autoresize brigando pelo controle,
+                isso deixa os containers crescerem livremente conforme a altura que 
+                aplicamos manualmente no iframe via JS (ajustarAlturaIframe) */
+                .tox-tinymce { 
+                    border: none !important; 
+                    width: 100% !important; 
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+                .tox-editor-container {
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+                .tox-edit-area {
+                    height: auto !important;
+                    overflow: visible !important;
+                }
+                .tox-edit-area__iframe {
+                    height: 100% !important;
+                }
 
                 .tox-edit-area, .tox-edit-area__iframe, .tox-editor-container { 
                     background: transparent !important; 
+                }
+
+                /* A barra de contagem de palavras não precisa ficar visível como barra
+                flutuante dentro do fluxo — esconder evita o artefato visual */
+                .tox-statusbar {
+                    display: none !important;
                 }
             `}</style>
 
