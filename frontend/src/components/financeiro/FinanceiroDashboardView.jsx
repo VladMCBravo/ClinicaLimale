@@ -172,7 +172,7 @@ export default function FinanceiroDashboardView() {
                                         }}
                                     />
 
-                                    <Bar dataKey="receita" name="Receita" fill="#4b88d3" radius={[0, 2, 2, 0]} barSize={22}>
+                                    <Bar dataKey="receita" name="Receita" fill="#4b88d3" radius={[0, 2, 2, 0]} maxBarSize={30}>
                                         <LabelList dataKey="nomeLimpo" position="insideLeft" fill="#ffffff" fontSize={11} offset={8} />
                                         <LabelList dataKey="receita" formatter={(val) => formatCurrency(val)} position="insideRight" fill="#ffffff" fontSize={11} offset={8} />
                                     </Bar>

@@ -311,7 +311,7 @@ class FinanceiroDashboardAPIView(APIView):
                     "procedimentos_valor": float(procedimentos['val'])
                 })
 
-            # --- 4. MÉDICOS (Todos os ativos, com quebra mensal para o Modal) ---
+            # --- 4. MÉDICOS (Apenas os que produziram no período) ---
             User = get_user_model()
             medicos_ativos = User.objects.filter(cargo='medico', is_active=True).order_by('first_name')
             grafico_medicos = []
@@ -319,6 +319,11 @@ class FinanceiroDashboardAPIView(APIView):
             for medico in medicos_ativos:
                 ag_medico = agendamentos_6m.filter(medico=medico)
                 atend_total = ag_medico.count()
+                
+                # A MÁGICA AQUI: Se não atendeu ninguém nesses 6 meses, pula (não suja o gráfico)
+                if atend_total == 0:
+                    continue
+
                 rec_total = ag_medico.aggregate(v=Coalesce(Sum('pagamento__valor'), Value(0.0), output_field=DecimalField()))['v']
                 
                 # Monta a tabela mensal que vai aparecer quando clicar no gráfico
@@ -338,10 +343,10 @@ class FinanceiroDashboardAPIView(APIView):
                     "nome": nome_limpo,
                     "atendimentos": atend_total,
                     "receita": float(rec_total),
-                    "detalhes": detalhe_mensal # <-- A mágica do drill-down vai aqui
+                    "detalhes": detalhe_mensal
                 })
 
-            # Ordenar médicos por receita decrescente (Os zerados vão pro final)
+            # Ordenar médicos por receita decrescente
             grafico_medicos.sort(key=lambda x: x['receita'], reverse=True)
 
             # --- 5. EVOLUÇÃO DE SALDO EM CAIXA ---
