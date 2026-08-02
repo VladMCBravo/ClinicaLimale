@@ -143,7 +143,50 @@ const LaudosPreviewModalV2 = ({
                 <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <Editor
                         apiKey="qs3k6opqccy0770vysfyha4xffrsjf4tgxy11clmml5o8wq6"
-                        onInit={(evt, editor) => editorRef.current = editor}
+                        onInit={(evt, editor) => {
+                            editorRef.current = editor;
+
+                            // === DEBUG TEMPORÁRIO — remover depois de identificar o problema ===
+                            setTimeout(() => {
+                                try {
+                                    const body = editor.getBody();
+                                    const iframe = editor.getContentAreaContainer()?.querySelector('iframe');
+                                    const doc = editor.getDoc();
+
+                                    console.log('[DEBUG TinyMCE] ===== DIAGNÓSTICO =====');
+                                    console.log('[DEBUG] body existe?', !!body);
+                                    console.log('[DEBUG] body.offsetHeight:', body?.offsetHeight);
+                                    console.log('[DEBUG] body.offsetWidth:', body?.offsetWidth);
+                                    console.log('[DEBUG] body innerHTML length:', body?.innerHTML?.length);
+                                    console.log('[DEBUG] body innerHTML (primeiros 300 chars):', body?.innerHTML?.substring(0, 300));
+                                    
+                                    const computedBody = window.getComputedStyle(body);
+                                    console.log('[DEBUG] computed display:', computedBody.display);
+                                    console.log('[DEBUG] computed width:', computedBody.width);
+                                    console.log('[DEBUG] computed height:', computedBody.height);
+                                    console.log('[DEBUG] computed background:', computedBody.backgroundColor);
+                                    console.log('[DEBUG] computed visibility:', computedBody.visibility);
+                                    console.log('[DEBUG] computed opacity:', computedBody.opacity);
+
+                                    console.log('[DEBUG] iframe existe?', !!iframe);
+                                    if (iframe) {
+                                        const iframeRect = iframe.getBoundingClientRect();
+                                        console.log('[DEBUG] iframe rect:', iframeRect);
+                                        console.log('[DEBUG] iframe computed style height:', window.getComputedStyle(iframe).height);
+                                        console.log('[DEBUG] iframe inline style:', iframe.getAttribute('style'));
+                                    }
+
+                                    const editorContainer = editor.getContainer();
+                                    console.log('[DEBUG] editorContainer rect:', editorContainer?.getBoundingClientRect());
+                                    console.log('[DEBUG] editorContainer computed height:', window.getComputedStyle(editorContainer).height);
+                                    
+                                    console.log('[DEBUG] ===== FIM DIAGNÓSTICO =====');
+                                } catch (err) {
+                                    console.error('[DEBUG] Erro ao coletar diagnóstico:', err);
+                                }
+                            }, 1000); // espera autoresize terminar de calcular
+                            // === FIM DEBUG TEMPORÁRIO ===
+                        }}
                         initialValue={htmlInicial}
                         init={{
                             autoresize_min_height: 1123,
