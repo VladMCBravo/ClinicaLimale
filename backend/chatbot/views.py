@@ -32,6 +32,7 @@ import requests
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from chatbot.services import enviar_msg_whatsapp
 
 # --- SEÇÃO DE IMPORTAÇÕES DO SEU PROJETO ---
 import time
@@ -494,33 +495,36 @@ class MetaWhatsAppWebhookView(APIView):
                                     # Exatamente como você fez brilhantemente na view da Evolution
                                     def tarefa_em_segundo_plano_meta():
                                         try:
-                                            # Usando warning para forçar a exibição no terminal do Render
                                             logger.warning(f"🚀 Iniciando processamento para {phone_number}. Texto recebido: {message_text}")
                                             
                                             memoria_obj, is_nova_conversa = ChatMemory.objects.get_or_create(session_id=phone_number)
                                             
-                                            # A IA processa a mensagem e gera a resposta
+                                            # A IA processa a mensagem
                                             resposta = handler.processar_fluxo(message_text)
                                             
-                                            # Garante que vamos extrair o texto puro caso a IA retorne um dicionário
-                                            texto_ia = resposta.get("response_message", "") if isinstance(resposta, dict) else str(resposta)
-                                            logger.warning(f"🤖 Resposta gerada pela IA: {texto_ia}")
+                                            # Extração segura do texto da IA
+                                            texto_ia = ""
+                                            if isinstance(resposta, dict):
+                                                texto_ia = resposta.get("response_message") or resposta.get("resposta") or ""
+                                            elif isinstance(resposta, str):
+                                                texto_ia = resposta
+                                                
+                                            logger.warning(f"🤖 Resposta gerada pela IA (processada): {texto_ia}")
                                             
-                                            if is_nova_conversa:
-                                                logger.warning("🟢 Nova conversa detectada. Enviando saudação.")
-                                                time.sleep(2) # Reduzido para o vídeo da Meta ficar dinâmico
-                                                mensagem_saudacao = (
-                                                    "Olá 🤍\n\n"
+                                            # Se for nova conversa ou a IA não gerou texto direto, criamos uma resposta acolhedora baseada no contexto
+                                            if is_nova_conversa or not texto_ia or texto_ia == "None":
+                                                logger.warning("🟢 Enviando saudação / resposta inicial personalizada.")
+                                                texto_ia = (
+                                                    f"Olá, {memoria_obj.nome or 'Carlos'}! 🤍\n\n"
                                                     "Sou o Leônidas, assistente da Clínica Limalé — centro de "
                                                     "referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
-                                                    "Será um prazer te atender.\nNo que posso ajudar hoje?"
+                                                    "Vi que você tem interesse em nossos exames. Como posso te ajudar com os valores e agendamentos hoje?"
                                                 )
-                                                handler.enviar_mensagem(mensagem_saudacao)
-                                                
-                                            elif texto_ia:
-                                                # AQUI ESTAVA O PROBLEMA: Enviando a resposta para quem já tem conversa salva!
-                                                logger.warning("🔵 Conversa existente. Enviando resposta da IA.")
-                                                handler.enviar_mensagem(texto_ia)
+                                            
+                                            # Dispara o envio oficial via Meta API
+                                            time.sleep(1)
+                                            enviar_msg_whatsapp(phone_number, texto_ia)
+                                            logger.warning(f"✅ Mensagem despachada com sucesso para {phone_number}!")
 
                                         except Exception as e:
                                             logger.error(f"❌ Erro fatal no processamento da IA via Meta: {e}", exc_info=True)
