@@ -291,8 +291,47 @@ const LaudosPageV2 = () => {
       paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo: textoFinal, dataExame: ''
   });
 
+  // Trava o scroll do documento (html/body) enquanto a página de Laudos está montada.
+    // Isso impede que qualquer overflow interno "vaze" para o body e crie
+    // a barra de rolagem global + encolhimento do layout inteiro.
+    useEffect(() => {
+        const htmlEl = document.documentElement;
+        const bodyEl = document.body;
+
+        const prev = {
+            htmlOverflow: htmlEl.style.overflow,
+            bodyOverflow: bodyEl.style.overflow,
+            htmlHeight: htmlEl.style.height,
+            bodyHeight: bodyEl.style.height,
+        };
+
+        htmlEl.style.overflow = 'hidden';
+        bodyEl.style.overflow = 'hidden';
+        htmlEl.style.height = '100%';
+        bodyEl.style.height = '100%';
+
+        return () => {
+            htmlEl.style.overflow = prev.htmlOverflow;
+            bodyEl.style.overflow = prev.bodyOverflow;
+            htmlEl.style.height = prev.htmlHeight;
+            bodyEl.style.height = prev.bodyHeight;
+        };
+    }, []);
+
   return (
-    <div className="tasy-workspace" style={{ flex: 1, display: 'flex', background: theme.bg, minHeight: 0, overflow: 'hidden', fontFamily: "'Segoe UI', Roboto, sans-serif", fontSize: '11px', color: '#333' }}>
+    <div 
+        className="tasy-workspace" 
+        style={{ 
+            flex: 1,
+            display: 'flex', 
+            background: theme.bg, 
+            minHeight: 0,
+            overflow: 'hidden', 
+            fontFamily: "'Segoe UI', Roboto, sans-serif", 
+            fontSize: '11px', 
+            color: '#333',
+        }}
+    >
       
       {/* COLUNA ESQUERDA */}
       <div className="tasy-flat-panel" style={{ flex: 2, minWidth: '700px', display: 'flex', flexDirection: 'column', borderRight: '1px solid #dee2e6', minHeight: 0 }}>
