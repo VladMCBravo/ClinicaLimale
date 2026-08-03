@@ -48,7 +48,7 @@ urlpatterns = [
     path('webhook/evolution/', EvolutionWebhookView.as_view(), name='webhook_evolution'),
 
     # --- Webhook Oficial da Meta ---
-    path('webhook/whatsapp/', MetaWhatsAppWebhookView.as_view(), name='webhook_whatsapp'),
+    path('webhook/whatsapp/', MetaWhatsAppWebhookView.as_view(), name='meta_whatsapp_webhook'),
 
     # --- ROTA DO QR CODE ---
     path('whatsapp/status/', WhatsAppStatusView.as_view(), name='whatsapp_status'),
