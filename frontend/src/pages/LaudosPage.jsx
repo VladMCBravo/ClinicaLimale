@@ -249,6 +249,30 @@ const getInitialState = (key, fallback) => {
     checarUsuario();
   }, []);
 
+  // Trava o scroll do documento (html/body) enquanto a página de Laudos está montada.
+  // Rede de segurança: impede que qualquer overflow interno "vaze" para o body
+  // e crie barra de rolagem global / encolhimento do layout inteiro.
+  useEffect(() => {
+      const htmlEl = document.documentElement;
+      const bodyEl = document.body;
+      const prev = {
+          htmlOverflow: htmlEl.style.overflow,
+          bodyOverflow: bodyEl.style.overflow,
+          htmlHeight: htmlEl.style.height,
+          bodyHeight: bodyEl.style.height,
+      };
+      htmlEl.style.overflow = 'hidden';
+      bodyEl.style.overflow = 'hidden';
+      htmlEl.style.height = '100%';
+      bodyEl.style.height = '100%';
+      return () => {
+          htmlEl.style.overflow = prev.htmlOverflow;
+          bodyEl.style.overflow = prev.bodyOverflow;
+          htmlEl.style.height = prev.htmlHeight;
+          bodyEl.style.height = prev.bodyHeight;
+      };
+  }, []);
+
   // --- 2. LÓGICA DE FILTROS E BUSCAS ---
   const handleInputMedicoChange = (texto) => {
       setMedicoNome(texto);
