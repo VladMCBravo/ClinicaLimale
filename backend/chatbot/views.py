@@ -494,15 +494,21 @@ class MetaWhatsAppWebhookView(APIView):
                                     # Exatamente como você fez brilhantemente na view da Evolution
                                     def tarefa_em_segundo_plano_meta():
                                         try:
+                                            # Usando warning para forçar a exibição no terminal do Render
+                                            logger.warning(f"🚀 Iniciando processamento para {phone_number}. Texto recebido: {message_text}")
+                                            
                                             memoria_obj, is_nova_conversa = ChatMemory.objects.get_or_create(session_id=phone_number)
                                             
-                                            # ATENÇÃO: O seu WhatsAppBotHandler precisará ser adaptado
-                                            # para saber que agora ele deve enviar a resposta de volta usando a URL da Meta, 
-                                            # e não a URL da Evolution.
+                                            # A IA processa a mensagem e gera a resposta
                                             resposta = handler.processar_fluxo(message_text)
                                             
+                                            # Garante que vamos extrair o texto puro caso a IA retorne um dicionário
+                                            texto_ia = resposta.get("response_message", "") if isinstance(resposta, dict) else str(resposta)
+                                            logger.warning(f"🤖 Resposta gerada pela IA: {texto_ia}")
+                                            
                                             if is_nova_conversa:
-                                                time.sleep(12)
+                                                logger.warning("🟢 Nova conversa detectada. Enviando saudação.")
+                                                time.sleep(2) # Reduzido para o vídeo da Meta ficar dinâmico
                                                 mensagem_saudacao = (
                                                     "Olá 🤍\n\n"
                                                     "Sou o Leônidas, assistente da Clínica Limalé — centro de "
@@ -510,9 +516,14 @@ class MetaWhatsAppWebhookView(APIView):
                                                     "Será um prazer te atender.\nNo que posso ajudar hoje?"
                                                 )
                                                 handler.enviar_mensagem(mensagem_saudacao)
+                                                
+                                            elif texto_ia:
+                                                # AQUI ESTAVA O PROBLEMA: Enviando a resposta para quem já tem conversa salva!
+                                                logger.warning("🔵 Conversa existente. Enviando resposta da IA.")
+                                                handler.enviar_mensagem(texto_ia)
 
                                         except Exception as e:
-                                            logger.error(f"Erro no processamento da IA via Meta: {e}")
+                                            logger.error(f"❌ Erro fatal no processamento da IA via Meta: {e}", exc_info=True)
 
                                     thread = threading.Thread(target=tarefa_em_segundo_plano_meta)
                                     thread.start()
