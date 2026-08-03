@@ -502,20 +502,24 @@ class MetaWhatsAppWebhookView(APIView):
                                             # A IA processa a mensagem
                                             resposta = handler.processar_fluxo(message_text)
                                             
-                                            # Extração segura do texto da IA
+                                            # Extração segura do texto e do nome da IA
                                             texto_ia = ""
+                                            nome_usuario = "Carlos" # Valor padrão caso não encontre
+                                            
                                             if isinstance(resposta, dict):
                                                 texto_ia = resposta.get("response_message") or resposta.get("resposta") or ""
+                                                if resposta.get("nome_extraido"):
+                                                    nome_usuario = resposta.get("nome_extraido")
                                             elif isinstance(resposta, str):
                                                 texto_ia = resposta
                                                 
                                             logger.warning(f"🤖 Resposta gerada pela IA (processada): {texto_ia}")
                                             
-                                            # Se for nova conversa ou a IA não gerou texto direto, criamos uma resposta acolhedora baseada no contexto
+                                            # Se for nova conversa ou a IA não gerou texto direto, criamos uma resposta acolhedora
                                             if is_nova_conversa or not texto_ia or texto_ia == "None":
                                                 logger.warning("🟢 Enviando saudação / resposta inicial personalizada.")
                                                 texto_ia = (
-                                                    f"Olá, {memoria_obj.nome or 'Carlos'}! 🤍\n\n"
+                                                    f"Olá, {nome_usuario}! 🤍\n\n"
                                                     "Sou o Leônidas, assistente da Clínica Limalé — centro de "
                                                     "referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
                                                     "Vi que você tem interesse em nossos exames. Como posso te ajudar com os valores e agendamentos hoje?"
