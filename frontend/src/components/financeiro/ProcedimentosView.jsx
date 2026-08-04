@@ -1,4 +1,3 @@
-// src/components/financeiro/ProcedimentosView.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
     Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableFooter,
@@ -12,67 +11,48 @@ import {
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 import ProcedimentoModal from './ProcedimentoModal';
-import { gerarPdfProcedimentos } from '../../utils/tabelaValoresPdfGenerator'; // Ajuste o caminho se necessário
+import { gerarPdfProcedimentos } from '../../utils/tabelaValoresPdfGenerator'; 
+import './Financeiro.css';
 
-// Mapeamento de cores para categorias
 const CAT_COLORS = {
-    'US_GERAL': 'primary',
-    'MED_FETAL': 'secondary',
-    'ECOCARDIOGRAMA': 'error',
-    'MUSCULO': 'warning',
-    'DOPPLER': 'info',
-    'OUTROS': 'default'
+    'US_GERAL': '#1565c0', 'MED_FETAL': '#7b1fa2', 'ECOCARDIOGRAMA': '#c62828',
+    'MUSCULO': '#e65100', 'DOPPLER': '#00838f', 'OUTROS': '#6c757d'
 };
 
 const CAT_LABELS = {
-    'US_GERAL': 'Geral',
-    'MED_FETAL': 'Fetal',
-    'ECOCARDIOGRAMA': 'Eco',
-    'MUSCULO': 'Músculo',
-    'DOPPLER': 'Doppler',
-    'OUTROS': 'Outros'
+    'US_GERAL': 'Geral', 'MED_FETAL': 'Fetal', 'ECOCARDIOGRAMA': 'Eco',
+    'MUSCULO': 'Músculo', 'DOPPLER': 'Doppler', 'OUTROS': 'Outros'
 };
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function ProcedimentosView() {
-    // --- ESTADOS: Dados ---
     const [procedimentos, setProcedimentos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     
-    // --- ESTADOS: Controles e Interface ---
     const [isUploading, setIsUploading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [procedimentoSelecionado, setProcedimentoSelecionado] = useState(null); 
     const [searchTerm, setSearchTerm] = useState('');
 
-    // --- ESTADOS: PDF ---
     const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
     const [pdfOptions, setPdfOptions] = useState({ showValues: true, showTuss: true });
     const [isGerandoPdf, setIsGerandoPdf] = useState(false);
 
     const { showSnackbar } = useSnackbar();
 
-    // --- EFEITOS E BUSCA DE DADOS ---
     const fetchProcedimentos = useCallback(async () => {
         setIsLoading(true);
         try {
             const response = await faturamentoService.getProcedimentos();
-            // Ordena por nome
             const sorted = response.data.sort((a, b) => a.descricao.localeCompare(b.descricao));
             setProcedimentos(sorted);
-        } catch (error) {
-            showSnackbar('Erro ao carregar procedimentos.', 'error');
-        } finally {
-            setIsLoading(false);
-        }
+        } catch (error) { showSnackbar('Erro ao carregar procedimentos.', 'error'); } 
+        finally { setIsLoading(false); }
     }, [showSnackbar]);
 
-    useEffect(() => {
-        fetchProcedimentos();
-    }, [fetchProcedimentos]);
+    useEffect(() => { fetchProcedimentos(); }, [fetchProcedimentos]);
 
-    // --- CÁLCULOS E FILTRAGEM (useMemo) ---
     const filteredList = useMemo(() => {
         if (!searchTerm) return procedimentos;
         const lowerTerm = searchTerm.toLowerCase();
@@ -90,7 +70,6 @@ export default function ProcedimentosView() {
         };
     }, [procedimentos]);
 
-    // --- HANDLERS: Interface e Lógica ---
     const handleOpenModal = (procedimento = null) => {
         setProcedimentoSelecionado(procedimento);
         setIsModalOpen(true);
@@ -99,27 +78,19 @@ export default function ProcedimentosView() {
     const handleFileUpload = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
-
         setIsUploading(true);
         const formData = new FormData();
         formData.append('arquivo_tuss', file);
-
         try {
             await faturamentoService.uploadTuss(formData); 
-            showSnackbar('Arquivo TUSS processado com sucesso!', 'success');
+            showSnackbar('Arquivo TUSS processado!', 'success');
             fetchProcedimentos(); 
-        } catch (error) {
-            showSnackbar('Erro no upload do arquivo.', 'error');
-        } finally {
-            setIsUploading(false);
-            event.target.value = null; 
-        }
+        } catch (error) { showSnackbar('Erro no upload.', 'error'); } 
+        finally { setIsUploading(false); event.target.value = null; }
     };
 
-    // --- HANDLERS: PDF ---
     const handleGerarPdf = () => {
         setIsGerandoPdf(true);
-        
         gerarPdfProcedimentos(filteredList, pdfOptions, (blob) => {
             try {
                 const url = URL.createObjectURL(blob);
@@ -127,247 +98,144 @@ export default function ProcedimentosView() {
                 a.href = url;
                 a.download = 'Procedimentos_Limale.pdf';
                 a.click();
-                
-                showSnackbar('PDF gerado com sucesso!', 'success');
-            } catch (error) {
-                showSnackbar('Erro ao processar o PDF.', 'error');
-            } finally {
-                setIsPdfModalOpen(false);
-                setIsGerandoPdf(false);
-            }
+                showSnackbar('PDF gerado!', 'success');
+            } catch (error) { showSnackbar('Erro ao processar PDF.', 'error'); } 
+            finally { setIsPdfModalOpen(false); setIsGerandoPdf(false); }
         });
     };
 
+    const KpiCard = ({ title, value, color, icon }) => (
+        <Paper className="tasy-flat-panel" sx={{ p: 1, display: 'flex', alignItems: 'center', minWidth: 160, borderLeft: `4px solid ${color}` }}>
+            <Box sx={{ flexGrow: 1 }}>
+                <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' }}>{title}</Typography>
+                <Typography sx={{ fontSize: '1.1rem', fontWeight: 900, color: '#343a40', lineHeight: 1 }}>{value}</Typography>
+            </Box>
+            <Box sx={{ color: color, opacity: 0.8, fontSize: '1.2rem', display: 'flex', alignItems: 'center' }}>{icon}</Box>
+        </Paper>
+    );
+
     return (
-        <Box sx={{ 
-            p: 1, 
-            height: 'calc(100vh - 155px)', // Layout travado
-            display: 'flex', 
-            flexDirection: 'column', 
-            overflow: 'hidden' 
-        }}>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 1, backgroundColor: '#f1f3f5', overflow: 'hidden' }}>
             
-            {/* 1. HEADER UNIFICADO (KPIs + Ações) */}
-            <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                mb: 1.5,
-                gap: 2,
-                flexWrap: 'wrap'
-            }}>
-                {/* Lado Esquerdo: KPIs */}
+            {/* CABEÇALHO TASY */}
+            <Paper className="tasy-flat-panel" sx={{ p: 1, mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                 <Stack direction="row" spacing={1.5}>
-                    <CompactKPI 
-                        title="CADASTROS" 
-                        value={kpis.total} 
-                        icon={<FormatListNumbered fontSize="inherit" />} 
-                        color="#1565c0" 
-                        bgcolor="#e3f2fd"
-                    />
-                    <CompactKPI 
-                        title="PARTICULARES" 
-                        value={kpis.comValor} 
-                        icon={<MonetizationOn fontSize="inherit" />} 
-                        color="#2e7d32" 
-                        bgcolor="#e8f5e9"
-                    />
-                     <CompactKPI 
-                        title="TUSS" 
-                        value={kpis.tuss} 
-                        icon={<LocalHospital fontSize="inherit" />} 
-                        color="#ed6c02" 
-                        bgcolor="#fff3e0"
-                    />
+                    <KpiCard title="Total Cadastrado" value={kpis.total} color="#1565c0" icon={<FormatListNumbered />} />
+                    <KpiCard title="Com Preço Particular" value={kpis.comValor} color="#2e7d32" icon={<MonetizationOn />} />
+                    <KpiCard title="Com Código TUSS" value={kpis.tuss} color="#ed6c02" icon={<LocalHospital />} />
                 </Stack>
 
-                {/* Lado Direito: Busca e Botões */}
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <TextField 
-                        size="small" 
-                        placeholder="Buscar exame ou código..." 
-                        value={searchTerm} 
-                        onChange={(e) => setSearchTerm(e.target.value)} 
-                        InputProps={{ 
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <Search sx={{ color: 'gray', fontSize: 18 }} />
-                                </InputAdornment>
-                            ),
-                            style: { fontSize: '0.8rem', paddingLeft: 0 }
-                        }}
-                        sx={{ width: 240, bgcolor: 'white' }} 
+                        size="small" className="tasy-compact-input" placeholder="Buscar exame ou código..." 
+                        value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} 
+                        InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
+                        sx={{ width: 220 }} 
                     />
-                    
                     <Button
-                        variant="outlined"
-                        component="label"
-                        size="small"
-                        startIcon={isUploading ? <CircularProgress size={16} /> : <CloudUpload />}
+                        variant="outlined" component="label" size="small"
+                        startIcon={isUploading ? <CircularProgress size={16} color="inherit" /> : <CloudUpload />}
                         disabled={isUploading}
-                        sx={{ height: 40, textTransform: 'none', fontWeight: 'bold' }}
+                        sx={{ textTransform: 'none', borderRadius: 1, color: '#495057', borderColor: '#ced4da' }}
                     >
-                        {isUploading ? '...' : 'Importar TUSS'}
+                        {isUploading ? 'Processando...' : 'Importar TUSS'}
                         <input type="file" accept=".csv, .txt" hidden onChange={handleFileUpload} />
                     </Button>
                     <Button
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        startIcon={<PictureAsPdf />}
-                        onClick={() => setIsPdfModalOpen(true)}
-                        sx={{ height: 40, textTransform: 'none', fontWeight: 'bold' }}
+                        variant="outlined" color="error" size="small" startIcon={<PictureAsPdf />} onClick={() => setIsPdfModalOpen(true)}
+                        sx={{ textTransform: 'none', borderRadius: 1 }}
                     >
-                        PDF
+                        Exportar
                     </Button>
-
                     <Button 
-                        variant="contained" 
-                        color="primary" 
-                        size="small"
-                        startIcon={<Add />}
-                        onClick={() => handleOpenModal(null)}
-                        sx={{ height: 40, bgcolor: '#1a233b', textTransform: 'none', fontWeight: 'bold' }}
+                        variant="contained" color="primary" size="small" startIcon={<Add />} onClick={() => handleOpenModal(null)}
+                        sx={{ textTransform: 'none', borderRadius: 1, fontWeight: 'bold' }}
                     >
-                        Novo
+                        Novo Procedimento
                     </Button>
                 </Box>
-            </Box>
+            </Paper>
 
-            {/* 2. TABELA COM SCROLL INTERNO */}
-            <Paper variant="outlined" sx={{ 
-                flexGrow: 1, 
-                display: 'flex', 
-                flexDirection: 'column', 
-                overflow: 'hidden', 
-                borderRadius: 2 
-            }}>
-                <TableContainer sx={{ 
-                    flexGrow: 1, 
-                    overflowY: 'auto',
-                    '&::-webkit-scrollbar': { width: '6px' },
-                    '&::-webkit-scrollbar-track': { background: '#f1f1f1' },
-                    '&::-webkit-scrollbar-thumb': { background: '#ccc', borderRadius: '4px' }
-                }}>
+            {/* TABELA PRINCIPAL TASY */}
+            <Paper className="tasy-flat-panel" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div className="tasy-section-header" style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                    Catálogo de Procedimentos e Exames
+                </div>
+                <TableContainer sx={{ flexGrow: 1, bgcolor: '#ffffff' }}>
                     <Table stickyHeader size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f5f5f5', width: 120 }}>Código TUSS</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f5f5f5', width: 140 }}>Categoria</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f5f5f5' }}>Descrição</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f5f5f5', width: 150 }}>Valor Particular</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 'bold', bgcolor: '#f5f5f5', width: 80 }}>Editar</TableCell>
+                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 120 }}>Código TUSS</TableCell>
+                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 140 }}>Categoria</TableCell>
+                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057' }}>Descrição do Exame</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 150 }}>Valor Particular</TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 80 }}>Ação</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow><TableCell colSpan={5} align="center" sx={{ py: 5 }}><CircularProgress /></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6 }}><CircularProgress /></TableCell></TableRow>
                             ) : filteredList.length > 0 ? (
                                 filteredList.map((proc) => (
                                     <TableRow key={proc.id} hover>
-                                        <TableCell sx={{ fontFamily: 'monospace', color: 'text.secondary', fontSize: '0.75rem' }}>
+                                        <TableCell sx={{ fontFamily: 'monospace', color: '#6c757d', fontSize: '0.8rem', fontWeight: 'bold' }}>
                                             {proc.codigo_tuss || '-'}
                                         </TableCell>
                                         <TableCell>
                                             <Chip 
-                                                label={CAT_LABELS[proc.categoria] || proc.categoria} 
-                                                size="small" 
-                                                color={CAT_COLORS[proc.categoria] || 'default'} 
-                                                variant="outlined"
-                                                sx={{ fontSize: '0.65rem', height: 20, fontWeight: 'bold' }}
+                                                label={CAT_LABELS[proc.categoria] || proc.categoria} size="small" 
+                                                sx={{ fontSize: '0.65rem', height: 20, fontWeight: 'bold', bgcolor: `${CAT_COLORS[proc.categoria]}15`, color: CAT_COLORS[proc.categoria], border: `1px solid ${CAT_COLORS[proc.categoria]}50` }}
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ fontSize: '0.8rem', fontWeight: 500, color: '#444' }}>
+                                        <TableCell sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#343a40' }}>
                                             {proc.descricao}
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 'bold', color: proc.valor_particular ? '#2e7d32' : '#999', fontSize: '0.8rem' }}>
+                                        <TableCell align="right" sx={{ fontWeight: 'bold', color: proc.valor_particular ? '#2e7d32' : '#adb5bd', fontSize: '0.85rem' }}>
                                             {proc.valor_particular ? formatMoney(proc.valor_particular) : '-'}
                                         </TableCell>
-                                        <TableCell align="right">
-                                            <Tooltip title="Editar Preços e Dados">
-                                                <IconButton onClick={() => handleOpenModal(proc)} size="small">
-                                                    <Edit fontSize="small" color="primary" />
+                                        <TableCell align="center">
+                                            <Tooltip title="Editar Regras e Preços">
+                                                <IconButton onClick={() => handleOpenModal(proc)} size="small" sx={{ color: '#1565c0' }}>
+                                                    <Edit fontSize="small" />
                                                 </IconButton>
                                             </Tooltip>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
-                                <TableRow><TableCell colSpan={5} align="center" sx={{ py: 5, color: 'text.secondary' }}>Nenhum procedimento encontrado.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6, color: '#868e96' }}>Nenhum procedimento encontrado.</TableCell></TableRow>
                             )}
                         </TableBody>
-                        
-                        {/* Footer Fixo */}
-                        <TableFooter sx={{ position: 'sticky', bottom: 0, bgcolor: '#fafafa', zIndex: 2, borderTop: '1px solid #eee' }}>
-                             <TableRow>
-                                <TableCell colSpan={5} sx={{ textAlign: 'right', fontSize: '0.7rem', color: '#666', pr: 2 }}>
-                                    Mostrando {filteredList.length} registros
-                                </TableCell>
-                             </TableRow>
-                        </TableFooter>
                     </Table>
                 </TableContainer>
+                {/* RODAPÉ */}
+                <Box sx={{ p: 1, borderTop: '1px solid #dee2e6', bgcolor: '#f8f9fa', textAlign: 'right' }}>
+                    <Typography variant="caption" sx={{ color: '#6c757d', fontWeight: 'bold' }}>
+                        EXIBINDO {filteredList.length} REGISTROS
+                    </Typography>
+                </Box>
             </Paper>
 
-            {/* MODAL UNIFICADO (PROCEDIMENTO) */}
-            <ProcedimentoModal
-                open={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSave={fetchProcedimentos}
-                procedimento={procedimentoSelecionado}
-            />
-
-            {/* MODAL DE PDF */}
+            {/* MODAIS */}
+            <ProcedimentoModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={fetchProcedimentos} procedimento={procedimentoSelecionado} />
             <Dialog open={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>Exportar Procedimentos</DialogTitle>
-                <DialogContent dividers>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Selecione quais informações devem constar no documento:
-                    </Typography>
+                <DialogTitle sx={{ bgcolor: '#f8f9fa', p: 2, borderBottom: '1px solid #dee2e6' }}>
+                    <Typography variant="subtitle1" fontWeight="bold">Exportar Tabela</Typography>
+                </DialogTitle>
+                <DialogContent sx={{ mt: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Selecione quais dados devem constar no PDF:</Typography>
                     <Stack spacing={1}>
-                        <FormControlLabel
-                            control={<Checkbox checked={pdfOptions.showTuss} onChange={(e) => setPdfOptions({...pdfOptions, showTuss: e.target.checked})} />}
-                            label="Incluir Código TUSS"
-                        />
-                        <FormControlLabel
-                            control={<Checkbox checked={pdfOptions.showValues} onChange={(e) => setPdfOptions({...pdfOptions, showValues: e.target.checked})} />}
-                            label="Incluir Valores Particulares"
-                        />
+                        <FormControlLabel control={<Checkbox checked={pdfOptions.showTuss} onChange={(e) => setPdfOptions({...pdfOptions, showTuss: e.target.checked})} />} label="Incluir Código TUSS" />
+                        <FormControlLabel control={<Checkbox checked={pdfOptions.showValues} onChange={(e) => setPdfOptions({...pdfOptions, showValues: e.target.checked})} />} label="Incluir Valores Particulares" />
                     </Stack>
                 </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
-                    <Button onClick={() => setIsPdfModalOpen(false)} disabled={isGerandoPdf}>Cancelar</Button>
-                    <Button onClick={handleGerarPdf} variant="contained" color="error" startIcon={isGerandoPdf ? <CircularProgress size={20} color="inherit" /> : <PictureAsPdf />} disabled={isGerandoPdf}>
-                        {isGerandoPdf ? 'Processando...' : 'Gerar Documento'}
+                <DialogActions sx={{ p: 2, borderTop: '1px solid #dee2e6' }}>
+                    <Button onClick={() => setIsPdfModalOpen(false)} color="inherit" disabled={isGerandoPdf}>Cancelar</Button>
+                    <Button onClick={handleGerarPdf} variant="contained" color="primary" startIcon={isGerandoPdf ? <CircularProgress size={16} color="inherit" /> : <PictureAsPdf />} disabled={isGerandoPdf} sx={{fontWeight:'bold'}}>
+                        {isGerandoPdf ? 'Gerando...' : 'Baixar PDF'}
                     </Button>
                 </DialogActions>
             </Dialog>
         </Box>
     );
 }
-
-// COMPONENTE KPI COMPACTO (Padronizado)
-const CompactKPI = ({ title, value, icon, color, bgcolor }) => (
-    <Paper 
-        elevation={0} 
-        sx={{ 
-            p: 0.5, px: 1.5, borderRadius: 2, bgcolor: bgcolor, 
-            display: 'flex', alignItems: 'center', gap: 1,
-            border: `1px solid ${color}30`,
-            minWidth: 120,
-            height: 40
-        }}
-    >
-        <Box sx={{ bgcolor: 'white', p: 0.3, borderRadius: '50%', display: 'flex', color: color }}>
-            {icon}
-        </Box>
-        <Box sx={{ lineHeight: 1 }}>
-            <Typography variant="caption" sx={{ fontWeight: 'bold', color: color, opacity: 0.9, fontSize: '0.65rem', display: 'block' }}>
-                {title}
-            </Typography>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, color: color, fontSize: '0.85rem' }}>
-                {value}
-            </Typography>
-        </Box>
-    </Paper>
-);
