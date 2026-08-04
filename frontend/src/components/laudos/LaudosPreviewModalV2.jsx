@@ -16,16 +16,31 @@ const LaudosPreviewModalV2 = ({
     nomePaciente
 }) => {
     const editorRef = useRef(null);
-        const [imagens, setImagens] = useState([]);
+    const [imagens, setImagens] = useState([]);
     const [dataExameModal, setDataExameModal] = useState(new Date().toISOString().split('T')[0]);
     const [mostrarFotos, setMostrarFotos] = useState(true);
+    const imagensBaseRef = useRef(0);
 
+    // Reseta o estado local SÓ quando o modal abre de fato
     useEffect(() => {
         if (open) {
             setImagens(imagensIniciais || []);
-            setDataExameModal(new Date().toISOString().split('T')[0]); 
+            setDataExameModal(new Date().toISOString().split('T')[0]);
+            imagensBaseRef.current = (imagensIniciais || []).length;
         }
-    }, [open, imagensIniciais]);
+    }, [open]);
+
+    // Com o modal já aberto, só ANEXA fotos novas vindas do pai (ex: importadas
+    // da nuvem), sem sobrescrever fotos locais ainda não salvas no pai
+    useEffect(() => {
+        if (!open) return;
+        const listaPai = imagensIniciais || [];
+        if (listaPai.length > imagensBaseRef.current) {
+            const novas = listaPai.slice(imagensBaseRef.current);
+            setImagens(prev => [...prev, ...novas]);
+            imagensBaseRef.current = listaPai.length;
+        }
+    }, [imagensIniciais, open]);
 
     const handleImageUpload = (e) => {
         const files = Array.from(e.target.files);

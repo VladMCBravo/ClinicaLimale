@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     'pacientes',
     'agendamentos',
     'prontuario',
+    'prontuario.apps.ProntuarioConfig',
     'faturamento',
     'dashboard',
     'chatbot',

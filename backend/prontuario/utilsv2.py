@@ -17,7 +17,6 @@ def gerar_pdf_laudo_backend_v2(context):
     
     html_corpo = laudo.texto_laudo if laudo else ''
     
-    # REMOVE O BLOCO VISUAL DO REACT COM SEGURANÇA ABSOLUTA
     html_corpo = re.sub(r'<div class="laudo-header-area".*?<!-- FIM_HEADER_V2 -->', '', html_corpo, flags=re.DOTALL)
     
     dados_estruturados = laudo.dados_estruturados if laudo and isinstance(laudo.dados_estruturados, dict) else {}
@@ -92,10 +91,8 @@ def gerar_pdf_laudo_backend_v2(context):
             img2 = imagens[i+1] if i+1 < len(imagens) else ""
             bloco_imagens += "<tr>"
             bloco_imagens += f'<td width="50%" align="center"><img src="{img1}" style="max-height: 160px;"/></td>'
-            if img2:
-                bloco_imagens += f'<td width="50%" align="center"><img src="{img2}" style="max-height: 160px;"/></td>'
-            else:
-                bloco_imagens += '<td width="50%"></td>'
+            bloco_imagens += (f'<td width="50%" align="center"><img src="{img2}" style="max-height: 160px;"/></td>'
+                               if img2 else '<td width="50%"></td>')
             bloco_imagens += "</tr>"
         bloco_imagens += "</table>"
 
@@ -107,19 +104,29 @@ def gerar_pdf_laudo_backend_v2(context):
         <style>
             @page {{
                 size: a4;
-                /* MARGENS IDÊNTICAS À VERSÃO 1 ORIGINAL */
                 margin-top: 6.0cm; 
                 margin-bottom: 2.0cm; 
                 margin-left: 1.5cm;
                 margin-right: 1.5cm;
                 
-                /* POSIÇÃO DO CABEÇALHO DO PACIENTE DO V1 ORIGINAL */
                 @frame header_info {{
                     -pdf-frame-content: header_content;
                     left: 11.2cm; 
                     right: 1.5cm;
                     top: 1.5cm;  
                     height: 3.5cm;
+                }}
+
+                /* Quadro FIXO da assinatura: sempre na mesma posição da folha,
+                   perto do rodapé da máscara — não depende do tamanho do texto.
+                   AJUSTE 'top' olhando o Receituario_v2.jpg até encaixar
+                   exatamente onde começa o rodapé impresso. */
+                @frame signature_info {{
+                    -pdf-frame-content: signature_content;
+                    left: 1.5cm;
+                    right: 1.5cm;
+                    top: 25.3cm;
+                    height: 3.4cm;
                 }}
             }}
             
@@ -153,13 +160,15 @@ def gerar_pdf_laudo_backend_v2(context):
                 <div><span style="font-weight: bold;">SOLICITANTE:</span> {medico_solicitante}</div>
             </div>
         </div>
+
+        <!-- Puxado pelo @frame signature_info: fica sempre nessa posição
+             fixa da página, independente de onde o texto termina. -->
+        <div id="signature_content">
+            {bloco_assinatura}
+        </div>
         
         <div class="corpo-laudo">
             {html_corpo}
-        </div>
-        
-        <div style="margin-top: 40px; page-break-inside: avoid;">
-            {bloco_assinatura}
         </div>
         
         {bloco_imagens}
