@@ -470,6 +470,23 @@ class MetaWhatsAppWebhookView(APIView):
                 for entry in data.get("entry", []):
                     for change in entry.get("changes", []):
                         value = change.get("value", {})
+                        # --- NOVO: captura status de entrega (sent/delivered/read/failed) ---
+                        if "statuses" in value:
+                            for status_update in value["statuses"]:
+                                status_id = status_update.get("id")
+                                status_val = status_update.get("status")
+                                recipient = status_update.get("recipient_id")
+                                erros = status_update.get("errors")
+                                if erros:
+                                    logger.error(
+                                        f"📛 STATUS DE ENTREGA - id={status_id} status={status_val} "
+                                        f"recipient={recipient} erros={erros}"
+                                    )
+                                else:
+                                    logger.warning(
+                                        f"📬 STATUS DE ENTREGA - id={status_id} status={status_val} "
+                                        f"recipient={recipient}"
+                                    )
                         
                         # 2. Verifica se existem mensagens (ignora status de lido/entregue por enquanto)
                         if "messages" in value:
