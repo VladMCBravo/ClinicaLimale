@@ -893,6 +893,41 @@ class ArquivarRelatorioView(APIView):
         
         return Response({"detail": "Relatório arquivado com sucesso."}, status=status.HTTP_200_OK)
 
+# Adicione junto das outras views de geração de PDF
+class GerarTermoConsentimentoPDFView(APIView):
+    """
+    Recebe via POST o nome e CRM do médico, busca os dados do paciente
+    e gera o PDF do Termo de Consentimento usando a máscara padrão.
+    """
+    permission_classes = [IsAuthenticated] # Protegido para usuários logados
+
+    def post(self, request, paciente_id, *args, **kwargs):
+        try:
+            paciente = Paciente.objects.get(pk=paciente_id)
+        except Paciente.DoesNotExist:
+            return Response({"erro": "Paciente não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Captura os dados enviados pelo React
+        medico_nome = request.data.get('medico_nome', '')
+        medico_crm = request.data.get('medico_crm', '')
+
+        context = {
+            'paciente': paciente,
+            'medico_nome': medico_nome,
+            'medico_crm': medico_crm,
+            # Se quiser forçar a assinatura digital do médico logado na máscara, 
+            # passe a instância do request.user para o contexto:
+            'medico': request.user 
+        }
+        
+        filename = f'termo_consentimento_{paciente.nome_completo}'
+        
+        return generate_pdf_response(
+            'pdfs/termo_consentimento.html', 
+            context, 
+            filename
+        )
+
 class ListarExamesDoPacienteView(generics.ListAPIView):
     """
     Lista todos os exames (com credenciais) de um paciente específico.
