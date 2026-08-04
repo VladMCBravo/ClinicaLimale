@@ -4,6 +4,11 @@ from django.conf import settings
 from .bot_logic import processar_mensagem_bot
 from pacientes.models import Paciente
 from crm.models import Ciclo
+from django.utils import timezone
+from datetime import timedelta
+from .services import enviar_msg_whatsapp, enviar_template_whatsapp
+from .models import ChatMemory
+
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +25,20 @@ class WhatsAppBotHandler:
             self.ciclo_ativo = Ciclo.objects.filter(paciente=self.paciente, status='ativo').first()
         else:
             self.ciclo_ativo = None
+
+    def janela_24h_aberta(self):
+        """Verifica se ainda estamos dentro da janela de atendimento de 24h."""
+        try:
+            memoria = ChatMemory.objects.get(session_id=self.phone)
+        except ChatMemory.DoesNotExist:
+            return False
+        return (timezone.now() - memoria.updated_at) < timedelta(hours=24)
+
+    def enviar_template(self, nome_template, parametros=None, idioma="pt_BR", formato="positional"):
+        """Envia template — usado para lembretes/reengajamento fora da janela de 24h."""
+        return enviar_template_whatsapp(
+            self.phone, nome_template, idioma=idioma, parametros=parametros, formato=formato
+        )
 
     def enviar_mensagem(self, texto):
         """Envia a resposta via API Oficial da Meta (WhatsApp Cloud API)"""

@@ -67,6 +67,64 @@ def buscar_precos_servicos(nome_servico=None):
         logger.error(f"Erro ao buscar preços: {e}")
         return []
 
+def enviar_template_whatsapp(numero, nome_template, idioma="pt_BR", parametros=None, formato="positional"):
+    """
+    Envia uma mensagem de modelo (template) aprovada pela Meta.
+    Necessário para iniciar/reabrir conversa fora da janela de 24h
+    (lembretes de consulta, reengajamento de leads frios, etc).
+
+    parametros: lista de valores (formato 'positional') ou dict {nome: valor} (formato 'named')
+    """
+    token = os.environ.get("META_ACCESS_TOKEN")
+    phone_id = os.environ.get("META_PHONE_NUMBER_ID")
+    api_version = os.environ.get("META_API_VERSION", "v25.0")
+
+    if not token or not phone_id:
+        logger.error("❌ Erro: META_ACCESS_TOKEN ou META_PHONE_NUMBER_ID não encontrados no .env")
+        return False
+
+    url = f"https://graph.facebook.com/{api_version}/{phone_id}/messages"
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    components = []
+    if parametros:
+        if formato == "named":
+            components = [{
+                "type": "body",
+                "parameters": [
+                    {"type": "text", "parameter_name": nome, "text": str(valor)}
+                    for nome, valor in parametros.items()
+                ]
+            }]
+        else:  # positional
+            components = [{
+                "type": "body",
+                "parameters": [{"type": "text", "text": str(valor)} for valor in parametros]
+            }]
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": numero,
+        "type": "template",
+        "template": {
+            "name": nome_template,
+            "language": {"code": idioma},
+            "components": components
+        }
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response.raise_for_status()
+        logger.info(f"✅ Template '{nome_template}' enviado para {numero}: {response.text}")
+        return True
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Erro ao enviar template '{nome_template}' para {numero}: {e}")
+        if e.response is not None:
+            logger.error(f"Detalhes do erro Meta: {e.response.text}")
+        return False
+
 def enviar_msg_whatsapp(numero, texto):
     """
     Envia mensagens ativas pelo WhatsApp usando a API Oficial da Meta.
@@ -105,4 +163,13 @@ def enviar_msg_whatsapp(numero, texto):
         logger.error(f"❌ Erro ao enviar mensagem para {numero} via Meta: {e}")
         if e.response is not None:
             logger.error(f"Detalhes do erro Meta: {e.response.text}")
+            try:
+                erro_data = e.response.json().get("error", {})
+                if erro_data.get("code") == 131047:
+                    logger.warning(
+                        f"⏰ Janela de 24h fechada para {numero}. "
+                        f"Use enviar_template_whatsapp() para reabrir a conversa."
+                    )
+            except ValueError:
+                pass
         return False

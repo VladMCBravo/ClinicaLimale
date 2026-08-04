@@ -6,7 +6,7 @@ import qrcode
 from io import BytesIO
 from django.conf import settings
 from xhtml2pdf import pisa
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatura=""):
     if not texto_bruto:
@@ -318,4 +318,88 @@ def gerar_pdf_laudo_backend(context):
         print("="*50 + "\n\n")
         raise e
         
+    return None
+
+def extrair_dum_do_laudo(laudo):
+    """
+    Tenta extrair a Data da Última Menstruação (DUM) de um Laudo obstétrico.
+
+    ⚠️ ATENÇÃO: os nomes de chave abaixo são um PALPITE baseado nos padrões
+    observados em outros campos de dados_estruturados (camelCase, prefixo
+    'feto1.' para multi-fetal). PRECISA ser validado contra o que o
+    FormObstetrico.jsx realmente grava. Ajuste as chaves em CANDIDATOS_DUM
+    e a lógica de IG assim que confirmar o formato real.
+
+    Retorna um objeto `date` ou None.
+    """
+    if not laudo or not isinstance(laudo.dados_estruturados, dict):
+        return None
+
+    dados = laudo.dados_estruturados
+
+    def _parse_data(valor):
+        """Aceita 'YYYY-MM-DD', 'DD/MM/YYYY' ou já um date."""
+        if not valor:
+            return None
+        if isinstance(valor, date):
+            return valor
+        if not isinstance(valor, str):
+            return None
+        valor = valor.strip()
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(valor, fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    # --- Tentativa 1: DUM gravada diretamente no laudo ---
+    CANDIDATOS_DUM = ['dum', 'DUM', 'dataUltimaMenstruacao', 'dataDUM']
+    for chave in CANDIDATOS_DUM:
+        data_encontrada = _parse_data(dados.get(chave))
+        if data_encontrada:
+            return data_encontrada
+
+    # --- Tentativa 2: dentro de feto1 (padrão visto em laudoPdfGenerator.js) ---
+    feto1 = dados.get('feto1')
+    if isinstance(feto1, dict):
+        for chave in CANDIDATOS_DUM:
+            data_encontrada = _parse_data(feto1.get(chave))
+            if data_encontrada:
+                return data_encontrada
+
+    # --- Tentativa 3: calcular a DUM a partir da Idade Gestacional (IG) ---
+    # Se o formulário salva "IG: 24 semanas e 3 dias" na data do exame,
+    # DUM = data_exame - (semanas*7 + dias) dias.
+    CANDIDATOS_IG_SEMANAS = ['igSemanas', 'idadeGestacionalSemanas']
+    CANDIDATOS_IG_DIAS = ['igDias', 'idadeGestacionalDias']
+
+    semanas = None
+    dias = None
+    fonte = feto1 if isinstance(feto1, dict) else dados
+
+    for chave in CANDIDATOS_IG_SEMANAS:
+        if fonte.get(chave) not in (None, ''):
+            try:
+                semanas = int(fonte.get(chave))
+            except (ValueError, TypeError):
+                pass
+            break
+
+    for chave in CANDIDATOS_IG_DIAS:
+        if fonte.get(chave) not in (None, ''):
+            try:
+                dias = int(fonte.get(chave))
+            except (ValueError, TypeError):
+                pass
+            break
+
+    if semanas is not None:
+        dias = dias or 0
+        data_exame = getattr(laudo, 'data_criacao', None)
+        data_base = data_exame.date() if hasattr(data_exame, 'date') else data_exame
+        if data_base:
+            total_dias = (semanas * 7) + dias
+            return data_base - timedelta(days=total_dias)
+
     return None

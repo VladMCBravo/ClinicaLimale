@@ -288,8 +288,9 @@ const LaudosPageV2 = () => {
   const handleImportarDaNuvem = (novasImagensBase64) => setImagens(prev => [...prev, ...novasImagensBase64]);
 
   const htmlPronto = gerarConteudoParaEditor({
-      paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo: textoFinal, dataExame: ''
-  });
+    paciente, dadosEstruturados, tituloExame, tipoExame, textoLaudo: textoFinal,
+    dataExame: new Date().toISOString().split('T')[0]
+});
 
   // Trava o scroll do documento (html/body) enquanto a página de Laudos está montada.
     // Isso impede que qualquer overflow interno "vaze" para o body e crie
@@ -487,10 +488,7 @@ const LaudosPageV2 = () => {
 
                     <Button 
                         variant="contained" size="small" 
-                        onClick={() => {
-                            if (!textoFinal) return alert("Preencha as medidas para gerar o laudo.");
-                            setModalRevisaoOpen(true);
-                        }} 
+                        onClick={() => { if (!textoFinal || textoFinal.trim() === '') return alert("Preencha as medidas para gerar o laudo."); setModalRevisaoOpen(true); }}
                         sx={{ 
                             background: '#1864ab', 
                             textTransform: 'uppercase', 

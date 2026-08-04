@@ -1,5 +1,5 @@
 // src/components/LaudosPreviewModal.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, 
     Button, Tabs, Tab, Box, Typography, IconButton, Tooltip 
@@ -22,16 +22,27 @@ const LaudosPreviewModal = ({
     const [imagens, setImagens] = useState([]);
     const [tabIndex, setTabIndex] = useState(0); // 0 = Texto, 1 = Fotos
     const [dataExameModal, setDataExameModal] = useState(new Date().toISOString().split('T')[0]);
+    const imagensBaseRef = useRef(0);
 
     useEffect(() => {
         if (open) {
             setTextoEditado(textoInicial);
             setImagens(imagensIniciais || []);
             setTabIndex(0);
-            // Reseta a data para hoje sempre que o modal abre
-            setDataExameModal(new Date().toISOString().split('T')[0]); 
+            setDataExameModal(new Date().toISOString().split('T')[0]);
+            imagensBaseRef.current = (imagensIniciais || []).length;
         }
-    }, [open, textoInicial, imagensIniciais]);
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) return;
+        const listaPai = imagensIniciais || [];
+        if (listaPai.length > imagensBaseRef.current) {
+            const novas = listaPai.slice(imagensBaseRef.current);
+            setImagens(prev => [...prev, ...novas]);
+            imagensBaseRef.current = listaPai.length;
+        }
+    }, [imagensIniciais, open]);
 
     // Função interna de upload
     const handleImageUpload = (e) => {
