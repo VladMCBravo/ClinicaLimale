@@ -16,13 +16,10 @@
         font-size: 11pt;
         line-height: 1.6;
     }
-    .assinaturas {
-        margin-top: 60px;
-        width: 100%;
-    }
     .assinatura-box {
         text-align: center;
-        margin-bottom: 40px;
+        margin-top: 60px;
+        width: 100%;
     }
     .linha {
         border-top: 1px solid #000;
@@ -41,7 +38,7 @@
 <!-- CORPO DO TEXTO -->
 <div class="texto-termo">
     <p>
-        Eu, <strong>{{ paciente.nome_completo|upper }}</strong>, portador(a) do CPF nº <strong>{{ paciente.cpf|default:"________________________" }}</strong>, RG nº <strong>{{ paciente.rg|default:"___________________________" }}</strong>, autorizo de forma livre, informada e inequívoca o uso da minha imagem, captada durante ou após meu atendimento realizado com o(a) Dr(a). <strong>{{ medico_nome }}</strong> (CRM: {{ medico_crm|default:"N/A" }}).
+        Eu, <strong>{{ paciente.nome_completo|upper }}</strong>, portador(a) do CPF nº <strong>{{ paciente.cpf|default:"___________________________" }}</strong>, RG nº <strong>{{ paciente.rg|default:"___________________________" }}</strong>, autorizo de forma livre, informada e inequívoca o uso da minha imagem, captada durante ou após meu atendimento realizado com o(a) Dr(a). <strong>{{ medico_nome }}</strong> (CRM: {{ medico_crm|default:"N/A" }}).
     </p>
     
     <p>Autorizo que minha imagem seja utilizada para:</p>
@@ -56,26 +53,16 @@
         Declaro estar ciente que a utilização se dará para fins indicados, sem caráter pejorativo, e que posso revogar este consentimento a qualquer momento.
     </p>
 
-    <p style="text-align: right; margin-top: 30px;">
-        Diadema, {% now "d 'de' F 'de' Y" %}.
+    <!-- DATA CORRIGIDA -->
+    <p style="text-align: right; margin-top: 40px;">
+        Diadema, {% now "d" %} de {% now "F" %} de {% now "Y" %}.
     </p>
 </div>
 
-<!-- BLOCO DE ASSINATURAS MANUAIS -->
-<table class="assinaturas">
-    <tr>
-        <td class="assinatura-box">
-            <div class="linha"></div>
-            Assinatura do(a) paciente<br>
-            <strong>{{ paciente.nome_completo|upper }}</strong>
-        </td>
-    </tr>
-    <tr>
-        <td class="assinatura-box">
-            <div class="linha"></div>
-            Assinatura do profissional<br>
-            <strong>{{ medico_nome }}</strong>
-        </td>
-    </tr>
-</table>
+<!-- BLOCO DE ASSINATURA APENAS DO PACIENTE -->
+<div class="assinatura-box">
+    <div class="linha"></div>
+    Assinatura do(a) paciente<br>
+    <strong>{{ paciente.nome_completo|upper }}</strong>
+</div>
 {% endblock %}
