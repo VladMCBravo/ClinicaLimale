@@ -98,8 +98,8 @@ def enviar_msg_whatsapp(numero, texto):
     
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=10)
-        response.raise_for_status() # Dispara erro se não for 200 OK
-        logger.info(f"✅ Mensagem enviada com sucesso para {numero} via Meta API")
+        response.raise_for_status()
+        logger.info(f"✅ Resposta da Meta: {response.status_code} - {response.text}")
         return True
     except requests.exceptions.RequestException as e:
         logger.error(f"❌ Erro ao enviar mensagem para {numero} via Meta: {e}")

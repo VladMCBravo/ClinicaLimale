@@ -473,10 +473,11 @@ class MetaWhatsAppWebhookView(APIView):
                         
                         # 2. Verifica se existem mensagens (ignora status de lido/entregue por enquanto)
                         if "messages" in value:
+                            contacts = value.get("contacts", [])
                             for message in value["messages"]:
-                                
-                                # Coleta os dados básicos
-                                phone_number = message.get("from")
+                                # Pega o wa_id do contato correspondente, com fallback pro "from"
+                                wa_id = contacts[0].get("wa_id") if contacts else message.get("from")
+                                phone_number = wa_id or message.get("from")
                                 message_id = message.get("id")
                                 
                                 # 3. Extrai o texto (se for uma mensagem de texto)
