@@ -29,6 +29,7 @@ import FormEcocardiograma from '../components/laudos/ecocardiograma/FormEcocardi
 import FormDopplerCarotidas from '../components/laudos/carotidas/FormDopplerCarotidas';
 import FormEletrocardiograma from '../components/laudos/eletrocardiograma/FormEletrocardiograma';
 import AtestadoModal from '../components/laudos/AtestadoModal'; // Vamos criar este arquivo abaixo
+import TermoConsentimentoModal from '../components/laudos/TermoConsentimentoModal'; // <-- ADICIONE AQUI
 import LaudosPreviewModal from '../components/laudos/LaudosPreviewModal'; // Novo Modal
 import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal'; // <--- ADICIONE ISSO
 
@@ -195,6 +196,7 @@ const getInitialState = (key, fallback) => {
   const [credenciais, setCredenciais] = useState(null);
   const [laudoId, setLaudoId] = useState(() => getInitialState('laudoId', null)); 
   const [modalAtestadoOpen, setModalAtestadoOpen] = useState(false);
+  const [modalTermoOpen, setModalTermoOpen] = useState(false);
   const [modalRevisaoOpen, setModalRevisaoOpen] = useState(false); // NOVO: Controle do Modal de Revisão
   const [modalNuvemOpen, setModalNuvemOpen] = useState(false); // <--- ADICIONE ISSO
   const [isPolling, setIsPolling] = useState(false);
@@ -596,21 +598,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
       const assunto = `Resultado de Exame - Clínica Limalé`;
       window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`, '_blank');
   };
-
-  const handleImprimirTermo = () => {
-      if (!medicoNome) return alert("Por favor, preencha o nome do Médico.");
-      const nomePaciente = paciente?.nome_completo || "__________________________________________________________";
-      const cpfPaciente = paciente?.cpf || "________________________";
-      const rgPaciente = paciente?.rg || "___________________________";
-      const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-      const hoje = new Date();
-      const dataExtenso = `${hoje.getDate()} de ${meses[hoje.getMonth()]} de ${hoje.getFullYear()}`;
-
-      const termoWindow = window.open('', '', 'width=800,height=600');
-      termoWindow.document.write(`<html><head><title>Termo de Consentimento</title><style>body { font-family: 'Arial', sans-serif; font-size: 10pt; margin: 0; padding: 0; } @page { size: A4; margin: 1.5cm 2cm; } .content { padding-top: 4.5cm; } h2 { text-align: center; font-size: 12pt; margin-bottom: 20px; font-weight: bold; } p, li { line-height: 1.3; text-align: justify; margin-bottom: 8px; } ul { margin-left: 20px; margin-bottom: 10px; } .check-group { margin: 10px 0; } .assinaturas { margin-top: 30px; display: flex; flex-direction: column; gap: 30px; } .assinatura-box { width: 100%; } .linha { border-top: 1px solid #000; width: 60%; margin-bottom: 4px; }</style></head><body><div class="content"><h2>TERMO DE CONSENTIMENTO PARA USO DE IMAGEM</h2><p>Eu, <strong>${nomePaciente}</strong>, portador(a) do CPF nº <strong>${cpfPaciente}</strong>, RG nº <strong>${rgPaciente}</strong>, autorizo de forma livre, informada e inequívoca o uso da minha imagem, captada durante ou após meu atendimento realizado com o(a) Dr(a). <strong>${medicoNome}</strong> (CRM: ${medicoCrm}).</p><p>Autorizo que minha imagem seja utilizada para:</p><div class="check-group">(x) Divulgação científica<br/>(x) Divulgação institucional<br/>(x) Antes e depois ilustrativos</div><p>Declaro estar ciente que a utilização se dará para fins indicados, sem caráter pejorativo, e que posso revogar este consentimento a qualquer momento.</p><p style="text-align: right; margin-top: 20px;">Diadema, ${dataExtenso}.</p><div class="assinaturas"><div class="assinatura-box"><div class="linha"></div>Assinatura do(a) paciente</div><div class="assinatura-box"><div class="linha"></div>Assinatura do profissional: <strong>${medicoNome}</strong></div></div></div><script>window.onload = function() { window.print(); window.close(); }</script></body></html>`);
-      termoWindow.document.close();
-  };
-
+  
   const handleImportarDaNuvem = (novasImagensBase64) => {
       setImagens(prev => [...prev, ...novasImagensBase64]);
       // Não fecha o modal de revisão, apenas atualiza as imagens nele
@@ -873,7 +861,14 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                         </IconButton>
                      </Tooltip>
                      <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto', mx: 0.5 }} />
-                    <Button size="small" onClick={handleImprimirTermo} sx={{ color: '#546E7A', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>
+                    <Button 
+                        size="small" 
+                        onClick={() => {
+                            if (!medicoNome) return alert("Por favor, preencha o nome do Médico.");
+                            setModalTermoOpen(true);
+                        }} 
+                        sx={{ color: '#546E7A', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}
+                    >
                         Termo
                     </Button>
                     <Button 
@@ -984,7 +979,13 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
     medicoCrm={medicoCrm} 
     usaAssinaturaDigital={usuarioTemCertificado}
 />
-
+<TermoConsentimentoModal 
+            open={modalTermoOpen}
+            onClose={() => setModalTermoOpen(false)}
+            paciente={paciente}
+            medicoNome={medicoNome}
+            medicoCrm={medicoCrm}
+        />
     </div>
   );
 };

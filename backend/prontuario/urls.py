@@ -3,7 +3,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import buscar_credenciais_ativas, LaudoCreateAsyncView, LaudoStatusView, RegerarLaudoPDFView
+from .views import buscar_credenciais_ativas, LaudoCreateAsyncView, LaudoStatusView, RegerarLaudoPDFView, GerarTermoConsentimentoPDFView
 
 router = DefaultRouter()
 router.register(r'documentos', views.DocumentoPacienteViewSet, basename='documento-paciente')
@@ -26,6 +26,8 @@ urlpatterns = [
     path('atestados/', views.AtestadoListCreateAPIView.as_view(), name='listar-criar-atestados'),
     # ADICIONE A NOVA ROTA LOGO ABAIXO (Para o Modal Unificado usar)
     path('pacientes/<int:paciente_id>/atestados/', views.AtestadoListCreateAPIView.as_view(), name='atestados-do-paciente'),
+
+    path('pacientes/<int:paciente_id>/termo-pdf/', GerarTermoConsentimentoPDFView.as_view(), name='gerar-termo-pdf'),
     # ROTAS PARA OS MODELOS DE PRESCRIÇÃO
     path('modelos-prescricao/', views.ModeloPrescricaoListCreateView.as_view(), name='modelos-prescricao'),
     path('modelos-prescricao/<int:pk>/', views.ModeloPrescricaoDetailView.as_view(), name='modelo-prescricao-detail'),
