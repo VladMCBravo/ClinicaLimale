@@ -104,7 +104,6 @@ export default function ProcedimentoModal({ open, onClose, onSave, procedimento 
         finally { setIsSubmitting(false); }
     };
 
-    // --- NOVA LÓGICA DE EDIÇÃO DO PLANO DE SAÚDE ---
     const handleAddPrecoConvenio = async () => {
         if (!planoSelecionadoId || !valorConvenio) return showSnackbar('Selecione plano e valor.', 'warning');
         setIsSubmitting(true);
@@ -112,21 +111,23 @@ export default function ProcedimentoModal({ open, onClose, onSave, procedimento 
             await faturamentoService.definirPrecoConvenio(procedimento.id, { plano_convenio_id: planoSelecionadoId, valor: valorConvenio });
             showSnackbar('Preço salvo/atualizado!', 'success');
             
-            // Simula atualização na tela sem precisar recarregar o modal inteiro
             const planoNome = planosDisponiveis.find(p => p.id === planoSelecionadoId);
             setValoresConvenio(prev => {
                 const existe = prev.findIndex(v => v.plano_convenio.id === planoSelecionadoId);
                 const novoItem = { plano_convenio: planoNome, valor: valorConvenio };
-                if (existe >= 0) { const updated = [...prev]; atualizadas[existe] = novoItem; return updated; }
+                if (existe >= 0) { 
+                    const updated = [...prev]; 
+                    updated[existe] = novoItem; // <--- CORREÇÃO AQUI (NOME DA VARIÁVEL CORRETA)
+                    return updated; 
+                }
                 return [...prev, novoItem];
             });
 
-            setPlanoSelecionadoId(''); setValorConvenio(''); onSave(); // Força update na lista atrás
+            setPlanoSelecionadoId(''); setValorConvenio(''); onSave(); 
         } catch (error) { showSnackbar('Erro ao salvar preço.', 'error'); } 
         finally { setIsSubmitting(false); }
     };
 
-    // A MÁGICA: Joga o item clicado de volta para as caixinhas de cima!
     const handleEditPreco = (item) => {
         setPlanoSelecionadoId(item.plano_convenio.id);
         setValorConvenio(item.valor);
