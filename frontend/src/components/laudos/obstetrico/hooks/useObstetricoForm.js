@@ -24,7 +24,12 @@ export const useObstetricoForm = (onUpdate = () => {}, initialValues = {}) => {
     // Estado principal
     const [data, setData] = useState(() => {
         if (initialValues && Object.keys(initialValues).length > 0) {
-            return { ...initialState, ...initialValues };
+            // 🚫 Metadados do PACIENTE não devem contaminar o state do EXAME.
+            // Eles já são exibidos no cabeçalho fixo do PDF (LaudosPage.jsx
+            // guarda isso em dadosEstruturados no nível raiz); aqui só
+            // precisamos dos campos clínicos do formulário obstétrico.
+            const { sexo, dataNascimento, medicoSolicitante, ...valoresDoExame } = initialValues;
+            return { ...initialState, ...valoresDoExame };
         }
         return initialState;
     });

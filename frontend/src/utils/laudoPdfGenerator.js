@@ -144,6 +144,19 @@ export const gerarPDFLaudo = async ({
                 mode = 'INDICES'; continue; 
             }
 
+            // 🚫 Campos que já aparecem no cabeçalho fixo do PDF
+            const colonIdx = line.indexOf(':');
+            const labelLinha = colonIdx > -1 ? line.substring(0, colonIdx).trim().toUpperCase() : '';
+            const camposCabecalhoDuplicados = [
+                'PACIENTE', 'NOME', 'NOME DO PACIENTE', 'NASCIMENTO',
+                'DATA DE NASCIMENTO', 'NASC', 'SEXO', 'IDADE',
+                'DATA DO EXAME', 'DATA', 'SOLICITANTE', 'MÉDICO SOLICITANTE'
+            ];
+            if (camposCabecalhoDuplicados.includes(labelLinha)) {
+                flushSideBySide();      // fecha tabela de biometria/índices se estiver aberta
+                continue;               // ignora a linha, não duplica no corpo
+            }
+
             const isHeader = line.includes('---') || titulosConhecidos.some(t => cleanLine.startsWith(t));
             const isFinalHeader = titulosFinais.some(t => cleanLine.startsWith(t));
             
