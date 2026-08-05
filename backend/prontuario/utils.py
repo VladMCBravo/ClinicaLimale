@@ -52,6 +52,21 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
     titulos_finais = ['CONCLUSÃO', 'IMPRESSÃO DIAGNÓSTICA', 'OPINIÃO']
     frases_rodape = ["FAVOR TRAZER", "A IMAGEM DIAGN", "NEM TODAS AS ALTERA", "A MEDIDA DA TRANSLUC", "ESTE EXAME NÃO SUBSTITUI"]
 
+    # 🚫 Campos que já aparecem no cabeçalho fixo do PDF — se aparecerem
+    # de novo no corpo do texto (dentro de tabelas de biometria/índices,
+    # por exemplo), devem ser ignorados para não duplicar a informação.
+    campos_cabecalho_duplicados = {
+        'PACIENTE', 'NOME', 'NOME DO PACIENTE', 'NASCIMENTO',
+        'DATA DE NASCIMENTO', 'NASC', 'SEXO', 'IDADE',
+        'DATA DO EXAME', 'DATA', 'SOLICITANTE', 'MÉDICO SOLICITANTE'
+    }
+
+    def extrair_label(linha):
+        """Retorna o texto antes dos ':' em maiúsculas, ou None se não houver ':'."""
+        if ':' not in linha:
+            return None
+        return linha.split(':', 1)[0].strip().upper()
+
     def fechar_tabela():
         nonlocal em_tabela
         if em_tabela:
@@ -70,6 +85,11 @@ def formatar_texto_laudo_para_html(texto_bruto, titulo_exame="", bloco_assinatur
         linha_limpa = re.sub(r'^[-=*\s]+', '', linha).strip().upper()
         is_titulo = any(linha_limpa.startswith(t) for t in titulos_principais)
         is_rodape = any(linha_limpa.startswith(f) for f in frases_rodape)
+        is_dado_cabecalho = extrair_label(linha) in campos_cabecalho_duplicados
+
+        if is_dado_cabecalho:
+            fechar_tabela()
+            continue  # já exibido no cabeçalho fixo do PDF, não repetir no corpo
 
         if is_titulo:
             fechar_tabela()
