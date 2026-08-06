@@ -32,7 +32,7 @@ import requests
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from chatbot.services import enviar_msg_whatsapp
+from chatbot.services import enviar_msg_whatsapp, enviar_msg_botoes_whatsapp
 
 # --- SEÇÃO DE IMPORTAÇÕES DO SEU PROJETO ---
 import time
@@ -422,6 +422,47 @@ class WhatsAppLogoutView(APIView):
 # WEBHOOK DA API OFICIAL DA META (WHATSAPP CLOUD API)
 # ==============================================================================
 
+# --- FUNÇÃO DE TRATAMENTO DOS BOTÕES ---
+def processar_resposta_botao_whatsapp(phone_number, button_id):
+    try:
+        clean_phone = ''.join(filter(str.isdigit, phone_number))
+        paciente = Paciente.objects.filter(telefone_celular__icontains=clean_phone[-8:]).first()
+
+        if button_id == "btn_confirmar_sim":
+            if paciente:
+                agendamento = Agendamento.objects.filter(
+                    paciente=paciente,
+                    status='Agendado'
+                ).order_by('data_hora_inicio').first()
+
+                if agendamento:
+                    agendamento.status = 'Confirmado'
+                    agendamento.save()
+                    logger.info(f"✅ Agendamento #{agendamento.id} alterado para CONFIRMADO via WhatsApp.")
+                    msg_resposta = "✅ *Consulta confirmada com sucesso!*\n\nSeu agendamento foi atualizado em nosso sistema. Esperamos por você na Clínica Limalé! 🏥"
+                else:
+                    msg_resposta = "✅ *Confirmação recebida!* Mas não encontrei agendamentos pendentes para hoje."
+            else:
+                msg_resposta = "✅ *Confirmação recebida!* Obrigado pelo retorno."
+
+            enviar_msg_whatsapp(phone_number, msg_resposta)
+
+        elif button_id == "btn_confirmar_nao":
+            memoria, _ = ChatMemory.objects.get_or_create(session_id=phone_number)
+            memoria.state = 'humano'
+            memoria.save()
+
+            msg_resposta = (
+                "Compreendido! 👨‍💻\n\n"
+                "Encaminhei seu atendimento para a nossa equipe de recepção. "
+                "Em instantes um de nossos atendentes falará com você para remarcar seu horário."
+            )
+            enviar_msg_whatsapp(phone_number, msg_resposta)
+            logger.warning(f"👤 Conversa com {phone_number} transferida para atendimento HUMANO (Desistência).")
+            
+    except Exception as e:
+        logger.error(f"Erro ao processar botão {button_id} para {phone_number}: {e}")
+
 class MetaWhatsAppWebhookView(APIView):
     """Endpoint para validação e recebimento de mensagens da API Oficial da Meta"""
     
@@ -496,63 +537,77 @@ class MetaWhatsAppWebhookView(APIView):
                                 wa_id = contacts[0].get("wa_id") if contacts else message.get("from")
                                 phone_number = wa_id or message.get("from")
                                 message_id = message.get("id")
+                                msg_type = message.get("type") # <--- DESCOBRE SE É TEXTO OU BOTÃO
                                 
-                                # 3. Extrai o texto (se for uma mensagem de texto)
-                                message_text = ""
-                                if message.get("type") == "text":
+                                # ========================================================
+                                # 3A. SE FOR UM CLIQUE EM BOTÃO INTERATIVO
+                                # ========================================================
+                                if msg_type == "interactive":
+                                    interactive = message.get("interactive", {})
+                                    if interactive.get("type") == "button_reply":
+                                        button_id = interactive.get("button_reply", {}).get("id")
+                                        logger.info(f"🔘 Botão clicado por {phone_number}: {button_id}")
+                                        
+                                        # Roda em segundo plano para não travar o webhook
+                                        def tratar_botao():
+                                            processar_resposta_botao_whatsapp(phone_number, button_id)
+
+                                        threading.Thread(target=tratar_botao).start()
+
+                                # ========================================================
+                                # 3B. SE FOR UMA MENSAGEM DE TEXTO COMUM (FLUXO IA)
+                                # ========================================================
+                                elif msg_type == "text":
                                     message_text = message.get("text", {}).get("body", "")
                                 
-                                # Você pode adicionar lógicas para áudio, imagem e botoes aqui no futuro
-                                
-                                if message_text:
-                                    logger.info(f"Mensagem Meta recebida de {phone_number}: {message_text}")
-                                    
-                                    handler = WhatsAppBotHandler(phone_number)
-                                    
-                                    # 4. Envia o processamento pesado (IA Langchain) para uma Thread
-                                    # Exatamente como você fez brilhantemente na view da Evolution
-                                    def tarefa_em_segundo_plano_meta():
-                                        try:
-                                            logger.warning(f"🚀 Iniciando processamento para {phone_number}. Texto recebido: {message_text}")
-                                            
-                                            memoria_obj, is_nova_conversa = ChatMemory.objects.get_or_create(session_id=phone_number)
-                                            
-                                            # A IA processa a mensagem
-                                            resposta = handler.processar_fluxo(message_text)
-                                            
-                                            # Extração segura do texto e do nome da IA
-                                            texto_ia = ""
-                                            nome_usuario = "Carlos" # Valor padrão caso não encontre
-                                            
-                                            if isinstance(resposta, dict):
-                                                texto_ia = resposta.get("response_message") or resposta.get("resposta") or ""
-                                                if resposta.get("nome_extraido"):
-                                                    nome_usuario = resposta.get("nome_extraido")
-                                            elif isinstance(resposta, str):
-                                                texto_ia = resposta
+                                    if message_text:
+                                        logger.info(f"Mensagem Meta recebida de {phone_number}: {message_text}")
+                                        
+                                        handler = WhatsAppBotHandler(phone_number)
+                                        
+                                        # Envia o processamento pesado (IA Langchain) para uma Thread
+                                        def tarefa_em_segundo_plano_meta():
+                                            try:
+                                                logger.warning(f"🚀 Iniciando processamento para {phone_number}. Texto recebido: {message_text}")
                                                 
-                                            logger.warning(f"🤖 Resposta gerada pela IA (processada): {texto_ia}")
-                                            
-                                            # Se for nova conversa ou a IA não gerou texto direto, criamos uma resposta acolhedora
-                                            if is_nova_conversa or not texto_ia or texto_ia == "None":
-                                                logger.warning("🟢 Enviando saudação / resposta inicial personalizada.")
-                                                texto_ia = (
-                                                    f"Olá, {nome_usuario}! 🤍\n\n"
-                                                    "Sou o Leônidas, assistente da Clínica Limalé — centro de "
-                                                    "referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
-                                                    "Vi que você tem interesse em nossos exames. Como posso te ajudar com os valores e agendamentos hoje?"
-                                                )
-                                            
-                                            # Dispara o envio oficial via Meta API
-                                            time.sleep(1)
-                                            enviar_msg_whatsapp(phone_number, texto_ia)
-                                            logger.warning(f"✅ Mensagem despachada com sucesso para {phone_number}!")
+                                                memoria_obj, is_nova_conversa = ChatMemory.objects.get_or_create(session_id=phone_number)
+                                                
+                                                # A IA processa a mensagem
+                                                resposta = handler.processar_fluxo(message_text)
+                                                
+                                                # Extração segura do texto e do nome da IA
+                                                texto_ia = ""
+                                                nome_usuario = "Carlos" # Valor padrão caso não encontre
+                                                
+                                                if isinstance(resposta, dict):
+                                                    texto_ia = resposta.get("response_message") or resposta.get("resposta") or ""
+                                                    if resposta.get("nome_extraido"):
+                                                        nome_usuario = resposta.get("nome_extraido")
+                                                elif isinstance(resposta, str):
+                                                    texto_ia = resposta
+                                                    
+                                                logger.warning(f"🤖 Resposta gerada pela IA (processada): {texto_ia}")
+                                                
+                                                # Se for nova conversa ou a IA não gerou texto direto, criamos uma resposta acolhedora
+                                                if is_nova_conversa or not texto_ia or texto_ia == "None":
+                                                    logger.warning("🟢 Enviando saudação / resposta inicial personalizada.")
+                                                    texto_ia = (
+                                                        f"Olá, {nome_usuario}! 🤍\n\n"
+                                                        "Sou o Leônidas, assistente da Clínica Limalé — centro de "
+                                                        "referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
+                                                        "Vi que você tem interesse em nossos exames. Como posso te ajudar com os valores e agendamentos hoje?"
+                                                    )
+                                                
+                                                # Dispara o envio oficial via Meta API
+                                                time.sleep(1)
+                                                enviar_msg_whatsapp(phone_number, texto_ia)
+                                                logger.warning(f"✅ Mensagem despachada com sucesso para {phone_number}!")
 
-                                        except Exception as e:
-                                            logger.error(f"❌ Erro fatal no processamento da IA via Meta: {e}", exc_info=True)
+                                            except Exception as e:
+                                                logger.error(f"❌ Erro fatal no processamento da IA via Meta: {e}", exc_info=True)
 
-                                    thread = threading.Thread(target=tarefa_em_segundo_plano_meta)
-                                    thread.start()
+                                        thread = threading.Thread(target=tarefa_em_segundo_plano_meta)
+                                        thread.start()
             
             # A Meta exige que o servidor retorne 200 OK imediatamente. 
             # Caso contrário, ela vai tentar reenviar a mesma mensagem repetidas vezes.
@@ -561,3 +616,33 @@ class MetaWhatsAppWebhookView(APIView):
         except Exception as e:
             logger.error(f"Erro ao processar Webhook da Meta: {e}", exc_info=True)
             return Response({"status": "ERROR"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class EnviarMensagemAtivaWhatsAppView(APIView):
+    # Dependendo da sua configuração, você pode querer exigir autenticação:
+    # permission_classes = [IsAuthenticated] 
+
+    def post(self, request):
+        numero = request.data.get('numero')
+        mensagem = request.data.get('mensagem')
+
+        if not numero or not mensagem:
+            return Response(
+                {"error": "Número e mensagem são obrigatórios."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Chama o serviço que você já tem configurado para a Meta API
+        sucesso = enviar_msg_botoes_whatsapp(numero, mensagem)
+
+        if sucesso:
+            return Response(
+                {"status": "sucesso", "mensagem": "Mensagem despachada para a Meta com sucesso!"}, 
+                status=status.HTTP_200_OK
+            )
+        else:
+            return Response(
+                {"error": "Falha ao enviar mensagem via Meta API. A janela de 24h pode estar fechada."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    
