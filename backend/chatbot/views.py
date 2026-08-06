@@ -644,5 +644,3 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
                 {"error": "Falha ao enviar mensagem via Meta API. A janela de 24h pode estar fechada."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-    
