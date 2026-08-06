@@ -351,7 +351,7 @@ class EvolutionWebhookView(APIView):
                         logger.error(f"Erro no processamento da IA em segundo plano: {e}")
 
                 # 2. INICIA A THREAD: Manda a tarefa para o fundo e não espera ela terminar
-                thread = threading.Thread(target=tarefa_em_segundo_plano)
+                thread = threading.Thread(target=tarefa_em_segundo_plano, daemon=True)
                 thread.start()
             
             # 3. RESPOSTA IMEDIATA: A Evolution API recebe o "Joinha" na mesma hora e vai embora feliz!
@@ -552,7 +552,7 @@ class MetaWhatsAppWebhookView(APIView):
                                         def tratar_botao():
                                             processar_resposta_botao_whatsapp(phone_number, button_id)
 
-                                        threading.Thread(target=tratar_botao).start()
+                                        threading.Thread(target=tratar_botao, daemon=True).start()
 
                                 # ========================================================
                                 # 3B. SE FOR UMA MENSAGEM DE TEXTO COMUM (FLUXO IA)
@@ -606,7 +606,7 @@ class MetaWhatsAppWebhookView(APIView):
                                             except Exception as e:
                                                 logger.error(f"❌ Erro fatal no processamento da IA via Meta: {e}", exc_info=True)
 
-                                        thread = threading.Thread(target=tarefa_em_segundo_plano_meta)
+                                        thread = threading.Thread(target=tarefa_em_segundo_plano_meta, daemon=True)
                                         thread.start()
             
             # A Meta exige que o servidor retorne 200 OK imediatamente. 
