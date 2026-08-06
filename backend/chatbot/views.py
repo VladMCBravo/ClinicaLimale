@@ -32,7 +32,7 @@ import requests
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from chatbot.services import enviar_msg_whatsapp, enviar_msg_botoes_whatsapp
+from chatbot.services import enviar_msg_whatsapp
 
 # --- SEÇÃO DE IMPORTAÇÕES DO SEU PROJETO ---
 import time
@@ -425,6 +425,7 @@ class WhatsAppLogoutView(APIView):
 # --- FUNÇÃO DE TRATAMENTO DOS BOTÕES ---
 def processar_resposta_botao_whatsapp(phone_number, button_id):
     try:
+        from chatbot.services import enviar_msg_whatsapp # <-- Adicione esta linha aqui
         clean_phone = ''.join(filter(str.isdigit, phone_number))
         paciente = Paciente.objects.filter(telefone_celular__icontains=clean_phone[-8:]).first()
 
@@ -618,9 +619,6 @@ class MetaWhatsAppWebhookView(APIView):
             return Response({"status": "ERROR"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class EnviarMensagemAtivaWhatsAppView(APIView):
-    # Dependendo da sua configuração, você pode querer exigir autenticação:
-    # permission_classes = [IsAuthenticated] 
-
     def post(self, request):
         numero = request.data.get('numero')
         mensagem = request.data.get('mensagem')
@@ -631,7 +629,10 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Chama o serviço que você já tem configurado para a Meta API
+        # ---> A MÁGICA ACONTECE AQUI: Lazy Import <---
+        from chatbot.services import enviar_msg_botoes_whatsapp
+        
+        # Chama o serviço 
         sucesso = enviar_msg_botoes_whatsapp(numero, mensagem)
 
         if sucesso:
