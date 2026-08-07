@@ -623,25 +623,36 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
         numero = request.data.get('numero')
         mensagem = request.data.get('mensagem')
 
+        logger.info(f"📱 [API WHATSAPP] Requisição recebida para enviar mensagem ao número: {numero}")
+        
         if not numero or not mensagem:
+            logger.warning("⚠️ [API WHATSAPP] Falha: Número ou mensagem não fornecidos pelo React.")
             return Response(
                 {"error": "Número e mensagem são obrigatórios."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ---> A MÁGICA ACONTECE AQUI: Lazy Import <---
-        from chatbot.services import enviar_msg_whatsapp
-        
-        # Chama o serviço (Texto simples, sem botões)
-        sucesso = enviar_msg_whatsapp(numero, mensagem)
+        try:
+            from chatbot.services import enviar_msg_whatsapp
+            logger.info("⚙️ [API WHATSAPP] Chamando o serviço de envio da Meta...")
+            
+            sucesso = enviar_msg_whatsapp(numero, mensagem)
 
-        if sucesso:
+            if sucesso:
+                logger.info(f"✅ [API WHATSAPP] Mensagem entregue com sucesso para {numero}!")
+                return Response(
+                    {"status": "sucesso", "mensagem": "Mensagem despachada para a Meta com sucesso!"}, 
+                    status=status.HTTP_200_OK
+                )
+            else:
+                logger.error(f"❌ [API WHATSAPP] A Meta recusou a mensagem para {numero}. Janela de 24h fechada ou erro de template.")
+                return Response(
+                    {"error": "Falha ao enviar mensagem via Meta API. A janela de 24h pode estar fechada."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except Exception as e:
+            logger.critical(f"💥 [API WHATSAPP] Erro interno crítico ao tentar despachar mensagem: {str(e)}", exc_info=True)
             return Response(
-                {"status": "sucesso", "mensagem": "Mensagem despachada para a Meta com sucesso!"}, 
-                status=status.HTTP_200_OK
-            )
-        else:
-            return Response(
-                {"error": "Falha ao enviar mensagem via Meta API. A janela de 24h pode estar fechada."}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": f"Erro interno no servidor ao contactar a Meta: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

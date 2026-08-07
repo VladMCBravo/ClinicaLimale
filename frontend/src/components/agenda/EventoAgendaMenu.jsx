@@ -194,18 +194,24 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
 
         // NOVO FLUXO: Disparo silencioso via Backend API
         try {
-            // A rota abaixo deve bater com o prefixo que você usa (ex: /api/chatbot/whatsapp...)
-            // Ajuste o endpoint se a base URL do apiClient já incluir /api/
-            await apiClient.post('/chatbot/whatsapp/enviar-mensagem/', {
+            console.log(`[FRONTEND] 🚀 Iniciando disparo para o número: ${numero}`);
+            
+            const response = await apiClient.post('/chatbot/whatsapp/enviar-mensagem/', {
                 numero: numero,
                 mensagem: mensagem
             });
             
-            // Sugestão: você pode trocar esse alert nativo pelo Snackbar que você já usa no componente!
+            console.log("[FRONTEND] ✅ Resposta do servidor:", response.data);
             alert('✅ Confirmação enviada com sucesso para o paciente!');
+            
         } catch (error) {
-            console.error("Erro ao disparar WhatsApp via API:", error);
-            alert('❌ Falha ao enviar mensagem. Verifique a conexão com a Meta ou se a janela de 24h expirou.');
+            console.error("[FRONTEND] ❌ Erro ao disparar WhatsApp:", error);
+            
+            // Tenta extrair a mensagem de erro que veio lá do Django
+            const mensagemErro = error.response?.data?.error || "Verifique a conexão ou se a janela de 24h expirou.";
+            
+            console.error(`[FRONTEND] ❌ Detalhe do Erro: ${mensagemErro}`);
+            alert(`❌ Falha ao enviar mensagem:\n\n${mensagemErro}`);
         }
 
         onClose();
