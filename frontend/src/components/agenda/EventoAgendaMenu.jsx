@@ -194,7 +194,7 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         try {
             // A rota abaixo deve bater com o prefixo que você usa (ex: /api/chatbot/whatsapp...)
             // Ajuste o endpoint se a base URL do apiClient já incluir /api/
-            await apiClient.post('/whatsapp/enviar-mensagem/', {
+            await apiClient.post('/chatbot/whatsapp/enviar-mensagem/', {
                 numero: numero,
                 mensagem: mensagem
             });
