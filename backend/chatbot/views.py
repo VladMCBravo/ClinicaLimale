@@ -625,35 +625,45 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
         logger.info(f"📱 [API WHATSAPP] Requisição recebida para enviar mensagem ao número: {numero}")
         
         if not numero:
-            logger.warning("⚠️ [API WHATSAPP] Falha: Número não fornecido pelo React.")
-            return Response(
-                {"error": "Número é obrigatório."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "Número é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # 🚀 TROCAMOS PARA A FUNÇÃO DE TEMPLATE PARA PASSAR NO TESTE
-            from chatbot.services import enviar_template_whatsapp 
-            logger.info("⚙️ [API WHATSAPP] Chamando o serviço de envio de TEMPLATE da Meta...")
+            logger.info("⚙️ [API WHATSAPP] Disparando o Hello World em Inglês para aprovação...")
             
-            # Dispara o template padrão da Meta (o único que o Sandbox aceita sem restrição)
-            sucesso = enviar_template_whatsapp(numero, "hello_world")
-
-            if sucesso:
-                logger.info(f"✅ [API WHATSAPP] Mensagem (Template) entregue com sucesso para {numero}!")
-                return Response(
-                    {"status": "sucesso", "mensagem": "Template despachado para a Meta com sucesso!"}, 
-                    status=status.HTTP_200_OK
-                )
+            # --- CÓDIGO BLINDADO PARA O VÍDEO DA META ---
+            import os
+            import requests
+            
+            token = os.environ.get("META_ACCESS_TOKEN")
+            phone_id = os.environ.get("META_PHONE_NUMBER_ID")
+            url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+            
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": numero,
+                "type": "template",
+                "template": {
+                    "name": "hello_world",
+                    "language": {
+                        "code": "en_US"  # <--- O SEGREDO ESTÁ AQUI (Inglês)
+                    }
+                }
+            }
+            
+            headers = {
+                "Authorization": f"Bearer {token}", 
+                "Content-Type": "application/json"
+            }
+            
+            resposta_meta = requests.post(url, json=payload, headers=headers)
+            
+            if resposta_meta.ok:
+                logger.info(f"✅ [API WHATSAPP] Hello World entregue com sucesso para {numero}!")
+                return Response({"status": "sucesso", "mensagem": "Template despachado!"}, status=status.HTTP_200_OK)
             else:
-                logger.error(f"❌ [API WHATSAPP] A Meta recusou a mensagem para {numero}.")
-                return Response(
-                    {"error": "Falha ao enviar mensagem via Meta API."}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                logger.error(f"❌ [API WHATSAPP] Erro da Meta: {resposta_meta.text}")
+                return Response({"error": "Falha na Meta API."}, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as e:
-            logger.critical(f"💥 [API WHATSAPP] Erro interno crítico ao tentar despachar mensagem: {str(e)}", exc_info=True)
-            return Response(
-                {"error": f"Erro interno no servidor ao contactar a Meta: {str(e)}"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.critical(f"💥 [API WHATSAPP] Erro crítico: {str(e)}")
+            return Response({"error": "Erro interno no servidor."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
