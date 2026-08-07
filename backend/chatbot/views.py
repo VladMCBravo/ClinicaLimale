@@ -572,8 +572,47 @@ class MetaWhatsAppWebhookView(APIView):
                                                 logger.warning(f"🚀 Iniciando processamento para {phone_number}. Texto recebido: {message_text}")
                                                 
                                                 memoria_obj, is_nova_conversa = ChatMemory.objects.get_or_create(session_id=phone_number)
-                                                
-                                                # A IA processa a mensagem
+                                                msg_clean = message_text.strip().lower()
+
+                                                # =========================================================
+                                                # 🛡️ INTERCEPTOR DE CONFIRMAÇÃO DE AGENDA
+                                                # =========================================================
+                                                if memoria_obj.state == 'aguardando_confirmacao' or msg_clean in ['1', '1️⃣', 'sim', 'confirmo', 'confirmado', '2', '2️⃣', 'nao', 'não', 'remarcar']:
+                                                    
+                                                    if msg_clean in ['1', '1️⃣', 'sim', 'confirmo', 'confirmado']:
+                                                        # Paciente confirmou! Vamos procurar o agendamento dele e mudar o status
+                                                        paciente = Paciente.objects.filter(telefone_celular__icontains=phone_number[-8:]).first()
+                                                        if paciente:
+                                                            ag = Agendamento.objects.filter(
+                                                                paciente=paciente,
+                                                                status__in=['Agendado', 'Pendente']
+                                                            ).order_by('data_hora_inicio').first()
+                                                            
+                                                            if ag:
+                                                                ag.status = 'Confirmado'
+                                                                ag.save()
+                                                                logger.warning(f"✅ Agendamento #{ag.id} CONFIRMADO via WhatsApp pelo paciente!")
+
+                                                        texto_resposta = "✅ *Consulta Confirmada!*\n\nMuito obrigado pelo retorno. Seu agendamento está atualizado em nosso sistema. Esperamos por você na Clínica Limalé! 🏥"
+                                                        memoria_obj.state = 'inicio' # Libera o bot para futuras conversas
+                                                        memoria_obj.save()
+
+                                                    elif msg_clean in ['2', '2️⃣', 'nao', 'não', 'remarcar']:
+                                                        memoria_obj.state = 'humano'
+                                                        memoria_obj.save()
+                                                        texto_resposta = "Compreendido! 👨‍💻 Encaminhei seu atendimento para a nossa recepção. Em instantes entraremos em contato para remarcar seu horário."
+                                                    
+                                                    else:
+                                                        texto_resposta = "Não entendi sua resposta. Por favor, responda *1* para Confirmar ou *2* para Remarcar."
+                                                        enviar_msg_whatsapp(phone_number, texto_resposta)
+                                                        return
+
+                                                    # Envia a resposta final e INTERROMPE para a IA não ser chamada!
+                                                    enviar_msg_whatsapp(phone_number, texto_resposta)
+                                                    return 
+                                                # =========================================================
+
+                                                # Se não for confirmação de agenda, segue o fluxo normal da IA (Leônidas)
                                                 resposta = handler.processar_fluxo(message_text)
                                                 
                                                 # Extração segura do texto e do nome da IA
@@ -621,28 +660,32 @@ class MetaWhatsAppWebhookView(APIView):
 class EnviarMensagemAtivaWhatsAppView(APIView):
     def post(self, request):
         numero = request.data.get('numero')
-        mensagem = request.data.get('mensagem') # <-- VOLTAMOS A RECEBER A MENSAGEM AQUI
-        
+        mensagem = request.data.get('mensagem')
+
         logger.info(f"📱 [API WHATSAPP] Requisição recebida para enviar mensagem ao número: {numero}")
         
         if not numero or not mensagem:
             return Response({"error": "Número e mensagem são obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            logger.info("⚙️ [API WHATSAPP] Disparando mensagem de texto da clínica...")
-            
             from chatbot.services import enviar_msg_whatsapp
-            
-            # Aqui chamamos o envio de texto simples, já que a janela de 24h está aberta
+            from chatbot.models import ChatMemory
+
+            # 1. Trava a memória para aguardar a resposta do paciente (bloqueia o Leônidas temporariamente)
+            clean_phone = ''.join(filter(str.isdigit, numero))
+            memoria_obj, _ = ChatMemory.objects.get_or_create(session_id=clean_phone)
+            memoria_obj.state = 'aguardando_confirmacao'
+            memoria_obj.save()
+
+            # 2. Dispara a mensagem da clínica
             sucesso = enviar_msg_whatsapp(numero, mensagem)
-            
+
             if sucesso:
                 logger.info(f"✅ [API WHATSAPP] Mensagem entregue com sucesso para {numero}!")
-                return Response({"status": "sucesso", "mensagem": "Mensagem despachada!"}, status=status.HTTP_200_OK)
+                return Response({"status": "sucesso", "mensagem": "Mensagem enviada com sucesso!"}, status=status.HTTP_200_OK)
             else:
-                logger.error(f"❌ [API WHATSAPP] A Meta recusou a mensagem para {numero}.")
                 return Response({"error": "Falha na Meta API. A janela de 24h pode estar fechada."}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            logger.critical(f"💥 [API WHATSAPP] Erro crítico: {str(e)}")
-            return Response({"error": "Erro interno no servidor."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.critical(f"💥 [API WHATSAPP] Erro interno crítico: {str(e)}", exc_info=True)
+            return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

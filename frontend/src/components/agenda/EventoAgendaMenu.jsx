@@ -181,7 +181,6 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         const procedimento = dados.tipo_procedimento || dados.procedimento_descricao || dados.especialidade_nome || 'sua consulta';
         const medico = dados.medico_nome_com_prefixo || dados.medico_nome;
 
-        // MENSAGEM OFICIAL DA CLÍNICA
         const mensagem = `Olá, ${primeiroNome}!\n\n`
             + `Aqui é da *Clínica Limalé*. Passando para confirmar o seu agendamento:\n\n`
             + `Data: ${dataFormatada}, às ${horaFormatada}\n`
@@ -202,12 +201,11 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
             });
             
             console.log("[FRONTEND] ✅ Resposta do servidor:", response.data);
-            alert('✅ Confirmação enviada com sucesso para o paciente!');
+            alert('✅ Mensagem enviada! Aguardando a confirmação do paciente pelo WhatsApp.');
             
         } catch (error) {
             console.error("[FRONTEND] ❌ Erro ao disparar WhatsApp:", error);
             const mensagemErro = error.response?.data?.error || "Verifique a conexão ou se a janela de 24h expirou.";
-            console.error(`[FRONTEND] ❌ Detalhe do Erro: ${mensagemErro}`);
             alert(`❌ Falha ao enviar mensagem:\n\n${mensagemErro}`);
         }
 
