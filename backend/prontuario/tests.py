@@ -8,6 +8,12 @@ from prontuario.models import Laudo, Evolucao
 
 User = get_user_model()
 
+# --- HOTFIX: Correção de compatibilidade pytest-django vs Django 5.0 ---
+import django.test
+if not hasattr(django.test.TestCase, '_pre_setup_ran_eagerly'):
+    django.test.TestCase._pre_setup_ran_eagerly = False
+# -----------------------------------------------------------------------
+
 # ==========================================
 # FIXTURES DO MÓDULO DE PRONTUÁRIOS
 # ==========================================
