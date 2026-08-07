@@ -630,10 +630,10 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
             )
 
         # ---> A MÁGICA ACONTECE AQUI: Lazy Import <---
-        from chatbot.services import enviar_msg_botoes_whatsapp
+        from chatbot.services import enviar_msg_whatsapp
         
-        # Chama o serviço 
-        sucesso = enviar_msg_botoes_whatsapp(numero, mensagem)
+        # Chama o serviço (Texto simples, sem botões)
+        sucesso = enviar_msg_whatsapp(numero, mensagem)
 
         if sucesso:
             return Response(
