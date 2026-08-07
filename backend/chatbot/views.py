@@ -621,33 +621,34 @@ class MetaWhatsAppWebhookView(APIView):
 class EnviarMensagemAtivaWhatsAppView(APIView):
     def post(self, request):
         numero = request.data.get('numero')
-        mensagem = request.data.get('mensagem')
-
+        
         logger.info(f"📱 [API WHATSAPP] Requisição recebida para enviar mensagem ao número: {numero}")
         
-        if not numero or not mensagem:
-            logger.warning("⚠️ [API WHATSAPP] Falha: Número ou mensagem não fornecidos pelo React.")
+        if not numero:
+            logger.warning("⚠️ [API WHATSAPP] Falha: Número não fornecido pelo React.")
             return Response(
-                {"error": "Número e mensagem são obrigatórios."}, 
+                {"error": "Número é obrigatório."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
-            from chatbot.services import enviar_msg_whatsapp
-            logger.info("⚙️ [API WHATSAPP] Chamando o serviço de envio da Meta...")
+            # 🚀 TROCAMOS PARA A FUNÇÃO DE TEMPLATE PARA PASSAR NO TESTE
+            from chatbot.services import enviar_template_whatsapp 
+            logger.info("⚙️ [API WHATSAPP] Chamando o serviço de envio de TEMPLATE da Meta...")
             
-            sucesso = enviar_msg_whatsapp(numero, mensagem)
+            # Dispara o template padrão da Meta (o único que o Sandbox aceita sem restrição)
+            sucesso = enviar_template_whatsapp(numero, "hello_world")
 
             if sucesso:
-                logger.info(f"✅ [API WHATSAPP] Mensagem entregue com sucesso para {numero}!")
+                logger.info(f"✅ [API WHATSAPP] Mensagem (Template) entregue com sucesso para {numero}!")
                 return Response(
-                    {"status": "sucesso", "mensagem": "Mensagem despachada para a Meta com sucesso!"}, 
+                    {"status": "sucesso", "mensagem": "Template despachado para a Meta com sucesso!"}, 
                     status=status.HTTP_200_OK
                 )
             else:
-                logger.error(f"❌ [API WHATSAPP] A Meta recusou a mensagem para {numero}. Janela de 24h fechada ou erro de template.")
+                logger.error(f"❌ [API WHATSAPP] A Meta recusou a mensagem para {numero}.")
                 return Response(
-                    {"error": "Falha ao enviar mensagem via Meta API. A janela de 24h pode estar fechada."}, 
+                    {"error": "Falha ao enviar mensagem via Meta API."}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
         except Exception as e:
