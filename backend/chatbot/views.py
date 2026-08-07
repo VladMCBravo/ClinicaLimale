@@ -621,48 +621,27 @@ class MetaWhatsAppWebhookView(APIView):
 class EnviarMensagemAtivaWhatsAppView(APIView):
     def post(self, request):
         numero = request.data.get('numero')
+        mensagem = request.data.get('mensagem') # <-- VOLTAMOS A RECEBER A MENSAGEM AQUI
         
         logger.info(f"📱 [API WHATSAPP] Requisição recebida para enviar mensagem ao número: {numero}")
         
-        if not numero:
-            return Response({"error": "Número é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
+        if not numero or not mensagem:
+            return Response({"error": "Número e mensagem são obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            logger.info("⚙️ [API WHATSAPP] Disparando o Hello World em Inglês para aprovação...")
+            logger.info("⚙️ [API WHATSAPP] Disparando mensagem de texto da clínica...")
             
-            # --- CÓDIGO BLINDADO PARA O VÍDEO DA META ---
-            import os
-            import requests
+            from chatbot.services import enviar_msg_whatsapp
             
-            token = os.environ.get("META_ACCESS_TOKEN")
-            phone_id = os.environ.get("META_PHONE_NUMBER_ID")
-            url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+            # Aqui chamamos o envio de texto simples, já que a janela de 24h está aberta
+            sucesso = enviar_msg_whatsapp(numero, mensagem)
             
-            payload = {
-                "messaging_product": "whatsapp",
-                "to": numero,
-                "type": "template",
-                "template": {
-                    "name": "hello_world",
-                    "language": {
-                        "code": "en_US"  # <--- O SEGREDO ESTÁ AQUI (Inglês)
-                    }
-                }
-            }
-            
-            headers = {
-                "Authorization": f"Bearer {token}", 
-                "Content-Type": "application/json"
-            }
-            
-            resposta_meta = requests.post(url, json=payload, headers=headers)
-            
-            if resposta_meta.ok:
-                logger.info(f"✅ [API WHATSAPP] Hello World entregue com sucesso para {numero}!")
-                return Response({"status": "sucesso", "mensagem": "Template despachado!"}, status=status.HTTP_200_OK)
+            if sucesso:
+                logger.info(f"✅ [API WHATSAPP] Mensagem entregue com sucesso para {numero}!")
+                return Response({"status": "sucesso", "mensagem": "Mensagem despachada!"}, status=status.HTTP_200_OK)
             else:
-                logger.error(f"❌ [API WHATSAPP] Erro da Meta: {resposta_meta.text}")
-                return Response({"error": "Falha na Meta API."}, status=status.HTTP_400_BAD_REQUEST)
+                logger.error(f"❌ [API WHATSAPP] A Meta recusou a mensagem para {numero}.")
+                return Response({"error": "Falha na Meta API. A janela de 24h pode estar fechada."}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             logger.critical(f"💥 [API WHATSAPP] Erro crítico: {str(e)}")
