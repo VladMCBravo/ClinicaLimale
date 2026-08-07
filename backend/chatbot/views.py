@@ -575,26 +575,47 @@ class MetaWhatsAppWebhookView(APIView):
                                                 msg_clean = message_text.strip().lower()
 
                                                 # =========================================================
-                                                # 🛡️ INTERCEPTOR DE CONFIRMAÇÃO DE AGENDA
+                                                # 🛡️ INTERCEPTOR DE CONFIRMAÇÃO DE AGENDA (BLINDADO)
                                                 # =========================================================
                                                 if memoria_obj.state == 'aguardando_confirmacao' or msg_clean in ['1', '1️⃣', 'sim', 'confirmo', 'confirmado', '2', '2️⃣', 'nao', 'não', 'remarcar']:
                                                     
                                                     if msg_clean in ['1', '1️⃣', 'sim', 'confirmo', 'confirmado']:
-                                                        # Paciente confirmou! Vamos procurar o agendamento dele e mudar o status
-                                                        paciente = Paciente.objects.filter(telefone_celular__icontains=phone_number[-8:]).first()
-                                                        if paciente:
-                                                            ag = Agendamento.objects.filter(
-                                                                paciente=paciente,
-                                                                status__in=['Agendado', 'Pendente']
-                                                            ).order_by('data_hora_inicio').first()
+                                                        ag = None
+                                                        memoria_data = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
+                                                        agendamento_id_salvo = memoria_data.get('agendamento_id')
+
+                                                        # 1️⃣ Busca Direta pelo ID exato salvo na memória
+                                                        if agendamento_id_salvo:
+                                                            ag = Agendamento.objects.filter(id=agendamento_id_salvo).first()
+
+                                                        # 2️⃣ Fallback: Busca por paciente removendo caracteres de formatação (hífen, parênteses, etc.)
+                                                        if not ag:
+                                                            clean_digits = ''.join(filter(str.isdigit, phone_number))
+                                                            digitos_finais = clean_digits[-4:] if len(clean_digits) >= 4 else clean_digits
                                                             
-                                                            if ag:
-                                                                ag.status = 'Confirmado'
-                                                                ag.save()
-                                                                logger.warning(f"✅ Agendamento #{ag.id} CONFIRMADO via WhatsApp pelo paciente!")
+                                                            candidatos = Paciente.objects.filter(telefone_celular__icontains=digitos_finais)
+                                                            paciente = None
+                                                            for p in candidatos:
+                                                                p_digits = ''.join(filter(str.isdigit, p.telefone_celular or ''))
+                                                                if clean_digits[-8:] in p_digits or p_digits.endswith(clean_digits[-8:]):
+                                                                    paciente = p
+                                                                    break
+                                                            
+                                                            if paciente:
+                                                                ag = Agendamento.objects.filter(paciente=paciente).exclude(
+                                                                    status__in=['Confirmado', 'Cancelado', 'Finalizado', 'Realizado']
+                                                                ).order_by('data_hora_inicio').first()
+
+                                                        # 3️⃣ Atualiza o status no banco de dados!
+                                                        if ag:
+                                                            ag.status = 'Confirmado'
+                                                            ag.save()
+                                                            logger.warning(f"✅ AGENDAMENTO #{ag.id} ALTERADO PARA 'CONFIRMADO' COM SUCESSO!")
+                                                        else:
+                                                            logger.warning(f"⚠️ Não foi possível localizar agendamento ativo para {phone_number}")
 
                                                         texto_resposta = "✅ *Consulta Confirmada!*\n\nMuito obrigado pelo retorno. Seu agendamento está atualizado em nosso sistema. Esperamos por você na Clínica Limalé! 🏥"
-                                                        memoria_obj.state = 'inicio' # Libera o bot para futuras conversas
+                                                        memoria_obj.state = 'inicio'
                                                         memoria_obj.save()
 
                                                     elif msg_clean in ['2', '2️⃣', 'nao', 'não', 'remarcar']:
@@ -603,18 +624,15 @@ class MetaWhatsAppWebhookView(APIView):
                                                         texto_resposta = "Compreendido! 👨‍💻 Encaminhei seu atendimento para a nossa recepção. Em instantes entraremos em contato para remarcar seu horário."
                                                     
                                                     else:
-                                                        texto_resposta = "Não entendi sua resposta. Por favor, responda *1* para Confirmar ou *2* para Remarcar."
-                                                        enviar_msg_whatsapp(phone_number, texto_resposta)
-                                                        return
+                                                        texto_resposta = "Por favor, responda com *1* para Confirmar ou *2* para Remarcar."
 
-                                                    # Envia a resposta final e INTERROMPE para a IA não ser chamada!
                                                     enviar_msg_whatsapp(phone_number, texto_resposta)
                                                     return 
                                                 # =========================================================
 
-                                                # Se não for confirmação de agenda, segue o fluxo normal da IA (Leônidas)
+                                                # Se não for confirmação, segue o fluxo normal da IA (Leônidas)
                                                 resposta = handler.processar_fluxo(message_text)
-                                                
+                                                                                                
                                                 # Extração segura do texto e do nome da IA
                                                 texto_ia = ""
                                                 nome_usuario = "Carlos" # Valor padrão caso não encontre
@@ -661,6 +679,7 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
     def post(self, request):
         numero = request.data.get('numero')
         mensagem = request.data.get('mensagem')
+        agendamento_id = request.data.get('agendamento_id')
 
         logger.info(f"📱 [API WHATSAPP] Requisição recebida para enviar mensagem ao número: {numero}")
         
@@ -671,13 +690,18 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
             from chatbot.services import enviar_msg_whatsapp
             from chatbot.models import ChatMemory
 
-            # 1. Trava a memória para aguardar a resposta do paciente (bloqueia o Leônidas temporariamente)
             clean_phone = ''.join(filter(str.isdigit, numero))
             memoria_obj, _ = ChatMemory.objects.get_or_create(session_id=clean_phone)
             memoria_obj.state = 'aguardando_confirmacao'
+            
+            # 💡 Guarda o ID exato do agendamento na memória para atualizar quando o paciente responder!
+            memoria_data = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
+            if agendamento_id:
+                memoria_data['agendamento_id'] = agendamento_id
+            memoria_obj.memory_data = memoria_data
             memoria_obj.save()
 
-            # 2. Dispara a mensagem da clínica
+            # Dispara a mensagem da clínica
             sucesso = enviar_msg_whatsapp(numero, mensagem)
 
             if sucesso:
@@ -687,5 +711,5 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
                 return Response({"error": "Falha na Meta API. A janela de 24h pode estar fechada."}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            logger.critical(f"💥 [API WHATSAPP] Erro interno crítico: {str(e)}", exc_info=True)
+            logger.critical(f"💥 [API WHATSAPP] Erro interno crítico: {str(e)}")
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

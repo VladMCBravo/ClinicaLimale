@@ -195,9 +195,13 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         try {
             console.log(`[FRONTEND] 🚀 Iniciando disparo para o número: ${numero}`);
             
+            // Pega o ID do agendamento do evento selecionado
+            const agendamentoId = selectedEvent?.id || selectedEvent?.extendedProps?.id;
+
             const response = await apiClient.post('/chatbot/whatsapp/enviar-mensagem/', {
                 numero: numero,
-                mensagem: mensagem
+                mensagem: mensagem,
+                agendamento_id: agendamentoId // <-- Enviando o ID para o backend
             });
             
             console.log("[FRONTEND] ✅ Resposta do servidor:", response.data);
