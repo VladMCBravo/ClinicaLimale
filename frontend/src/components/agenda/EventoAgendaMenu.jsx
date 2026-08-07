@@ -188,7 +188,9 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
             + (medico ? `Médico(a): ${medico}\n` : '')
             + `\n*Endereço da clínica*\n${CLINICA_ENDERECO}\n`
             + `Como chegar: ${CLINICA_MAPS_URL}\n\n`
-            + `Você confirma sua presença? Basta responder *SIM* ou nos avisar se precisar remarcar.`;
+            + `Você confirma sua presença? Responda com:\n`
+            + `1️⃣ - Sim, confirmo!\n`
+            + `2️⃣ - Preciso remarcar`;
 
         // NOVO FLUXO: Disparo silencioso via Backend API
         try {
