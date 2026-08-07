@@ -17,7 +17,8 @@ from .views import (
     EvolutionWebhookView,
     MetaWhatsAppWebhookView,  # <-- Adicione a nova view aqui
     WhatsAppStatusView,
-    WhatsAppLogoutView
+    WhatsAppLogoutView,
+    EnviarMensagemAtivaWhatsAppView
 )
 from .dashboard_views import ChatbotDashboardView, ChatbotHealthCheckView
 from . import views
@@ -49,6 +50,8 @@ urlpatterns = [
 
     # --- Webhook Oficial da Meta ---
     path('webhook/whatsapp/', MetaWhatsAppWebhookView.as_view(), name='meta_whatsapp_webhook'),
+    # Rota para o disparo ativo de WhatsApp pelo painel
+    path('whatsapp/enviar-mensagem/', EnviarMensagemAtivaWhatsAppView.as_view(), name='whatsapp_enviar_mensagem_ativa'),
 
     # --- ROTA DO QR CODE ---
     path('whatsapp/status/', WhatsAppStatusView.as_view(), name='whatsapp_status'),

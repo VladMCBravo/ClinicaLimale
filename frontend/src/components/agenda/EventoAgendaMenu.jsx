@@ -162,7 +162,7 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         onClose();
     };
 
-    const handleActionConfirmarWhatsapp = () => {
+    const handleActionConfirmarWhatsapp = async () => {
         const dados = selectedEvent?.extendedProps;
         const telefoneBruto = dados?.paciente_telefone;
         if (!telefoneBruto) {
@@ -190,7 +190,22 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
             + `Como chegar: ${CLINICA_MAPS_URL}\n\n`
             + `Você confirma sua presença? Basta responder *SIM* ou nos avisar se precisar remarcar.`;
 
-        window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
+        // NOVO FLUXO: Disparo silencioso via Backend API
+        try {
+            // A rota abaixo deve bater com o prefixo que você usa (ex: /api/chatbot/whatsapp...)
+            // Ajuste o endpoint se a base URL do apiClient já incluir /api/
+            await apiClient.post('/whatsapp/enviar-mensagem/', {
+                numero: numero,
+                mensagem: mensagem
+            });
+            
+            // Sugestão: você pode trocar esse alert nativo pelo Snackbar que você já usa no componente!
+            alert('✅ Confirmação enviada com sucesso para o paciente!');
+        } catch (error) {
+            console.error("Erro ao disparar WhatsApp via API:", error);
+            alert('❌ Falha ao enviar mensagem. Verifique a conexão com a Meta ou se a janela de 24h expirou.');
+        }
+
         onClose();
     };
 

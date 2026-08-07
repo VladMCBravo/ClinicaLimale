@@ -173,3 +173,65 @@ def enviar_msg_whatsapp(numero, texto):
             except ValueError:
                 pass
         return False
+
+def enviar_msg_botoes_whatsapp(numero, texto):
+    """
+    Envia mensagens interativas (com botões) pelo WhatsApp.
+    """
+    token = os.environ.get("META_ACCESS_TOKEN")
+    phone_id = os.environ.get("META_PHONE_NUMBER_ID")
+    api_version = os.environ.get("META_API_VERSION", "v25.0")
+    
+    if not token or not phone_id:
+        logger.error("❌ Erro: Credenciais da Meta ausentes no .env")
+        return False
+
+    url = f"https://graph.facebook.com/{api_version}/{phone_id}/messages"
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    # Payload para Mensagem Interativa com Botões (Máx 3 botões)
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": numero,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {
+                "text": texto
+            },
+            "action": {
+                "buttons": [
+                    {
+                        "type": "reply",
+                        "reply": {
+                            "id": "btn_confirmar_sim",
+                            "title": "✅ Sim, confirmo" 
+                        }
+                    },
+                    {
+                        "type": "reply",
+                        "reply": {
+                            "id": "btn_confirmar_nao",
+                            "title": "❌ Preciso remarcar" 
+                        }
+                    }
+                ]
+            }
+        }
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response.raise_for_status()
+        logger.info(f"✅ Mensagem interativa enviada: {response.status_code}")
+        return True
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Erro ao enviar botões para {numero}: {e}")
+        if e.response is not None:
+            logger.error(f"Detalhes do erro: {e.response.text}")
+        return False
