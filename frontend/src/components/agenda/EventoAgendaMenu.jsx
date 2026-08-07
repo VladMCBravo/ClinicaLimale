@@ -171,8 +171,12 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
             return;
         }
 
+        // TESTE DA META: Vamos enviar o template Hello World para garantir a entrega
+        // e provar no vídeo que a conexão está funcionando.
+        
+        // Mantemos o número igual
         let numero = telefoneBruto.replace(/\D/g, '');
-        if (numero.length <= 11) numero = `55${numero}`; 
+        if (numero.length <= 11) numero = `55${numero}`;
 
         const primeiroNome = (selectedEvent.title || '').trim().split(' ')[0];
         const inicio = selectedEvent.start ? new Date(selectedEvent.start) : null;
@@ -181,28 +185,20 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         const procedimento = dados.tipo_procedimento || dados.procedimento_descricao || dados.especialidade_nome || 'sua consulta';
         const medico = dados.medico_nome_com_prefixo || dados.medico_nome;
 
-        const mensagem = `Olá, ${primeiroNome}!\n\n`
-            + `Aqui é da *Clínica Limalé*. Passando para confirmar o seu agendamento:\n\n`
-            + `Data: ${dataFormatada}, às ${horaFormatada}\n`
-            + `${dados.tipo_agendamento === 'Consulta' ? 'Especialidade' : 'Procedimento'}: ${procedimento}\n`
-            + (medico ? `Médico(a): ${medico}\n` : '')
-            + `\n*Endereço da clínica*\n${CLINICA_ENDERECO}\n`
-            + `Como chegar: ${CLINICA_MAPS_URL}\n\n`
-            + `Você confirma sua presença? Responda com:\n`
-            + `1️⃣ - Sim, confirmo!\n`
-            + `2️⃣ - Preciso remarcar`;
+        // IMPORTANTE: Isso aqui não será lido pelo seu serviço atual, 
+        // mas precisamos dele para a requisição não falhar no seu backend.
+        const mensagem = "TESTE_TEMPLATE_META"; 
 
-        // NOVO FLUXO: Disparo silencioso via Backend API
         try {
             console.log(`[FRONTEND] 🚀 Iniciando disparo para o número: ${numero}`);
             
             const response = await apiClient.post('/chatbot/whatsapp/enviar-mensagem/', {
                 numero: numero,
-                mensagem: mensagem
+                mensagem: mensagem // Passando a string inútil
             });
             
             console.log("[FRONTEND] ✅ Resposta do servidor:", response.data);
-            alert('✅ Confirmação enviada com sucesso para o paciente!');
+            alert('✅ Mensagem de teste enviada com sucesso para o paciente!');
             
         } catch (error) {
             console.error("[FRONTEND] ❌ Erro ao disparar WhatsApp:", error);
