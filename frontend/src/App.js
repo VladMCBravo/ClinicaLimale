@@ -28,7 +28,7 @@ import TelemedicinaPage from './pages/TelemedicinaPage';
 import PontoKioskPage from './pages/PontoKioskPage'; // <-- NOVO IMPORT
 import ConfiguracoesPage from './pages/ConfiguracoesPage'; 
 
-import CRMKanbanPage from './pages/CRM/CRMKanbanPage';
+import CRMPageBase from './pages/crm/CRMPageBase';
 import ProntuarioWorkspace from './pages/PainelMedico/ProntuarioWorkspace';
 
 const RotaInicialDinamica = () => {
@@ -81,7 +81,7 @@ function App() {
                   {/* --- ÁREA RESTRITA (ADMINISTRADOR) --- */}
                   <Route element={<AdminRoute />}>
                       <Route path="/financeiro/*" element={<FinanceiroPage />} />
-                      <Route path="/crm/kanban" element={<CRMKanbanPage />} />
+                      <Route path="/crm/kanban" element={<CRMPageBase />} />
                   </Route>
 
                 </Route>
