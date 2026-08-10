@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Box, Typography, LinearProgress, TextField, InputAdornment, Paper, Grid } from '@mui/material';
+import { Box, Typography, TextField, InputAdornment, Paper, CircularProgress } from '@mui/material';
 import { FaSearch } from 'react-icons/fa';
-import FichaPacienteDrawer from './FichaPacienteDrawer'; // A grande mudança aqui
+import FichaPacienteDrawer from './FichaPacienteDrawer'; 
 import { crmService } from '../../services/crmService';
 import TableView from './TableView';
 import '../../atendimento.css';
@@ -9,10 +9,10 @@ import '../../atendimento.css';
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
 
 const PHASES = [
-  { id: 'F1', title: '1. Novos Leads', color: '#e3f2fd', border: '#90caf9' },
+  { id: 'F1', title: '1. Novos', color: '#e3f2fd', border: '#90caf9' },
   { id: 'F2', title: '2. Agendados', color: '#e8f5e9', border: '#a5d6a7' },
-  { id: 'F3', title: '3. Pós-Atendimento', color: '#fff3e0', border: '#ffcc80' },
-  { id: 'F4', title: '4. Retenção / Retorno', color: '#f3e5f5', border: '#ce93d8' },
+  { id: 'F3', title: '3. Pós-Exame', color: '#fff3e0', border: '#ffcc80' },
+  { id: 'F4', title: '4. Retenção', color: '#f3e5f5', border: '#ce93d8' },
   { id: 'F5', title: '5. Recuperação', color: '#ffebee', border: '#ef5350' }
 ];
 
@@ -22,7 +22,6 @@ export default function CRMKanbanPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Controle do novo Drawer Lateral
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedCicloId, setSelectedCicloId] = useState(null);
 
@@ -66,7 +65,6 @@ export default function CRMKanbanPage() {
     }
   }, [searchTerm, rawData]);
 
-  // ABRE O DRAWER EM VEZ DO MODAL
   const handleOpenDetalhes = (cicloId) => { setSelectedCicloId(cicloId); setDrawerOpen(true); };
 
   const handleWhatsappClick = (e, numero, nome, mensagemCustomizada) => {
@@ -89,51 +87,69 @@ export default function CRMKanbanPage() {
     );
   }, [rawData, activePhase, searchTerm]);
 
-  if (loading) return <LinearProgress />;
-
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       
-      {/* BARRA DE PESQUISA INTERNA DO FUNIL */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+      {/* 
+        NOVA LINHA SUPER COMPACTA 
+        Pesquisa e os 5 Cards dividem a mesma linha para poupar 100% do espaço perdido 
+      */}
+      <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'center', overflowX: 'auto', flexShrink: 0, pb: 0.5 }}>
+          
+          {/* Barra de Pesquisa */}
           <TextField 
-            size="small" placeholder="Pesquisar paciente..." 
+            variant="outlined"
+            placeholder="Buscar paciente..." 
             value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} 
-            sx={{ width: '300px', bgcolor: 'white' }} 
+            sx={{ 
+                width: '180px', flexShrink: 0, bgcolor: 'white', 
+                '& .MuiInputBase-root': { height: '42px', borderRadius: 2, fontSize: '12px' } 
+            }} 
             InputProps={{ startAdornment: <InputAdornment position="start"><FaSearch size={12} color="#adb5bd" /></InputAdornment> }} 
           />
-      </Box>
 
-      <Grid container spacing={1} sx={{ mb: 2, flexShrink: 0 }}>
-        {PHASES.map((phase) => {
-          const totalPacientes = rawData[phase.id]?.length || 0;
-          const receitaFase = rawData[phase.id]?.reduce((acc, i) => acc + (parseFloat(i.receita_acumulada) || 0), 0) || 0;
-          return (
-            <Grid item xs={12} sm={6} md={2.4} key={phase.id}>
+          {/* Micro-Cards do Funil */}
+          {PHASES.map((phase) => {
+            const totalPacientes = rawData[phase.id]?.length || 0;
+            const receitaFase = rawData[phase.id]?.reduce((acc, i) => acc + (parseFloat(i.receita_acumulada) || 0), 0) || 0;
+            return (
               <Paper 
-                elevation={activePhase === phase.id ? 2 : 0} onClick={() => setActivePhase(phase.id)} 
+                key={phase.id} elevation={activePhase === phase.id ? 2 : 0} onClick={() => setActivePhase(phase.id)} 
                 sx={{ 
-                  px: 1.5, py: 1, cursor: 'pointer', bgcolor: activePhase === phase.id ? phase.color : 'white', 
-                  borderTop: `4px solid ${phase.border}`, transition: '0.2s',
-                  '&:hover': { bgcolor: activePhase === phase.id ? phase.color : '#f8f9fa' }
+                  flex: 1, minWidth: '120px', px: 1.5, py: 0.5, cursor: 'pointer', borderRadius: 2,
+                  bgcolor: activePhase === phase.id ? phase.color : 'white', 
+                  borderTop: `3px solid ${phase.border}`, transition: '0.1s',
+                  display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '42px'
                 }}
               >
-                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#495057', fontSize: '11px', textTransform: 'uppercase' }}>{phase.title}</Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mt: 0.5 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 'bold', lineHeight: 1, color: '#212529' }}>{totalPacientes}</Typography>
-                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '11px', color: '#6c757d' }}>{formatMoney(receitaFase)}</Typography>
+                <Typography sx={{ fontWeight: 800, color: '#495057', fontSize: '9px', textTransform: 'uppercase', mb: 0.2 }}>{phase.title}</Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography sx={{ fontWeight: 800, lineHeight: 1, color: '#212529', fontSize: '15px' }}>{totalPacientes}</Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: '9px', color: '#6c757d' }}>{formatMoney(receitaFase)}</Typography>
                 </Box>
               </Paper>
-            </Grid>
-          )
-        })}
-      </Grid>
-
-      <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-        <TableView displayedCards={displayedCards} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />
+            )
+          })}
       </Box>
 
-      {/* O NOVO PAINEL LATERAL (Substitui o Modal) */}
+      {/* 
+        ÁREA DA TABELA 
+        Agora ela ocupa todo o restante da tela livremente.
+        O loading fica por cima dela de forma translúcida, não travando a tela toda. 
+      */}
+      <Box sx={{ flexGrow: 1, minHeight: 0, position: 'relative', border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
+        
+        {loading && (
+            <Box sx={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: 'rgba(255,255,255,0.6)', zIndex: 10 }}>
+                <CircularProgress size={30} />
+            </Box>
+        )}
+        
+        <TableView displayedCards={displayedCards} handleOpenDetalhes={handleOpenDetalhes} handleWhatsappClick={handleWhatsappClick} />
+      
+      </Box>
+
+      {/* Drawer preservado, cumprindo o papel do antigo Modal */}
       <FichaPacienteDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} cicloId={selectedCicloId} onUpdate={loadData} />
     </Box>
   );

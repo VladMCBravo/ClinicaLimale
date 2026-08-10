@@ -141,9 +141,8 @@ class CRMService:
         Cruza dados do CRM (Ciclos) com Financeiro (Pagamentos/Despesas).
         """
         from faturamento.models import Pagamento, Despesa
-        from .models import Ciclo
-        from django.db.models import Sum, Count, Avg
-        from django.db.models.functions import TruncMonth
+        from .models import Ciclo, AnaliseComportamental
+        from django.db.models import Sum, Count, Avg, Q
 
         hoje = timezone.now()
         mes_atual = hoje.month
@@ -166,9 +165,6 @@ class CRMService:
         margem_percentual = round((lucro / float(receita_mes) * 100), 1) if receita_mes > 0 else 0
 
         # 2. ESTRATÉGICO (CAC e LTV)
-        # CAC: Total Despesas Marketing / Novos Ciclos no Mês
-        
-        # --- 🛡️ NOVO: BUSCA INTELIGENTE DE DESPESAS DE AQUISIÇÃO ---
         marketing = Despesa.objects.filter(
             Q(categoria__nome__icontains='Marketing') | 
             Q(categoria__nome__icontains='Anúncio') | 
@@ -177,16 +173,12 @@ class CRMService:
             Q(categoria__nome__icontains='Google') |
             Q(categoria__nome__icontains='Instagram'),
             data_pagamento__month=mes_atual,
-            pago=True # Importante: só contabilizar o que realmente saiu do caixa
+            pago=True
         ).aggregate(total=Sum('valor'))['total'] or 0.00
         
-        novos_ciclos = Ciclo.objects.filter(
-            data_inicio__month=mes_atual
-        ).count()
-        
+        novos_ciclos = Ciclo.objects.filter(data_inicio__month=mes_atual).count()
         cac = round(float(marketing) / novos_ciclos, 2) if novos_ciclos > 0 else 0.00
         
-        # LTV: Média de receita acumulada de todos os ciclos
         ltv = Ciclo.objects.aggregate(media=Avg('receita_acumulada'))['media'] or 0.00
 
         # 3. FUNIL (Snapshot Atual)
@@ -198,32 +190,33 @@ class CRMService:
             'retencao': ciclos_ativos.filter(fase_atual='F4').count(),
         }
 
-        # 4. GRÁFICOS E INTELIGÊNCIA DE DADOS
-        # Evolução Receita (Últimos 6 meses - simplificado)
-        evolucao_data = [
-            {"data": "Jan", "receita": 1000},
-            {"data": "Fev", "receita": float(receita_mes)} 
-        ]
+        # =============================================================
+        # 4. INTELIGÊNCIA DE DADOS (AGORA ALINHADO AO NOVO FRONTEND)
+        # =============================================================
+        
+        # A) Motivos de Abandono (Ignorando os nulos/vazios)
+        objecoes_bd = AnaliseComportamental.objects.exclude(
+            Q(principal_objecao__isnull=True) | Q(principal_objecao__exact='')
+        ).values('principal_objecao').annotate(total=Count('id')).order_by('-total')
 
-        # --- NOVA LÓGICA DO GRÁFICO DE PIZZA (ORIGEM DE AQUISIÇÃO) ---
-        from .models import AnaliseComportamental
-        
-        # Agrupa os pacientes pela origem de aquisição e conta quantos tem em cada
-        origens_bd = AnaliseComportamental.objects.values('origem_aquisicao').annotate(total=Count('id'))
-        
-        origem_pie_chart = []
+        motivos_perda = []
+        for item in objecoes_bd:
+            nome_amigavel = dict(AnaliseComportamental.OBJECOES_COMUNS).get(item['principal_objecao'], item['principal_objecao'])
+            motivos_perda.append({"motivo": nome_amigavel, "quantidade": item['total']})
+
+        # B) Origem de Captação (Ignorando os nulos/vazios)
+        origens_bd = AnaliseComportamental.objects.exclude(
+            Q(origem_aquisicao__isnull=True) | Q(origem_aquisicao__exact='')
+        ).values('origem_aquisicao').annotate(total=Count('id')).order_by('-total')
+
+        grafico_origem = []
         for item in origens_bd:
-            nome_origem = item['origem_aquisicao'] or "Não Informado"
-            origem_pie_chart.append({
-                "name": nome_origem,
-                "quantidade": item['total'] # Trocamos 'receita' por 'quantidade' para refletir volume real
-            })
-            
-        # Fallback caso o banco esteja vazio ainda
-        if not origem_pie_chart:
-            origem_pie_chart = [{"name": "Sem dados", "quantidade": 1}]
-        # -------------------------------------------------------------
+            nome_amigavel = dict(AnaliseComportamental.ORIGEM_CHOICES).get(item['origem_aquisicao'], item['origem_aquisicao'])
+            grafico_origem.append({"origem": nome_amigavel, "quantidade": item['total']})
 
+        # -------------------------------------------------------------
+        # RETORNO FINAL: Exatamente como o Frontend Elegante espera
+        # -------------------------------------------------------------
         return {
             "kpis_financeiros": {
                 "receita_mensal": float(receita_mes),
@@ -238,9 +231,9 @@ class CRMService:
                 "nivel_alto": Ciclo.objects.filter(nivel_risco='CRITICO').count()
             },
             "funil": funil_stats,
-            "graficos": {
-                "evolucao_receita": evolucao_data,
-                "origem_pie_chart": origem_pie_chart
+            "inteligencia_negocio": {
+                "motivos_abandono": motivos_perda,
+                "origem_captacao": grafico_origem
             }
         }
     
