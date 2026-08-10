@@ -28,7 +28,7 @@ import TelemedicinaPage from './pages/TelemedicinaPage';
 import PontoKioskPage from './pages/PontoKioskPage'; // <-- NOVO IMPORT
 import ConfiguracoesPage from './pages/ConfiguracoesPage'; 
 
-import CRMPageBase from './pages/crm/CRMPageBase';
+import CRMPageBase from './pages/CRM/CRMPageBase';
 import ProntuarioWorkspace from './pages/PainelMedico/ProntuarioWorkspace';
 
 const RotaInicialDinamica = () => {
