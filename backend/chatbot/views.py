@@ -678,37 +678,45 @@ class MetaWhatsAppWebhookView(APIView):
 class EnviarMensagemAtivaWhatsAppView(APIView):
     def post(self, request):
         numero = request.data.get('numero')
-        mensagem = request.data.get('mensagem')
         agendamento_id = request.data.get('agendamento_id')
+        
+        # --- NOVOS CAMPOS VINDOS DO FRONTEND ---
+        is_template = request.data.get('is_template', False)
+        template_name = request.data.get('template_name')
+        template_vars = request.data.get('template_vars', [])
+        mensagem_fallback = request.data.get('mensagem') # Caso ainda use texto livre de outro lugar
 
         logger.info(f"📱 [API WHATSAPP] Requisição recebida para enviar mensagem ao número: {numero}")
         
-        if not numero or not mensagem:
-            return Response({"error": "Número e mensagem são obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
+        if not numero:
+            return Response({"error": "Número é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            from chatbot.services import enviar_msg_whatsapp
+            # JÁ VAMOS IMPORTAR A NOVA FUNÇÃO QUE CRIAREMOS NO SERVICES.PY
+            from chatbot.services import enviar_msg_whatsapp, enviar_template_whatsapp
             from chatbot.models import ChatMemory
 
             clean_phone = ''.join(filter(str.isdigit, numero))
             memoria_obj, _ = ChatMemory.objects.get_or_create(session_id=clean_phone)
             memoria_obj.state = 'aguardando_confirmacao'
             
-            # 💡 Guarda o ID exato do agendamento na memória para atualizar quando o paciente responder!
             memoria_data = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
             if agendamento_id:
                 memoria_data['agendamento_id'] = agendamento_id
             memoria_obj.memory_data = memoria_data
             memoria_obj.save()
 
-            # Dispara a mensagem da clínica
-            sucesso = enviar_msg_whatsapp(numero, mensagem)
+            # --- DECIDE SE ENVIA TEXTO LIVRE OU TEMPLATE ---
+            if is_template:
+                sucesso = enviar_template_whatsapp(numero, template_name, template_vars)
+            else:
+                sucesso = enviar_msg_whatsapp(numero, mensagem_fallback)
 
             if sucesso:
                 logger.info(f"✅ [API WHATSAPP] Mensagem entregue com sucesso para {numero}!")
                 return Response({"status": "sucesso", "mensagem": "Mensagem enviada com sucesso!"}, status=status.HTTP_200_OK)
             else:
-                return Response({"error": "Falha na Meta API. A janela de 24h pode estar fechada."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "Falha na Meta API. Template não aprovado ou erro de envio."}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             logger.critical(f"💥 [API WHATSAPP] Erro interno crítico: {str(e)}")
