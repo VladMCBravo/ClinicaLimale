@@ -156,10 +156,29 @@ class AnaliseComportamental(models.Model):
     ]
     # ------------------------------
 
+    # ALINHAMENTO COM A IA
+    OBJECOES_COMUNS = [
+        ('PRECO', 'Preço / Valor do Exame'),
+        ('FORMA_PAGAMENTO', 'Forma de Pagamento'),
+        ('AGENDA', 'Agenda / Falta de Horário'),
+        ('LOCALIZACAO', 'Localização / Distância'),
+        ('CONVENIO', 'Convênio Não Aceito'),
+        ('ATENDIMENTO', 'Insatisfação no Atendimento'),
+        ('CURIOSIDADE', 'Curiosidade / Pesquisa'),
+        ('MEDICO', 'Preferência por outro Médico'),
+        ('MEDO', 'Medo do Exame'),
+        ('OUTRO', 'Outro'),
+    ]
+    # -------------------------------------------------
+
 
     paciente = models.OneToOneField(Paciente, on_delete=models.CASCADE, related_name='perfil_comportamental')
     perfil_emocional = models.CharField(max_length=20, choices=PERFIL_EMOCIONAL, default='INDEFINIDO')
-    principal_objecao = models.CharField(max_length=20, choices=OBJECOES_COMUNS, blank=True, null=True)
+    principal_objecao = models.CharField(max_length=30, choices=OBJECOES_COMUNS, blank=True, null=True)
+    
+    # --- NOVOS CAMPOS (Que a IA vai preencher silenciosamente) ---
+    cidade_interesse = models.CharField(max_length=100, blank=True, null=True, help_text="Extraído da conversa ou IP")
+    bairro_interesse = models.CharField(max_length=100, blank=True, null=True)
     
     # --- NOVOS CAMPOS DE ENGAJAMENTO E MARKETING ---
     origem_aquisicao = models.CharField(
@@ -175,6 +194,9 @@ class AnaliseComportamental(models.Model):
     
     # Notas livres para a equipe de atendimento
     observacoes_internas = models.TextField(blank=True, help_text="Informações cruciais para a equipe de atendimento")
+
+    # --- CAMPOS GERAIS PARA QUALQUER ESPECIALIDADE ---
+    especialidade_interesse = models.CharField(max_length=100, blank=True, null=True, help_text="Cardio, Pediatria, Ginecologia, etc.")
 
     # --- NOVOS CAMPOS PARA O GHOST MODE E MARKETING ---
     exame_interesse = models.CharField(

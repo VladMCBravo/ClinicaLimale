@@ -245,7 +245,7 @@ class CRMService:
         }
     
     @staticmethod
-    def registrar_abandono_chatbot(telefone, motivo_abandono="silêncio pós-proposta", nome_lead="Lead (Bot)"):
+    def registrar_abandono_chatbot(telefone, motivo_abandono="silêncio pós-proposta", nome_lead="Lead (Bot)", dados_extraidos=None):
         """
         Invocado pelo Chatbot (Recovery Manager) quando um lead esfria.
         Move para F5 e anota a objeção para acionar a cadência comercial.
@@ -280,13 +280,28 @@ class CRMService:
         # 3. Atualiza a análise comportamental
         comp, _ = AnaliseComportamental.objects.get_or_create(paciente=paciente)
         
-        if "agenda" in motivo_abandono.lower() or "horário" in motivo_abandono.lower():
+        # Lógica de Objeção melhorada
+        motivo_lower = motivo_abandono.lower()
+        if "agenda" in motivo_lower or "horário" in motivo_lower:
             comp.principal_objecao = 'AGENDA'
-        elif "preço" in motivo_abandono.lower() or "valor" in motivo_abandono.lower() or "preco" in motivo_abandono.lower():
+        elif "preço" in motivo_lower or "valor" in motivo_lower or "caro" in motivo_lower:
             comp.principal_objecao = 'PRECO'
+        elif "longe" in motivo_lower or "distância" in motivo_lower or "distancia" in motivo_lower:
+            comp.principal_objecao = 'LOCALIZACAO'
+        elif "parcela" in motivo_lower or "pagamento" in motivo_lower:
+            comp.principal_objecao = 'FORMA_PAGAMENTO'
+        elif "convênio" in motivo_lower or "plano" in motivo_lower:
+            comp.principal_objecao = 'CONVENIO'
         else:
-            comp.principal_objecao = 'OUTRO'
+            comp.principal_objecao = 'CURIOSIDADE' # Assume que se esfriou do nada, era curiosidade
             
+        # Alimenta o banco com os dados que o Bot conseguiu extrair (A IA faz esse trabalho)
+        if dados_extraidos:
+            if dados_extraidos.get('origem'): comp.origem_aquisicao = dados_extraidos['origem']
+            if dados_extraidos.get('cidade'): comp.cidade_interesse = dados_extraidos['cidade']
+            if dados_extraidos.get('bairro'): comp.bairro_interesse = dados_extraidos['bairro']
+            if dados_extraidos.get('especialidade'): comp.especialidade_interesse = dados_extraidos['especialidade']
+
         comp.observacoes_internas = f"Abandono no Bot: {motivo_abandono}"
         comp.save()
 

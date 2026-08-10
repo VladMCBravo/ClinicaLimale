@@ -121,12 +121,26 @@ def processar_mensagem_bot(session_id: str, user_message: str) -> dict:
                 comp.origem_aquisicao = analise_ia.get("origem_aquisicao")
                 atualizou_comp = True
 
+            # --- NOVOS CAMPOS GEOGRÁFICOS ---
+            if analise_ia.get("cidade_interesse"):
+                comp.cidade_interesse = analise_ia.get("cidade_interesse")
+                atualizou_comp = True
+                
+            if analise_ia.get("bairro_interesse"):
+                comp.bairro_interesse = analise_ia.get("bairro_interesse")
+                atualizou_comp = True
+
+            # --- MELHORIA NO MAPEAMENTO DAS OBJEÇÕES ---
             motivo_desistencia = analise_ia.get("motivo_desistencia")
             if analise_ia.get("agendou") is False and motivo_desistencia:
                 mapeamento_objecoes = {
                     'preco': 'PRECO',
+                    'forma_pagamento': 'FORMA_PAGAMENTO',
                     'horario': 'AGENDA',
-                    'localizacao': 'DISTANCIA',
+                    'localizacao': 'LOCALIZACAO', # Alinhado com o models.py
+                    'convenio': 'CONVENIO',
+                    'atendimento': 'ATENDIMENTO',
+                    'curiosidade': 'CURIOSIDADE',
                     'precisa_pedido_medico': 'OUTRO',
                     'outro': 'OUTRO'
                 }
