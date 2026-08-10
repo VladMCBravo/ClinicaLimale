@@ -176,36 +176,28 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
 
         const primeiroNome = (selectedEvent.title || '').trim().split(' ')[0];
         const inicio = selectedEvent.start ? new Date(selectedEvent.start) : null;
-        const dataFormatada = inicio ? capitalizar(inicio.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })) : '';
+        
+        // Formatação simples e direta para o WhatsApp
+        const dataFormatada = inicio ? inicio.toLocaleDateString('pt-BR') : ''; 
         const horaFormatada = inicio ? formatarHoraHHMM(inicio) : '';
-        const procedimento = dados.tipo_procedimento || dados.procedimento_descricao || dados.especialidade_nome || 'sua consulta';
-        const medico = dados.medico_nome_com_prefixo || dados.medico_nome;
-
-        const mensagem = `Olá, ${primeiroNome}!\n\n`
-            + `Aqui é da *Clínica Limalé*. Passando para confirmar o seu agendamento:\n\n`
-            + `Data: ${dataFormatada}, às ${horaFormatada}\n`
-            + `${dados.tipo_agendamento === 'Consulta' ? 'Especialidade' : 'Procedimento'}: ${procedimento}\n`
-            + (medico ? `Médico(a): ${medico}\n` : '')
-            + `\n*Endereço da clínica*\n${CLINICA_ENDERECO}\n`
-            + `Como chegar: ${CLINICA_MAPS_URL}\n\n`
-            + `Você confirma sua presença? Responda com:\n`
-            + `1️⃣ - Sim, confirmo!\n`
-            + `2️⃣ - Preciso remarcar`;
+        const medico = dados.medico_nome_com_prefixo || dados.medico_nome || 'o nosso especialista';
 
         try {
             console.log(`[FRONTEND] 🚀 Iniciando disparo para o número: ${numero}`);
             
-            // Pega o ID do agendamento do evento selecionado
             const agendamentoId = selectedEvent?.id || selectedEvent?.extendedProps?.id;
 
             const response = await apiClient.post('/chatbot/whatsapp/enviar-mensagem/', {
                 numero: numero,
-                mensagem: mensagem,
-                agendamento_id: agendamentoId // <-- Enviando o ID para o backend
+                agendamento_id: agendamentoId,
+                // --- NOVA ABORDAGEM: TEMPLATE ---
+                is_template: true, 
+                template_name: 'confirmacao_de_consulta', // Tem que ser O MESMO NOME que você criou na Meta
+                template_vars: [primeiroNome, medico, dataFormatada, horaFormatada] // Variáveis {{1}}, {{2}}, etc.
             });
             
             console.log("[FRONTEND] ✅ Resposta do servidor:", response.data);
-            alert('✅ Mensagem enviada! Aguardando a confirmação do paciente pelo WhatsApp.');
+            alert('✅ Mensagem enviada com sucesso pela Meta API!');
             
         } catch (error) {
             console.error("[FRONTEND] ❌ Erro ao disparar WhatsApp:", error);
