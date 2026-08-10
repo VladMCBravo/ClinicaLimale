@@ -43,6 +43,10 @@ try:
         medico_solicitante: Optional[str] = Field(description="Nome do médico ou profissional que pediu o exame. Se a paciente responder que está procurando 'por conta própria', retorne 'Conta Própria'. Null se não mencionado.")
         motivo_exame: Optional[Literal['rotina', 'investigacao_dor', 'acompanhamento', 'urgencia']] = Field(description="Classifique o motivo do exame. Use 'investigacao_dor' se o paciente relatar dor ou desconforto. Null se não for possível deduzir.")
 
+        # --- NOVOS CAMPOS GEOGRÁFICOS ---
+        cidade_interesse: Optional[str] = Field(description="Cidade onde o paciente mora, caso seja mencionada (ex: Santos, São Vicente, Guarujá). Null se não mencionado.")
+        bairro_interesse: Optional[str] = Field(description="Bairro onde o paciente mora, caso seja mencionado (ex: Gonzaga, Boqueirão). Null se não mencionado.")
+
         # --- FUNIL OBSTÉTRICO (GESTANTES) ---
         semanas_gestacao: Optional[int] = Field(description="Número de semanas de gestação. Se a paciente disser algo como 'estou de 20 semanas', extraia o número 20. Null se não for gestante ou não informado.")
         primeira_gravidez: Optional[bool] = Field(description="True se mencionar que é o primeiro filho. Null se não mencionado.")
@@ -54,6 +58,12 @@ try:
         concorrencia_mencionada: Optional[str] = Field(description="Nome de outra clínica ou laboratório. Null se não mencionar.")
         nivel_urgencia: Optional[Literal['frio', 'morno', 'quente']] = Field(description="Frio: só pesquisando preço/solicitando tabela. Morno: tem dúvidas sobre o procedimento. Quente: está com dor, pressa, ou quer agendar para hoje/amanhã.")
         origem_aquisicao: Optional[Literal['GOOGLE', 'INSTAGRAM', 'FACEBOOK', 'TIKTOK', 'SITE', 'INDICAÇÃO', 'MÉDICO', 'CONVÊNIO', 'OUTRO']] = Field(description="De onde o paciente veio ou onde viu o anúncio. Null se não for possível identificar.")
+
+        # --- ALINHAMENTO COM O CRM/MODELS ---
+        agendou: Optional[bool] = Field(description="True se confirmou o agendamento. False se desistiu, parou de responder, disse que ia pensar, etc. Null se a conversa ainda não foi concluída.")
+        
+        # AQUI ESTÁ A CHAVE: Ampliamos a capacidade da IA de entender as recusas
+        motivo_desistencia: Optional[Literal['preco', 'forma_pagamento', 'horario', 'localizacao', 'precisa_pedido_medico', 'convenio', 'atendimento', 'curiosidade', 'outro']] = Field(description="Se agendou=False, classifique o motivo. Use 'curiosidade' se a pessoa só perguntou o preço e sumiu. Use 'forma_pagamento' se a reclamação foi sobre não parcelar. Null se não desistiu.")
 
     parser_ghost = JsonOutputParser(pydantic_object=GhostModeOutput)
     
