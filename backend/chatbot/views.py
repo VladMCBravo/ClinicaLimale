@@ -577,8 +577,8 @@ class MetaWhatsAppWebhookView(APIView):
                                                 # =========================================================
                                                 # 🛡️ INTERCEPTOR DE CONFIRMAÇÃO DE AGENDA (BLINDADO)
                                                 # =========================================================
-                                                if memoria_obj.state == 'aguardando_confirmacao' or msg_clean in ['1', '1️⃣', 'sim', 'confirmo', 'confirmado', '2', '2️⃣', 'nao', 'não', 'remarcar']:
-                                                    
+                                                if memoria_obj.state == 'aguardando_confirmacao' or msg_clean in ['1', '1️⃣', 'sim', 'confirmo', 'confirmado', '2', '2️⃣', 'nao', 'não', 'remarcar']:     
+
                                                     if msg_clean in ['1', '1️⃣', 'sim', 'confirmo', 'confirmado']:
                                                         ag = None
                                                         memoria_data = memoria_obj.memory_data if isinstance(memoria_obj.memory_data, dict) else {}
@@ -630,40 +630,25 @@ class MetaWhatsAppWebhookView(APIView):
                                                     return 
                                                 # =========================================================
 
-                                                # Se não for confirmação, segue o fluxo normal da IA (Leônidas)
-                                                resposta = handler.processar_fluxo(message_text)
-                                                                                                
-                                                # Extração segura do texto e do nome da IA
-                                                texto_ia = ""
-                                                nome_usuario = "Carlos" # Valor padrão caso não encontre
+                                                # =========================================================
+                                                # 👻 GHOST MODE PURO (APENAS ESCUTA E EXTRAI DADOS)
+                                                # =========================================================
+                                                # Como não é confirmação, o bot APENAS lê a mensagem para o CRM, 
+                                                # mas NÃO ENVIA nenhuma mensagem de volta para o WhatsApp.
                                                 
-                                                if isinstance(resposta, dict):
-                                                    texto_ia = resposta.get("response_message") or resposta.get("resposta") or ""
-                                                    if resposta.get("nome_extraido"):
-                                                        nome_usuario = resposta.get("nome_extraido")
-                                                elif isinstance(resposta, str):
-                                                    texto_ia = resposta
-                                                    
-                                                logger.warning(f"🤖 Resposta gerada pela IA (processada): {texto_ia}")
+                                                logger.warning(f"🕵️ [GHOST MODE] Lendo mensagem de {phone_number} silenciosamente...")
                                                 
-                                                # Se for nova conversa ou a IA não gerou texto direto, criamos uma resposta acolhedora
-                                                if is_nova_conversa or not texto_ia or texto_ia == "None":
-                                                    logger.warning("🟢 Enviando saudação / resposta inicial personalizada.")
-                                                    texto_ia = (
-                                                        f"Olá, {nome_usuario}! 🤍\n\n"
-                                                        "Sou o Leônidas, assistente da Clínica Limalé — centro de "
-                                                        "referência em gestação, ultrassom fetal e cardiologia avançada.\n\n"
-                                                        "Vi que você tem interesse em nossos exames. Como posso te ajudar com os valores e agendamentos hoje?"
-                                                    )
+                                                # Isso vai acionar o seu chains.py e bot_logic.py para extrair 
+                                                # cidade, objeções e funil, mas a resposta é ignorada.
+                                                handler.processar_fluxo(message_text)
                                                 
-                                                # Dispara o envio oficial via Meta API
-                                                time.sleep(1)
-                                                enviar_msg_whatsapp(phone_number, texto_ia)
-                                                logger.warning(f"✅ Mensagem despachada com sucesso para {phone_number}!")
+                                                logger.warning(f"✅ [GHOST MODE] Dados de {phone_number} extraídos para o CRM com sucesso. Nenhuma mensagem enviada.")
+                                                
+                                                # FIM DA TAREFA! Apagamos o enviar_msg_whatsapp que ficava aqui embaixo.
 
                                             except Exception as e:
                                                 logger.error(f"❌ Erro fatal no processamento da IA via Meta: {e}", exc_info=True)
-
+                                                
                                         thread = threading.Thread(target=tarefa_em_segundo_plano_meta, daemon=True)
                                         thread.start()
             
@@ -708,7 +693,7 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
 
             # --- DECIDE SE ENVIA TEXTO LIVRE OU TEMPLATE ---
             if is_template:
-                sucesso = enviar_template_whatsapp(numero, template_name, template_vars)
+                sucesso = enviar_template_whatsapp(numero, template_name, parametros=template_vars)
             else:
                 sucesso = enviar_msg_whatsapp(numero, mensagem_fallback)
 
