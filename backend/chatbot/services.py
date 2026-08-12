@@ -80,7 +80,7 @@ def enviar_template_whatsapp(numero, nome_template, idioma="pt_BR", parametros=N
     api_version = os.environ.get("META_API_VERSION", "v25.0")
 
     if not token or not phone_id:
-        logger.error("❌ Erro: META_ACCESS_TOKEN ou META_PHONE_NUMBER_ID não encontrados no .env")
+        logger.error("❌ Erro: Credenciais da Meta não encontradas no .env")
         return False
 
     url = f"https://graph.facebook.com/{api_version}/{phone_id}/messages"
@@ -115,14 +115,32 @@ def enviar_template_whatsapp(numero, nome_template, idioma="pt_BR", parametros=N
     }
 
     try:
+        # TENTATIVA 1: Com o idioma padrão (pt_BR)
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         response.raise_for_status()
-        logger.info(f"✅ Template '{nome_template}' enviado para {numero}: {response.text}")
+        logger.info(f"✅ Template '{nome_template}' enviado com sucesso (Idioma: {idioma})")
         return True
     except requests.exceptions.RequestException as e:
-        logger.error(f"❌ Erro ao enviar template '{nome_template}' para {numero}: {e}")
         if e.response is not None:
-            logger.error(f"Detalhes do erro Meta: {e.response.text}")
+            erro_json = e.response.json()
+            erro_meta = erro_json.get("error", {})
+            
+            # O BUG DA META: Se reclamar que o idioma não existe, tentamos o genérico "pt"
+            if erro_meta.get("code") == 132001 and idioma == "pt_BR":
+                logger.warning(f"⚠️ Meta recusou 'pt_BR'. Tentando fallback automático para 'pt'...")
+                payload["template"]["language"]["code"] = "pt"
+                
+                try:
+                    # TENTATIVA 2: Com o idioma genérico (pt)
+                    retry_response = requests.post(url, json=payload, headers=headers, timeout=10)
+                    retry_response.raise_for_status()
+                    logger.info(f"✅ Template '{nome_template}' enviado com sucesso no fallback (Idioma: pt)")
+                    return True
+                except requests.exceptions.RequestException as retry_e:
+                    logger.error(f"❌ Falha até no fallback. Erro Meta: {retry_e.response.text}")
+                    return False
+                    
+            logger.error(f"❌ Erro Meta: {e.response.text}")
         return False
 
 def enviar_msg_whatsapp(numero, texto):
