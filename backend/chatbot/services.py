@@ -6,6 +6,7 @@ from usuarios.models import Especialidade
 from faturamento.models import Procedimento
 from django.utils.html import escape
 import logging # Garanta que logging está importado
+import json  # adicionar junto com os outros imports no topo do arquivo
 
 # --- ADICIONE ESTA LINHA ---
 logger = logging.getLogger(__name__)
@@ -83,6 +84,12 @@ def enviar_template_whatsapp(numero, nome_template, idioma="pt_BR", parametros=N
         logger.error("❌ Erro: Credenciais da Meta não encontradas no .env")
         return False
 
+    # 🐛 DEBUG: confirma qual número/WABA está sendo usado pra enviar
+    logger.warning(
+        f"🐛 [DEBUG-TEMPLATE] phone_id=...{phone_id[-6:]} | api_version={api_version} | "
+        f"template={nome_template!r} | idioma={idioma!r} | parametros={parametros!r} | formato={formato}"
+    )
+
     url = f"https://graph.facebook.com/{api_version}/{phone_id}/messages"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
@@ -96,7 +103,7 @@ def enviar_template_whatsapp(numero, nome_template, idioma="pt_BR", parametros=N
                     for nome, valor in parametros.items()
                 ]
             }]
-        else:  # positional
+        else:
             components = [{
                 "type": "body",
                 "parameters": [{"type": "text", "text": str(valor)} for valor in parametros]
@@ -114,33 +121,39 @@ def enviar_template_whatsapp(numero, nome_template, idioma="pt_BR", parametros=N
         }
     }
 
+    # 🐛 DEBUG: payload exato enviado pra Meta
+    logger.warning(f"🐛 [DEBUG-TEMPLATE] Payload: {json.dumps(payload, ensure_ascii=False)}")
+
     try:
-        # TENTATIVA 1: Com o idioma padrão (pt_BR)
         response = requests.post(url, json=payload, headers=headers, timeout=10)
+        logger.warning(f"🐛 [DEBUG-TEMPLATE] Resposta bruta ({response.status_code}): {response.text}")
         response.raise_for_status()
         logger.info(f"✅ Template '{nome_template}' enviado com sucesso (Idioma: {idioma})")
         return True
     except requests.exceptions.RequestException as e:
         if e.response is not None:
+            logger.error(f"🐛 [DEBUG-TEMPLATE] Erro 1ª tentativa: status={e.response.status_code} body={e.response.text}")
             erro_json = e.response.json()
             erro_meta = erro_json.get("error", {})
-            
-            # O BUG DA META: Se reclamar que o idioma não existe, tentamos o genérico "pt"
+
             if erro_meta.get("code") == 132001 and idioma == "pt_BR":
-                logger.warning(f"⚠️ Meta recusou 'pt_BR'. Tentando fallback automático para 'pt'...")
+                logger.warning("⚠️ Meta recusou 'pt_BR'. Tentando fallback automático para 'pt'...")
                 payload["template"]["language"]["code"] = "pt"
-                
+                logger.warning(f"🐛 [DEBUG-TEMPLATE] Payload fallback: {json.dumps(payload, ensure_ascii=False)}")
                 try:
-                    # TENTATIVA 2: Com o idioma genérico (pt)
                     retry_response = requests.post(url, json=payload, headers=headers, timeout=10)
+                    logger.warning(f"🐛 [DEBUG-TEMPLATE] Resposta bruta fallback ({retry_response.status_code}): {retry_response.text}")
                     retry_response.raise_for_status()
                     logger.info(f"✅ Template '{nome_template}' enviado com sucesso no fallback (Idioma: pt)")
                     return True
                 except requests.exceptions.RequestException as retry_e:
-                    logger.error(f"❌ Falha até no fallback. Erro Meta: {retry_e.response.text}")
+                    body = retry_e.response.text if retry_e.response is not None else str(retry_e)
+                    logger.error(f"❌ Falha até no fallback. Erro Meta: {body}")
                     return False
-                    
+
             logger.error(f"❌ Erro Meta: {e.response.text}")
+        else:
+            logger.error(f"❌ Erro de rede/conexão ao chamar Meta: {e}")
         return False
 
 def enviar_msg_whatsapp(numero, texto):

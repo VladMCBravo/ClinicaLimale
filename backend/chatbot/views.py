@@ -672,6 +672,13 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
         mensagem_fallback = request.data.get('mensagem') # Caso ainda use texto livre de outro lugar
 
         logger.info(f"📱 [API WHATSAPP] Requisição recebida para enviar mensagem ao número: {numero}")
+
+        # 🐛 DEBUG: confirma exatamente o que chegou do frontend
+        logger.warning(
+            f"🐛 [DEBUG-VIEW] is_template={is_template!r} (tipo={type(is_template).__name__}) | "
+            f"template_name={template_name!r} | template_vars={template_vars!r} | "
+            f"agendamento_id={agendamento_id!r}"
+        )
         
         if not numero:
             return Response({"error": "Número é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
@@ -706,3 +713,25 @@ class EnviarMensagemAtivaWhatsAppView(APIView):
         except Exception as e:
             logger.critical(f"💥 [API WHATSAPP] Erro interno crítico: {str(e)}")
             return Response({"error": f"Erro interno: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class DebugWhatsAppConfigView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        token = os.environ.get("META_ACCESS_TOKEN")
+        phone_id = os.environ.get("META_PHONE_NUMBER_ID")
+        api_version = os.environ.get("META_API_VERSION", "v25.0")
+
+        if not token or not phone_id:
+            return Response({"error": "Credenciais ausentes"}, status=500)
+
+        try:
+            resp = requests.get(
+                f"https://graph.facebook.com/{api_version}/{phone_id}",
+                headers={"Authorization": f"Bearer {token}"},
+                params={"fields": "verified_name,display_phone_number,quality_rating"},
+                timeout=10
+            )
+            return Response({"phone_id_usado": phone_id, "info_meta": resp.json()})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
