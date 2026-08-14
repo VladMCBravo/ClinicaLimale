@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Typography, Paper, List, ListItem, CircularProgress, 
-    Tooltip, Box, IconButton, Divider, Chip
+    Tooltip, Box, IconButton, Divider, Chip, Dialog, DialogTitle, 
+    DialogContent, DialogActions, Button, FormControl, RadioGroup, FormControlLabel, Radio
 } from '@mui/material';
 import { agendamentoService } from '../../services/agendamentoService';
 import { formatarHoraTZ, formatarDataTZ } from '../../utils/format'; // <-- IMPORTANDO AQUI
@@ -40,7 +41,13 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
 
     // Usa a data clicada ou o dia de hoje se não tiver nada
     const dataExibicao = dataSelecionada || new Date();
-    
+    // --- NOVOS ESTADOS PARA O MODAL DE IMPRESSÃO ---
+    const [printModalOpen, setPrintModalOpen] = useState(false);
+    const [printLoading, setPrintLoading] = useState(false);
+    const [agendamentosPrint, setAgendamentosPrint] = useState([]);
+    const [medicosPrint, setMedicosPrint] = useState([]);
+    const [medicoSelecionadoPrint, setMedicoSelecionadoPrint] = useState('todos');
+
     // Verifica se a data selecionada é hoje
     const isHoje = dataExibicao.toDateString() === new Date().toDateString();
     
@@ -99,50 +106,85 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
     }, [fetchPacientesDoDia, refreshTrigger]); 
     // =========================================================================
 
-    // A função de imprimir usando a data correta:
-    const handlePrint = async () => {
-        if (pacientes.length === 0) {
-            alert("Não há pacientes para imprimir neste dia.");
+    // 1. Função que abre o modal e busca quem são os médicos de hoje
+    const handleOpenPrintClick = async () => {
+        setPrintModalOpen(true);
+        setPrintLoading(true);
+        try {
+            // Traz a agenda do dia INTEIRA (ignorando o filtro lateral) para listar os médicos
+            const response = await agendamentoService.getAgendamentosHoje(null, dataExibicao);
+            setAgendamentosPrint(response.data);
+
+            // Filtra médicos únicos que têm agenda neste dia
+            const mapMedicos = new Map();
+            response.data.forEach(ag => {
+                if (ag.medico) {
+                    mapMedicos.set(ag.medico, ag.medico_nome_com_prefixo || ag.medico_nome);
+                }
+            });
+            setMedicosPrint(Array.from(mapMedicos.entries()).map(([id, nome]) => ({id, nome})));
+            setMedicoSelecionadoPrint('todos');
+        } catch (error) {
+            console.error("Erro ao preparar impressão:", error);
+        } finally {
+            setPrintLoading(false);
+        }
+    };
+
+    // 2. Função que de fato filtra, agrupa e manda imprimir
+    const executePrint = async () => {
+        let aImprimir = agendamentosPrint;
+        if (medicoSelecionadoPrint !== 'todos') {
+            aImprimir = agendamentosPrint.filter(ag => String(ag.medico) === String(medicoSelecionadoPrint));
+        }
+
+        if (aImprimir.length === 0) {
+            alert("Não há pacientes para o filtro selecionado.");
             return;
         }
-        
-        // Colocamos um feedback visual simples para o usuário não clicar duas vezes
-        const btnPrint = document.getElementById('btn-imprimir-agenda');
-        if(btnPrint) btnPrint.style.opacity = '0.5';
 
-        // Chamamos o gerador passando uma função de callback que recebe o blob transparente
-        await gerarPdfAgendaDia(pacientes, dataExibicao, async (blobTransparente) => {
+        // Agrupa igual a sidebar faz (para juntar exames e não sair duplicado no papel)
+        const agrupadosMap = new Map();
+        aImprimir.forEach(ag => {
+            const chave = `${ag.paciente_id || ag.paciente}_${ag.data_hora_inicio}`;
+            const procAtual = ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta';
+            
+            if (agrupadosMap.has(chave)) {
+                const existente = agrupadosMap.get(chave);
+                existente.procedimento_descricao += ` + ${procAtual}`;
+                if (ag.pagamento_status === 'Pendente') existente.pagamento_status = 'Pendente';
+                if (ag.procedimento) existente.lista_procedimentos_ids.push(ag.procedimento);
+                existente.is_encaixe = existente.is_encaixe || ag.is_encaixe;
+            } else {
+                const novo = { ...ag };
+                novo.procedimento_descricao = procAtual;
+                novo.lista_procedimentos_ids = ag.procedimento ? [ag.procedimento] : [];
+                agrupadosMap.set(chave, novo);
+            }
+        });
+
+        const dadosOrdenados = Array.from(agrupadosMap.values()).sort((a, b) => 
+            new Date(a.data_hora_inicio) - new Date(b.data_hora_inicio)
+        );
+
+        setPrintLoading(true);
+        await gerarPdfAgendaDia(dadosOrdenados, dataExibicao, async (blobTransparente) => {
             try {
-                // 1. Preparamos o arquivo para envio
                 const formData = new FormData();
                 formData.append('arquivo_pdf', blobTransparente, 'agenda_rascunho.pdf');
-
-                // 2. Enviamos para a nova rota do Django (Vamos criar ela já já)
                 const response = await apiClient.post('/prontuario/aplicar-mascara/', formData, {
-                    responseType: 'blob' // É vital pedir um blob de volta, pois o Django devolverá um arquivo PDF direto
+                    responseType: 'blob' 
                 });
-
-                // 3. Recebemos o PDF final carimbado e abrimos na tela
                 const blobFinal = new Blob([response.data], { type: 'application/pdf' });
                 const blobUrl = URL.createObjectURL(blobFinal);
                 window.open(blobUrl, '_blank');
-                
-                // Opcional: Forçar download silencioso
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = blobUrl;
-                a.download = `Agenda_Limale_${dataExibicao.toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
                 setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-
             } catch (error) {
                 console.error("Erro ao aplicar máscara na agenda:", error);
-                alert("Erro ao gerar o PDF com o timbre da clínica. Verifique a conexão.");
+                alert("Erro ao gerar o PDF com o timbre. Verifique a conexão.");
             } finally {
-                if(btnPrint) btnPrint.style.opacity = '1';
+                setPrintLoading(false);
+                setPrintModalOpen(false); // Fecha o modal após abrir o PDF
             }
         }); 
     };
@@ -164,7 +206,7 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                     </Typography>
                 </Box>
                 <Tooltip title="Imprimir Relação do Dia">
-                    <IconButton size="small" onClick={handlePrint} sx={{ color: '#1976d2', bgcolor: '#f0f7ff', flexShrink: 0 }}>
+                    <IconButton size="small" onClick={handleOpenPrintClick} sx={{ color: '#1976d2', bgcolor: '#f0f7ff', flexShrink: 0 }}>
                         <PrintIcon fontSize="small" />
                     </IconButton>
                 </Tooltip>
@@ -315,6 +357,42 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
         </List>
     )}
 </Box>
+{/* MODAL DE IMPRESSÃO */}
+            <Dialog open={printModalOpen} onClose={() => !printLoading && setPrintModalOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle sx={{ fontWeight: 'bold', color: '#1C2E4A', fontSize: '1.1rem' }}>
+                    Imprimir Agenda
+                </DialogTitle>
+                <DialogContent dividers>
+                    {printLoading && agendamentosPrint.length === 0 ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress /></Box>
+                    ) : (
+                        <Box>
+                            <Typography variant="body2" sx={{ mb: 2, color: '#555' }}>
+                                Selecione a agenda de qual profissional você deseja imprimir (Data: {dataFormatada}):
+                            </Typography>
+                            <FormControl fullWidth>
+                                <RadioGroup 
+                                    value={medicoSelecionadoPrint} 
+                                    onChange={(e) => setMedicoSelecionadoPrint(e.target.value)}
+                                >
+                                    <FormControlLabel value="todos" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight="bold">Todos os Médicos (Completa)</Typography>} />
+                                    {medicosPrint.map(m => (
+                                        <FormControlLabel key={m.id} value={String(m.id)} control={<Radio size="small" />} label={<Typography variant="body2">{m.nome}</Typography>} />
+                                    ))}
+                                </RadioGroup>
+                            </FormControl>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions sx={{ p: 2 }}>
+                    <Button onClick={() => setPrintModalOpen(false)} color="inherit" disabled={printLoading} sx={{ textTransform: 'none', fontWeight: 'bold' }}>
+                        Cancelar
+                    </Button>
+                    <Button onClick={executePrint} variant="contained" color="primary" disabled={printLoading || medicosPrint.length === 0} sx={{ textTransform: 'none', fontWeight: 'bold' }}>
+                        {printLoading ? <CircularProgress size={20} color="inherit" /> : 'Gerar PDF'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Paper>
     );
 }
