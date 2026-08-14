@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { 
     Box, Typography, List, ListItem, ListItemButton, ListItemText, 
-    CircularProgress, IconButton, Tooltip, Divider, Tabs, Tab 
+    CircularProgress, IconButton, Tooltip, Divider, Tabs, Tab, Chip // <-- Adicionado Chip
 } from '@mui/material';
 
 import CloseIcon from '@mui/icons-material/Close';
@@ -208,22 +208,58 @@ export default function ProntuarioWorkspace() {
                     <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
                         {isLoadingLista ? <CircularProgress size={24} sx={{ m: 2, display: 'block' }} /> : (
                             <List dense disablePadding>
-                                {listaEsquerda.map((item, index) => (
-                                    <ListItem key={index} disablePadding divider>
-                                        <ListItemButton onClick={() => selecionarPaciente(item)} selected={pacienteAtivo?.id === (abaEsquerda === 0 ? item.paciente_id : item.id)}>
-                                            <ListItemText 
-                                                primary={<Typography variant="body2" fontWeight="500">{abaEsquerda === 0 ? item.paciente_nome : item.nome_completo}</Typography>}
-                                                secondary={
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        {abaEsquerda === 0 
-                                                            ? `${item.data_hora_inicio ? formatarHoraTZ(item.data_hora_inicio) : item.horario} - ${item.especialidade}` 
-                                                            : `Últ. consulta: ${item.ultima_consulta}`}
-                                                    </Typography>
-                                                }
-                                            />
-                                        </ListItemButton>
-                                    </ListItem>
-                                ))}
+                                {listaEsquerda.map((item, index) => {
+                                    // Determina se é retorno baseado na primeira_consulta do agendamento (se existir)
+                                    // Caso a API não mande, assume Consulta (Para o menu de Pacientes antigos)
+                                    const isRetorno = abaEsquerda === 0 && (item.tipo_visita === 'Retorno' || item.primeira_consulta === false);
+
+                                    return (
+                                        <ListItem key={index} disablePadding divider sx={{ bgcolor: '#fff', '&:hover': { bgcolor: '#f8fbff' } }}>
+                                            <ListItemButton 
+                                                onClick={() => selecionarPaciente(item)} 
+                                                selected={pacienteAtivo?.id === (abaEsquerda === 0 ? item.paciente_id : item.id)}
+                                                sx={{ 
+                                                    borderLeft: pacienteAtivo?.id === (abaEsquerda === 0 ? item.paciente_id : item.id) ? '4px solid #1c7ed6' : '4px solid transparent',
+                                                    pl: 1.5, py: 1
+                                                }}
+                                            >
+                                                <Box sx={{ width: '100%' }}>
+                                                    {/* Primeira Linha: Nome */}
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                                                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1C2E4A', lineHeight: 1.2, pr: 1 }}>
+                                                            {abaEsquerda === 0 ? item.paciente_nome : item.nome_completo}
+                                                        </Typography>
+                                                        {abaEsquerda === 0 && (
+                                                            <Chip 
+                                                                label={isRetorno ? "Retorno" : "1ª Vez"} 
+                                                                size="small" 
+                                                                sx={{ height: 16, fontSize: '0.55rem', fontWeight: 600, bgcolor: isRetorno ? '#e3f2fd' : '#fff8e1', color: isRetorno ? '#1565c0' : '#f57f17', flexShrink: 0 }} 
+                                                            />
+                                                        )}
+                                                    </Box>
+
+                                                    {/* Segunda Linha: Hora/Data e Procedimento */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                                        <Typography variant="caption" sx={{ color: '#495057', fontWeight: 500 }}>
+                                                            {abaEsquerda === 0 
+                                                                ? `${item.data_hora_inicio ? formatarHoraTZ(item.data_hora_inicio) : item.horario}` 
+                                                                : `Última: ${item.ultima_consulta}`}
+                                                        </Typography>
+                                                        
+                                                        {abaEsquerda === 0 && (
+                                                            <>
+                                                                <Typography variant="caption" sx={{ color: '#adb5bd' }}>•</Typography>
+                                                                <Typography variant="caption" sx={{ color: '#6c757d', noWrap: true, textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                                                    {item.procedimento_descricao || item.especialidade || 'Consulta'}
+                                                                </Typography>
+                                                            </>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                            </ListItemButton>
+                                        </ListItem>
+                                    );
+                                })}
                             </List>
                         )}
                     </Box>
