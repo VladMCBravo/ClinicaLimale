@@ -40,7 +40,8 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
     const [isLoading, setIsLoading] = useState(true);
 
     // Usa a data clicada ou o dia de hoje se não tiver nada
-    const dataExibicao = dataSelecionada || new Date();
+    const dataExibicao = dataSelecionada ? new Date(dataSelecionada) : new Date();
+    
     // --- NOVOS ESTADOS PARA O MODAL DE IMPRESSÃO ---
     const [printModalOpen, setPrintModalOpen] = useState(false);
     const [printLoading, setPrintLoading] = useState(false);
@@ -48,11 +49,15 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
     const [medicosPrint, setMedicosPrint] = useState([]);
     const [medicoSelecionadoPrint, setMedicoSelecionadoPrint] = useState('todos');
 
-    // Verifica se a data selecionada é hoje
-    const isHoje = dataExibicao.toDateString() === new Date().toDateString();
+    // Verifica se a data selecionada é hoje (Comparando no fuso de SP para evitar bugs)
+    const hojeLocal = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const dataExibicaoLocal = dataExibicao.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const isHoje = hojeLocal === dataExibicaoLocal;
     
-    // Formata visualmente: "Sex., 27 De Mar."
-    const dataFormatada = dataExibicao.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+    // Formata visualmente: "Sex., 27 De Mar." forçando o timezone
+    const dataFormatada = dataExibicao.toLocaleDateString('pt-BR', { 
+        weekday: 'short', day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo' 
+    });
 
     const fetchPacientesDoDia = useCallback(async () => {
         setIsLoading(true);
