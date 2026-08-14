@@ -39,22 +39,45 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
     const [pacientes, setPacientes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Usa a data clicada ou o dia de hoje se não tiver nada
-    const dataExibicao = dataSelecionada ? new Date(dataSelecionada) : new Date();
+    // ========================================================================
+    // 🛠️ DEBUG E CORREÇÃO DO FUSO HORÁRIO
+    // ========================================================================
+    console.log("👉 [DEBUG 1] Data recebida do calendário:", dataSelecionada, typeof dataSelecionada);
+
+    const obterDataSegura = (dataInput) => {
+        if (!dataInput) return new Date();
+        if (dataInput instanceof Date) return dataInput;
+        
+        // Se a data vier apenas como "YYYY-MM-DD", o JS a joga para meia-noite em UTC.
+        // No fuso de SP (UTC-3), isso vira 21:00 do DIA ANTERIOR.
+        // Solução: Adicionar "T12:00:00" joga a hora para o meio do dia. 
+        // Subtrair 3 horas ainda vai manter no mesmo dia (09:00 da manhã).
+        const strData = String(dataInput);
+        if (strData.length === 10 && strData.includes('-')) {
+            return new Date(`${strData}T12:00:00`);
+        }
+        
+        return new Date(dataInput);
+    };
+
+    const dataExibicao = obterDataSegura(dataSelecionada);
     
-    // --- NOVOS ESTADOS PARA O MODAL DE IMPRESSÃO ---
+    console.log("👉 [DEBUG 2] Data após blindagem do meio-dia:", dataExibicao.toString());
+    // ========================================================================
+
+    // --- ESTADOS PARA O MODAL DE IMPRESSÃO ---
     const [printModalOpen, setPrintModalOpen] = useState(false);
     const [printLoading, setPrintLoading] = useState(false);
     const [agendamentosPrint, setAgendamentosPrint] = useState([]);
     const [medicosPrint, setMedicosPrint] = useState([]);
     const [medicoSelecionadoPrint, setMedicoSelecionadoPrint] = useState('todos');
 
-    // Verifica se a data selecionada é hoje (Comparando no fuso de SP para evitar bugs)
+    // Verifica se a data selecionada é hoje (Comparando no fuso do Brasil)
     const hojeLocal = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     const dataExibicaoLocal = dataExibicao.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     const isHoje = hojeLocal === dataExibicaoLocal;
     
-    // Formata visualmente: "Sex., 27 De Mar." forçando o timezone
+    // Formata visualmente: "Sex., 27 De Mar."
     const dataFormatada = dataExibicao.toLocaleDateString('pt-BR', { 
         weekday: 'short', day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo' 
     });
