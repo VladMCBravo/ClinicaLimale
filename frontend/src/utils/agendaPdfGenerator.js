@@ -1,5 +1,6 @@
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
+import { formatarHoraTZ, formatarDataTZ } from "../utils/format"; // <-- IMPORTANDO AQUI
 // REMOVIDO: import logoImagemPath e getBase64FromUrl
 
 pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
@@ -7,7 +8,8 @@ pdfMake.vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts.vfs;
 // MUDANÇA: Adicionamos um parâmetro 'onPdfGerado' que será uma função callback
 export const gerarPdfAgendaDia = async (pacientes, dataFiltro, onPdfGerado) => {
     
-    const dataFormatada = dataFiltro ? new Date(dataFiltro).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+    // MUDANÇA: Usando a nova função com timezone fixo
+    const dataFormatada = dataFiltro ? formatarDataTZ(dataFiltro) : formatarDataTZ(new Date().toISOString());
 
     // --- CORPO DA TABELA ---
     const bodyTable = [
@@ -21,7 +23,7 @@ export const gerarPdfAgendaDia = async (pacientes, dataFiltro, onPdfGerado) => {
     ];
 
     pacientes.forEach((ag) => {
-        const horario = new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const horario = formatarHoraTZ(ag.data_hora_inicio);
         const tipoVisita = ag.primeira_consulta ? '1ª Vez' : (ag.tipo_visita || 'Retorno');
         const procedimento = ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta';
         const idPaciente = ag.paciente_id || ag.paciente || '--';

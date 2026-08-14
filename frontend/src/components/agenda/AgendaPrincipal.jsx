@@ -24,6 +24,8 @@ import interactionPlugin from '@fullcalendar/interaction';
 import resourceTimeGridPlugin from '@fullcalendar/resource-timegrid';
 
 import { agendamentoService } from '../../services/agendamentoService';
+import { formatarDataTZ, formatarHoraTZ } from '../../utils/format'; // MUDANÇA: IMPORT DAS FUNÇÕES COM FUSO
+
 
 // CSS CUSTOMIZADO
 const StyledCalendarWrapper = styled('div')({
@@ -543,6 +545,9 @@ useEffect(() => {
                     headerToolbar={false}
                     height="100%"
                     events={fetchEventos}
+
+                    // MUDANÇA: Prop timeZone explícita para o FullCalendar não usar o fuso do SO
+                    timeZone="America/Sao_Paulo"
                     
                     // A SEGUNDA MÁGICA: Muda as colunas dependendo do modo (e do filtro manual)
                     resources={

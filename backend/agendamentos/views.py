@@ -86,7 +86,11 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
     def create_multi_procedimentos(self, request):
         procedimentos_ids = request.data.pop('procedimentos_ids', [])
         data_inicio_base = parse_datetime(request.data.get('data_hora_inicio'))
-        
+
+        # ---> CORREÇÃO DE FUSO HORÁRIO AQUI <---
+        if data_inicio_base and djtz.is_naive(data_inicio_base):
+            data_inicio_base = djtz.make_aware(data_inicio_base, djtz.get_current_timezone())
+            
         # ---> TRAVA DE 4 PROCEDIMENTOS REMOVIDA DAQUI <---
         
         if not procedimentos_ids or not data_inicio_base:
@@ -286,7 +290,14 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
                 print(f"[DEBUG-MULTI] Iniciando a criação de {len(ids_para_adicionar)} novos exames...")
                 duracao_base = timedelta(minutes=15)
                 try:
-                    tempo_fim_base = timezone.datetime.fromisoformat(str(dados_atualizacao.get('data_hora_inicio', instance.data_hora_inicio))) + duracao_base
+                    data_str = str(dados_atualizacao.get('data_hora_inicio', instance.data_hora_inicio))
+                    data_inicio_novo = timezone.datetime.fromisoformat(data_str)
+                    
+                    # ---> CORREÇÃO DE FUSO HORÁRIO AQUI <---
+                    if djtz.is_naive(data_inicio_novo):
+                        data_inicio_novo = djtz.make_aware(data_inicio_novo, djtz.get_current_timezone())
+                        
+                    tempo_fim_base = data_inicio_novo + duracao_base
                 except:
                     tempo_fim_base = instance.data_hora_fim
                 
