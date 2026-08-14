@@ -4,6 +4,7 @@ import {
     Tooltip, Box, IconButton, Divider, Chip
 } from '@mui/material';
 import { agendamentoService } from '../../services/agendamentoService';
+import { formatarHoraTZ, formatarDataTZ } from '../../utils/format'; // <-- IMPORTANDO AQUI
 
 // Ícones
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
@@ -205,7 +206,7 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.15 }}>
                             <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center', overflow: 'hidden' }}>
                                 <Typography sx={{ fontWeight: 800, fontSize: '0.72rem', color: isCancelado ? '#999' : '#1C2E4A' }}>
-                                    {new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                    {formatarHoraTZ(ag.data_hora_inicio)}
                                 </Typography>
 
                                 {/* --- ADICIONADO AQUI: Badge com o ID do paciente --- */}

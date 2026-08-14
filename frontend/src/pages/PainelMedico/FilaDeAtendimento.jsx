@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Paper, List, ListItem, ListItemText, CircularProgress, ListItemButton } from '@mui/material';
 import { agendamentoService } from '../../services/agendamentoService';
+import { formatarHoraTZ, formatarDataTZ } from '../../utils/format';
 
 export default function FilaDeAtendimento({ onPacienteSelect }) {
     const [agendamentos, setAgendamentos] = useState([]);
@@ -39,9 +40,9 @@ export default function FilaDeAtendimento({ onPacienteSelect }) {
                                     primary={ag.paciente_nome}
                                     secondary={
                                         <>
-                                            {new Date(ag.data_hora_inicio).toLocaleDateString('pt-BR')}
+                                            {formatarDataTZ(ag.data_hora_inicio)}
                                             {' - '}
-                                            {new Date(ag.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                            {formatarHoraTZ(ag.data_hora_inicio)}
                                             <br />
                                             <Typography component="span" variant="body2" color="text.secondary">
                                                 {ag.tipo_visita || 'Consulta'}
