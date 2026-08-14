@@ -209,24 +209,41 @@ export default function ProntuarioWorkspace() {
                         {isLoadingLista ? <CircularProgress size={24} sx={{ m: 2, display: 'block' }} /> : (
                             <List dense disablePadding>
                                 {listaEsquerda.map((item, index) => {
-                                    // Determina se é retorno baseado na primeira_consulta do agendamento (se existir)
-                                    // Caso a API não mande, assume Consulta (Para o menu de Pacientes antigos)
                                     const isRetorno = abaEsquerda === 0 && (item.tipo_visita === 'Retorno' || item.primeira_consulta === false);
+                                    
+                                    // --- NOVA LÓGICA DE STATUS ---
+                                    const isCancelado = abaEsquerda === 0 && (item.status === 'Cancelado' || item.status === 'Não Compareceu');
+                                    let statusColor = 'transparent';
+                                    let statusText = item.status;
+                                    
+                                    if (abaEsquerda === 0) {
+                                        if (item.status === 'Confirmado') statusColor = '#2e7d32';
+                                        else if (item.status === 'Agendado') statusColor = '#1976d2';
+                                        else if (item.status === 'Aguardando Pagamento') statusColor = '#ed6c02';
+                                        else if (item.status === 'Cancelado') statusColor = '#d32f2f';
+                                        else if (item.status === 'Não Compareceu') statusColor = '#9e9e9e';
+                                        else if (item.status === 'Realizado') statusColor = '#757575';
+                                    }
 
                                     return (
-                                        <ListItem key={index} disablePadding divider sx={{ bgcolor: '#fff', '&:hover': { bgcolor: '#f8fbff' } }}>
+                                        <ListItem key={index} disablePadding divider sx={{ bgcolor: isCancelado ? '#f9f9f9' : '#fff', '&:hover': { bgcolor: '#f8fbff' } }}>
                                             <ListItemButton 
                                                 onClick={() => selecionarPaciente(item)} 
                                                 selected={pacienteAtivo?.id === (abaEsquerda === 0 ? item.paciente_id : item.id)}
                                                 sx={{ 
-                                                    borderLeft: pacienteAtivo?.id === (abaEsquerda === 0 ? item.paciente_id : item.id) ? '4px solid #1c7ed6' : '4px solid transparent',
-                                                    pl: 1.5, py: 1
+                                                    // Borda colorida com o status (ou azul se estiver selecionado)
+                                                    borderLeft: pacienteAtivo?.id === (abaEsquerda === 0 ? item.paciente_id : item.id) 
+                                                        ? `4px solid ${statusColor !== 'transparent' ? statusColor : '#1c7ed6'}` 
+                                                        : `4px solid ${statusColor}`,
+                                                    pl: 1.5, py: 1,
+                                                    opacity: isCancelado ? 0.6 : 1 // Fica meio transparente se cancelado
                                                 }}
                                             >
                                                 <Box sx={{ width: '100%' }}>
                                                     {/* Primeira Linha: Nome */}
                                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
-                                                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#1C2E4A', lineHeight: 1.2, pr: 1 }}>
+                                                        {/* Se cancelado, o nome fica riscado */}
+                                                        <Typography variant="body2" sx={{ fontWeight: 600, color: isCancelado ? '#999' : '#1C2E4A', lineHeight: 1.2, pr: 1, textDecoration: isCancelado ? 'line-through' : 'none' }}>
                                                             {abaEsquerda === 0 ? item.paciente_nome : item.nome_completo}
                                                         </Typography>
                                                         {abaEsquerda === 0 && (
@@ -239,20 +256,29 @@ export default function ProntuarioWorkspace() {
                                                     </Box>
 
                                                     {/* Segunda Linha: Hora/Data e Procedimento */}
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <Typography variant="caption" sx={{ color: '#495057', fontWeight: 500 }}>
-                                                            {abaEsquerda === 0 
-                                                                ? `${item.data_hora_inicio ? formatarHoraTZ(item.data_hora_inicio) : item.horario}` 
-                                                                : `Última: ${item.ultima_consulta}`}
-                                                        </Typography>
-                                                        
-                                                        {abaEsquerda === 0 && (
-                                                            <>
-                                                                <Typography variant="caption" sx={{ color: '#adb5bd' }}>•</Typography>
-                                                                <Typography variant="caption" sx={{ color: '#6c757d', noWrap: true, textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                                                                    {item.procedimento_descricao || item.especialidade || 'Consulta'}
-                                                                </Typography>
-                                                            </>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
+                                                            <Typography variant="caption" sx={{ color: '#495057', fontWeight: 500, flexShrink: 0 }}>
+                                                                {abaEsquerda === 0 
+                                                                    ? `${item.data_hora_inicio ? formatarHoraTZ(item.data_hora_inicio) : item.horario}` 
+                                                                    : `Última: ${item.ultima_consulta}`}
+                                                            </Typography>
+                                                            
+                                                            {abaEsquerda === 0 && (
+                                                                <>
+                                                                    <Typography variant="caption" sx={{ color: '#adb5bd', flexShrink: 0 }}>•</Typography>
+                                                                    <Typography variant="caption" sx={{ color: '#6c757d', noWrap: true, textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                                                        {item.procedimento_descricao || item.especialidade || 'Consulta'}
+                                                                    </Typography>
+                                                                </>
+                                                            )}
+                                                        </Box>
+
+                                                        {/* Badge em texto do Status da Consulta */}
+                                                        {abaEsquerda === 0 && statusText && (
+                                                            <Typography variant="caption" sx={{ fontSize: '0.55rem', textTransform: 'uppercase', fontWeight: 800, color: statusColor, flexShrink: 0, ml: 1 }}>
+                                                                {statusText}
+                                                            </Typography>
                                                         )}
                                                     </Box>
                                                 </Box>
