@@ -15,6 +15,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import VideocamIcon from '@mui/icons-material/Videocam';
 
 import apiClient from '../../api/axiosConfig'; // Ajuste o caminho se necessário
+import { formatarHoraTZ } from '../../utils/format';
 
 // --- Importação Tardia (Lazy) das Ferramentas e Formulários ---
 const AtendimentoPediatria = lazy(() => import('../../components/prontuario/AtendimentoPediatria'));
@@ -212,7 +213,13 @@ export default function ProntuarioWorkspace() {
                                         <ListItemButton onClick={() => selecionarPaciente(item)} selected={pacienteAtivo?.id === (abaEsquerda === 0 ? item.paciente_id : item.id)}>
                                             <ListItemText 
                                                 primary={<Typography variant="body2" fontWeight="500">{abaEsquerda === 0 ? item.paciente_nome : item.nome_completo}</Typography>}
-                                                secondary={<Typography variant="caption" color="text.secondary">{abaEsquerda === 0 ? `${item.horario} - ${item.especialidade}` : `Últ. consulta: ${item.ultima_consulta}`}</Typography>}
+                                                secondary={
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {abaEsquerda === 0 
+                                                            ? `${item.data_hora_inicio ? formatarHoraTZ(item.data_hora_inicio) : item.horario} - ${item.especialidade}` 
+                                                            : `Últ. consulta: ${item.ultima_consulta}`}
+                                                    </Typography>
+                                                }
                                             />
                                         </ListItemButton>
                                     </ListItem>
