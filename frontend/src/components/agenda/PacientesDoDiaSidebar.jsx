@@ -46,18 +46,21 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
 
     const obterDataSegura = (dataInput) => {
         if (!dataInput) return new Date();
-        if (dataInput instanceof Date) return dataInput;
         
-        // Se a data vier apenas como "YYYY-MM-DD", o JS a joga para meia-noite em UTC.
-        // No fuso de SP (UTC-3), isso vira 21:00 do DIA ANTERIOR.
-        // Solução: Adicionar "T12:00:00" joga a hora para o meio do dia. 
-        // Subtrair 3 horas ainda vai manter no mesmo dia (09:00 da manhã).
-        const strData = String(dataInput);
-        if (strData.length === 10 && strData.includes('-')) {
-            return new Date(`${strData}T12:00:00`);
+        const d = new Date(dataInput);
+        
+        // Se a data que chegou for exatamente Meia-Noite no fuso global (UTC),
+        // significa que o FullCalendar mandou o dia "puro". 
+        // Lemos o dia real no UTC e forçamos para o meio-dia local.
+        if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) {
+            const ano = d.getUTCFullYear();
+            const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const dia = String(d.getUTCDate()).padStart(2, '0');
+            return new Date(`${ano}-${mes}-${dia}T12:00:00`);
         }
         
-        return new Date(dataInput);
+        // Se for o horário normal de agora (ex: 11:42), deixa passar normal
+        return d;
     };
 
     const dataExibicao = obterDataSegura(dataSelecionada);
