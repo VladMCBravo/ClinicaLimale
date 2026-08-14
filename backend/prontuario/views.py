@@ -1905,6 +1905,8 @@ class ConsultasWorkspaceAPIView(APIView):
     
     def get(self, request):
         from datetime import date
+        from django.utils import timezone # ---> ADICIONADO AQUI
+        
         hoje = date.today()
         medico = request.user
         
@@ -1916,11 +1918,15 @@ class ConsultasWorkspaceAPIView(APIView):
         
         data = []
         for ag in agendamentos:
+            # ---> A CORREÇÃO ESTÁ NESTAS DUAS LINHAS <---
+            # Converte de UTC para o fuso local configurado em settings (America/Sao_Paulo)
+            horario_local = timezone.localtime(ag.data_hora_inicio)
+            
             data.append({
                 "id": ag.id,
                 "paciente_id": ag.paciente.id,
                 "paciente_nome": ag.paciente.nome_completo,
-                "horario": ag.data_hora_inicio.strftime('%H:%M'),
+                "horario": horario_local.strftime('%H:%M'), # ---> USANDO O LOCALTIME AQUI
                 "especialidade": ag.especialidade.nome if ag.especialidade else "Geral",
                 "status": ag.status
             })
