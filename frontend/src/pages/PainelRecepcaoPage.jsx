@@ -98,17 +98,20 @@ export default function PainelRecepcaoPage() {
 
 // NOVO HANDLER BLINDADO CONTRA LOOP INFINITO
     const handleDatesSet = useCallback((dateInfo) => {
-        const novaData = dateInfo.view.currentStart;
-        
-        setDataSidebar((dataAntiga) => {
-        // --- NOVA BLINDAGEM: Se dataAntiga for null/undefined, apenas assume a nova data ---
-        if (!dataAntiga) return novaData;
+    const novaData = dateInfo.view.currentStart;
 
-        // O Freio: Se o dia for exatamente o mesmo, aborta a atualização!
+    console.log('%c[DEBUG 4 - handleDatesSet]', 'color:purple;font-weight:bold');
+    console.log('currentStart (Date object):', novaData);
+    console.log('currentStart via getters LOCAIS:', novaData.toString());
+    console.log('currentStart via getters UTC -> HH:MM:', novaData.getUTCHours() + ':' + novaData.getUTCMinutes());
+    console.log('dateInfo.startStr [se existir, string ISO/fuso que o FC monta]:', dateInfo.startStr);
+    
+    setDataSidebar((dataAntiga) => {
+        if (!dataAntiga) return novaData;
         if (dataAntiga.toDateString() === novaData.toDateString()) {
-            return dataAntiga; // Mantém o estado intacto, evitando re-render
+            return dataAntiga;
         }
-        return novaData; // Se mudou o dia, aí sim ele atualiza
+        return novaData;
     });
 }, []);
 
