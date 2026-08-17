@@ -586,13 +586,20 @@ useEffect(() => {
                     }}
 
                     dateClick={(arg) => {
-                        console.log('%c[DEBUG 1 - FullCalendar dateClick]', 'color:orange;font-weight:bold');
-                        console.log('arg.date (Date object):', arg.date);
-                        console.log('arg.date.toString() [via getters LOCAIS do browser]:', arg.date.toString());
-                        console.log('arg.date via getters UTC -> HH:MM:', arg.date.getUTCHours() + ':' + arg.date.getUTCMinutes());
-                        console.log('arg.dateStr [horário de parede que o FC entende ter sido clicado]:', arg.dateStr);
-                        console.log('offset do browser em minutos:', new Date().getTimezoneOffset());
-                        onDateClick(arg);
+                        // FullCalendar não tem plugin de timezone nomeado (moment-timezone/luxon) instalado,
+                        // então com timeZone="America/Sao_Paulo" o Date que ele devolve aqui só está correto
+                        // se lido via getters UTC (arg.date.getUTCHours() etc). Lido via getters locais
+                        // (que é o que dayjs() e toString() fazem), ele vem deslocado pelo offset do browser.
+                        // Por isso reconstruímos um Date local de verdade a partir dos campos UTC.
+                        const fake = arg.date;
+                        const dataCorrigida = new Date(
+                            fake.getUTCFullYear(),
+                            fake.getUTCMonth(),
+                            fake.getUTCDate(),
+                            fake.getUTCHours(),
+                            fake.getUTCMinutes()
+                        );
+                        onDateClick({ ...arg, date: dataCorrigida });
                     }}
                     eventClick={handleCalendarEventClick}
                     datesSet={handleDatesSet}
