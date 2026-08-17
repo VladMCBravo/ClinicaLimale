@@ -561,6 +561,7 @@ useEffect(() => {
                             title: `${prefixoTratamento(m)} ${m.first_name}`
                         }))
                     }
+                    
                     resourceLabelContent={(arg) => {
                         if (viewMode !== 'medicos') return arg.resource.title;
                         const medico = medicos.find(m => `medico_${m.id}` === arg.resource.id);
@@ -584,7 +585,15 @@ useEffect(() => {
                         );
                     }}
 
-                    dateClick={onDateClick}
+                    dateClick={(arg) => {
+                        console.log('%c[DEBUG 1 - FullCalendar dateClick]', 'color:orange;font-weight:bold');
+                        console.log('arg.date (Date object):', arg.date);
+                        console.log('arg.date.toString() [via getters LOCAIS do browser]:', arg.date.toString());
+                        console.log('arg.date via getters UTC -> HH:MM:', arg.date.getUTCHours() + ':' + arg.date.getUTCMinutes());
+                        console.log('arg.dateStr [horário de parede que o FC entende ter sido clicado]:', arg.dateStr);
+                        console.log('offset do browser em minutos:', new Date().getTimezoneOffset());
+                        onDateClick(arg);
+                    }}
                     eventClick={handleCalendarEventClick}
                     datesSet={handleDatesSet}
                     slotMinTime="06:30:00"
@@ -596,6 +605,7 @@ useEffect(() => {
                     // MUDANÇA 3: Permitir sobreposição visual
                     slotEventOverlap={true}
                     eventOverlap={true}
+                    
 
                     eventContent={(arg) => {
                         if (arg.event.display === 'background') {

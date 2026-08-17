@@ -74,11 +74,13 @@ export default function PainelRecepcaoPage() {
     const handleAgendamentoSave = () => { handleCloseAgendamentoModal(); forceRefresh(); };
     
     const handleDateClick = (arg) => { 
-        setDataSidebar(arg.date); // <--- ADICIONADO AQUI
-        setEditingEvent(null); 
-        setInitialData({ start: arg.date, resource: arg.resource }); 
-        setIsAgendamentoModalOpen(true); 
-    };
+    console.log('[DEBUG 2 - handleDateClick] arg.date recebido:', arg.date, '| ISO:', arg.date.toISOString());
+    setDataSidebar(arg.date);
+    setEditingEvent(null); 
+    setInitialData({ start: arg.date, resource: arg.resource }); 
+    console.log('[DEBUG 2] initialData.start setado:', arg.date);
+    setIsAgendamentoModalOpen(true); 
+};
     
     // Este handler é chamado quando clicamos em "Editar" no menu do card
     const handleEventClick = (clickInfo) => { 

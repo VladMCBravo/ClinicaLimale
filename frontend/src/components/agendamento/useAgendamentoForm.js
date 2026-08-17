@@ -214,7 +214,11 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
             setDataFimVisual(fimDayjs.isValid() ? fimDayjs.format('DD/MM/YYYY HH:mm') : '');
 
         } else if (initialData) {
+            console.log('[DEBUG 3 - useAgendamentoForm] initialData.start bruto:', initialData.start);
             const startTime = dayjs(initialData.start);
+            console.log('[DEBUG 3] startTime.format() [o que vai pro input visual]:', startTime.format('DD/MM/YYYY HH:mm'));
+            console.log('[DEBUG 3] startTime.toISOString() [o que vai pro backend]:', startTime.toISOString());
+
             const endTime = startTime.add(15, 'minute');
             if (initialData.medicoId) setTipoAgendamento('Consulta');
 
@@ -238,6 +242,8 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
             }));
 
             setDataInicioVisual(startTime.format('DD/MM/YYYY HH:mm'));
+            console.log('[DEBUG useAgendamentoForm] dataInicioVisual final:', startTime.format('DD/MM/YYYY HH:mm'));
+
             setDataFimVisual(endTime.format('DD/MM/YYYY HH:mm'));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
