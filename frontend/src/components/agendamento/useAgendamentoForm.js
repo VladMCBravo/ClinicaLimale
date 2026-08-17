@@ -186,22 +186,10 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
 
             setTipoAgendamento(tipo);
 
-            // A MÁGICA CONTRA O ROUBO DE 3 HORAS (PARA EDIÇÃO):
-            // O backend manda uma string (ex: '2026-08-16T10:00:00-03:00')
-            // ou o FullCalendar manda o ISO embutido. Nós vamos extrair apenas os
-            // primeiros 19 caracteres (YYYY-MM-DDTHH:mm:ss) ignorando fuso.
-            const extractLocal = (str) => {
-                if (!str) return null;
-                // Transforma '2026-08-14T07:00:00-03:00' em '2026-08-14T07:00:00'
-                return str.substring(0, 19);
-            };
+            const inicioDayjs = dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio);
+            const fimDayjs = dayjs(isFullCalendarEvent ? editingEvent.endStr : dados.data_hora_fim);
 
-            const startClean = isFullCalendarEvent ? extractLocal(editingEvent.startStr) : extractLocal(dados.data_hora_inicio);
-            const endClean = isFullCalendarEvent ? extractLocal(editingEvent.endStr) : extractLocal(dados.data_hora_fim);
-
-            const inicioDayjs = dayjs(startClean);
-            const fimDayjs = dayjs(endClean);
-
+            // A MÁGICA DA VELOCIDADE: Criamos "objetos provisórios" para a tela não ficar em branco esperando a API
             const procsIds = dados.lista_procedimentos_ids || (dados.procedimento ? [dados.procedimento] : []);
 
             setFormData({
@@ -226,22 +214,18 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
             setDataFimVisual(fimDayjs.isValid() ? fimDayjs.format('DD/MM/YYYY HH:mm') : '');
 
         } else if (initialData) {
-            // A MÁGICA CONTRA O ROUBO DE 3 HORAS (PARA CLIQUE VAZIO):
-            // O FullCalendar manda `initialData.startStr` como a string ISO crua
-            // exata do clique (ex: '2026-08-16T10:00:00-03:00'). 
-            // Nós cortamos e pegamos apenas o tempo real do bloco!
-            
-            let startTime;
-            if (initialData.startStr) {
-                 startTime = dayjs(initialData.startStr.substring(0, 19));
-            } else {
-                 startTime = dayjs(initialData.start);
-            }
-            
+            console.log('[DEBUG 3 - useAgendamentoForm] initialData.start bruto:', initialData.start);
+            const startTime = dayjs(initialData.start);
+            console.log('[DEBUG 3] startTime.format() [o que vai pro input visual]:', startTime.format('DD/MM/YYYY HH:mm'));
+            console.log('[DEBUG 3] startTime.toISOString() [o que vai pro backend]:', startTime.toISOString());
+
             const endTime = startTime.add(15, 'minute');
-            
             if (initialData.medicoId) setTipoAgendamento('Consulta');
 
+            // O resource.id que vem do clique na agenda é o ID sintético do FullCalendar
+            // ("sala_5" ou "medico_5", usado só pra identificar a coluna) — não o ID real
+            // do banco. Extrai o número certo e joga pro campo certo, senão essa string
+            // quebrada (ex: "sala_5") acaba indo pro backend como se fosse o ID da sala.
             const resourceId = initialData.resource?.id || '';
             const salaIdMatch = resourceId.match(/^sala_(\d+)$/);
             const medicoIdMatch = resourceId.match(/^medico_(\d+)$/);
@@ -258,6 +242,8 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
             }));
 
             setDataInicioVisual(startTime.format('DD/MM/YYYY HH:mm'));
+            console.log('[DEBUG useAgendamentoForm] dataInicioVisual final:', startTime.format('DD/MM/YYYY HH:mm'));
+
             setDataFimVisual(endTime.format('DD/MM/YYYY HH:mm'));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps

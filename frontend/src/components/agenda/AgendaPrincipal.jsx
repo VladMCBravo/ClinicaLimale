@@ -248,24 +248,7 @@ export default function AgendaPrincipal({
     const handleDatesSet = (arg) => {
         setTituloAtual(arg.view.title);
         setViewAtual(arg.view.type);
-        
-        // CORREÇÃO DEFINITIVA DO FUSO DA SIDEBAR:
-        // A data 'arg.start' no modo 'Dia' sempre representa o dia visualizado no 
-        // FullCalendar, mas ela pode vir como UTC meia-noite (o que atrasa 1 dia). 
-        // Precisamos extrair o dia real usando getUTCDate(), garantindo o repasse seguro.
-        if (onDatesSet) {
-            let dataRepasse = arg.start;
-            
-            // Força a data para o dia correto se o FullCalendar passar UTC meia-noite
-            if (arg.start.getUTCHours() === 0) {
-                const ano = arg.start.getUTCFullYear();
-                const mes = String(arg.start.getUTCMonth() + 1).padStart(2, '0');
-                const dia = String(arg.start.getUTCDate()).padStart(2, '0');
-                dataRepasse = `${ano}-${mes}-${dia}T12:00:00`; // Fixa no meio-dia
-            }
-            
-            onDatesSet({ ...arg, start: new Date(dataRepasse) });
-        }
+        if (onDatesSet) onDatesSet(arg);
     };
 
     useEffect(() => {
@@ -578,6 +561,7 @@ useEffect(() => {
                             title: `${prefixoTratamento(m)} ${m.first_name}`
                         }))
                     }
+                    
                     resourceLabelContent={(arg) => {
                         if (viewMode !== 'medicos') return arg.resource.title;
                         const medico = medicos.find(m => `medico_${m.id}` === arg.resource.id);
@@ -601,7 +585,15 @@ useEffect(() => {
                         );
                     }}
 
-                    dateClick={onDateClick}
+                    dateClick={(arg) => {
+                        console.log('%c[DEBUG 1 - FullCalendar dateClick]', 'color:orange;font-weight:bold');
+                        console.log('arg.date (Date object):', arg.date);
+                        console.log('arg.date.toString() [via getters LOCAIS do browser]:', arg.date.toString());
+                        console.log('arg.date via getters UTC -> HH:MM:', arg.date.getUTCHours() + ':' + arg.date.getUTCMinutes());
+                        console.log('arg.dateStr [horário de parede que o FC entende ter sido clicado]:', arg.dateStr);
+                        console.log('offset do browser em minutos:', new Date().getTimezoneOffset());
+                        onDateClick(arg);
+                    }}
                     eventClick={handleCalendarEventClick}
                     datesSet={handleDatesSet}
                     slotMinTime="06:30:00"
@@ -613,6 +605,7 @@ useEffect(() => {
                     // MUDANÇA 3: Permitir sobreposição visual
                     slotEventOverlap={true}
                     eventOverlap={true}
+                    
 
                     eventContent={(arg) => {
                         if (arg.event.display === 'background') {
