@@ -248,7 +248,24 @@ export default function AgendaPrincipal({
     const handleDatesSet = (arg) => {
         setTituloAtual(arg.view.title);
         setViewAtual(arg.view.type);
-        if (onDatesSet) onDatesSet(arg);
+        
+        // CORREÇÃO DEFINITIVA DO FUSO DA SIDEBAR:
+        // A data 'arg.start' no modo 'Dia' sempre representa o dia visualizado no 
+        // FullCalendar, mas ela pode vir como UTC meia-noite (o que atrasa 1 dia). 
+        // Precisamos extrair o dia real usando getUTCDate(), garantindo o repasse seguro.
+        if (onDatesSet) {
+            let dataRepasse = arg.start;
+            
+            // Força a data para o dia correto se o FullCalendar passar UTC meia-noite
+            if (arg.start.getUTCHours() === 0) {
+                const ano = arg.start.getUTCFullYear();
+                const mes = String(arg.start.getUTCMonth() + 1).padStart(2, '0');
+                const dia = String(arg.start.getUTCDate()).padStart(2, '0');
+                dataRepasse = `${ano}-${mes}-${dia}T12:00:00`; // Fixa no meio-dia
+            }
+            
+            onDatesSet({ ...arg, start: new Date(dataRepasse) });
+        }
     };
 
     useEffect(() => {
