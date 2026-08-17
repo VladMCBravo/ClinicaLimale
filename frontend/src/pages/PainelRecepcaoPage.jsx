@@ -98,14 +98,18 @@ export default function PainelRecepcaoPage() {
 
 // NOVO HANDLER BLINDADO CONTRA LOOP INFINITO
     const handleDatesSet = useCallback((dateInfo) => {
-    const novaData = dateInfo.view.currentStart;
+    // Mesmo bug do dateClick: FullCalendar sem plugin de timezone nomeado devolve um
+    // Date cujos campos UTC têm a hora certa, mas os campos locais vêm deslocados pelo
+    // offset do browser. Reconstruímos aqui antes de guardar no estado.
+    const fake = dateInfo.view.currentStart;
+    const novaData = new Date(
+        fake.getUTCFullYear(),
+        fake.getUTCMonth(),
+        fake.getUTCDate(),
+        fake.getUTCHours(),
+        fake.getUTCMinutes()
+    );
 
-    console.log('%c[DEBUG 4 - handleDatesSet]', 'color:purple;font-weight:bold');
-    console.log('currentStart (Date object):', novaData);
-    console.log('currentStart via getters LOCAIS:', novaData.toString());
-    console.log('currentStart via getters UTC -> HH:MM:', novaData.getUTCHours() + ':' + novaData.getUTCMinutes());
-    console.log('dateInfo.startStr [se existir, string ISO/fuso que o FC monta]:', dateInfo.startStr);
-    
     setDataSidebar((dataAntiga) => {
         if (!dataAntiga) return novaData;
         if (dataAntiga.toDateString() === novaData.toDateString()) {
