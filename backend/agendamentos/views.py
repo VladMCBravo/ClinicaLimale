@@ -88,8 +88,8 @@ class AgendamentoListCreateAPIView(generics.ListCreateAPIView):
         data_inicio_base = parse_datetime(request.data.get('data_hora_inicio'))
 
         # ---> CORREÇÃO DE FUSO HORÁRIO AQUI <---
-        if data_inicio_base and djtz.is_naive(data_inicio_base):
-            data_inicio_base = djtz.make_aware(data_inicio_base, djtz.get_current_timezone())
+        if data_inicio_base and timezone.is_naive(data_inicio_base):
+            data_inicio_base = timezone.make_aware(data_inicio_base, timezone.get_current_timezone())
             
         # ---> TRAVA DE 4 PROCEDIMENTOS REMOVIDA DAQUI <---
         
@@ -294,8 +294,8 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
                     data_inicio_novo = timezone.datetime.fromisoformat(data_str)
                     
                     # ---> CORREÇÃO DE FUSO HORÁRIO AQUI <---
-                    if djtz.is_naive(data_inicio_novo):
-                        data_inicio_novo = djtz.make_aware(data_inicio_novo, djtz.get_current_timezone())
+                    if timezone.is_naive(data_inicio_novo):
+                        data_inicio_novo = timezone.make_aware(data_inicio_novo, timezone.get_current_timezone())
                         
                     tempo_fim_base = data_inicio_novo + duracao_base
                 except:
