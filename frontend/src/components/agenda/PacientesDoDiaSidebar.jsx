@@ -47,20 +47,20 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
     const obterDataSegura = (dataInput) => {
         if (!dataInput) return new Date();
         
-        const d = new Date(dataInput);
-        
-        // Se a data que chegou for exatamente Meia-Noite no fuso global (UTC),
-        // significa que o FullCalendar mandou o dia "puro". 
-        // Lemos o dia real no UTC e forçamos para o meio-dia local.
-        if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) {
-            const ano = d.getUTCFullYear();
-            const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
-            const dia = String(d.getUTCDate()).padStart(2, '0');
-            return new Date(`${ano}-${mes}-${dia}T12:00:00`);
+        // Se já for uma string formato YYYY-MM-DD
+        if (typeof dataInput === 'string' && dataInput.length === 10 && dataInput.includes('-')) {
+            return new Date(`${dataInput}T12:00:00`);
         }
         
-        // Se for o horário normal de agora (ex: 11:42), deixa passar normal
-        return d;
+        // Se vier como Date Object ou String completa, tentamos ler a parte pura YYYY-MM-DD
+        try {
+            const d = new Date(dataInput);
+            // Ajusta o offset para não perder 1 dia durante o toISOString
+            const dataIso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+            return new Date(`${dataIso}T12:00:00`);
+        } catch (e) {
+            return new Date();
+        }
     };
 
     const dataExibicao = obterDataSegura(dataSelecionada);
