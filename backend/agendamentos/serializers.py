@@ -56,6 +56,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     especialidade_nome = serializers.CharField(source='especialidade.nome', read_only=True, default=None)
     procedimento_descricao = serializers.CharField(source='procedimento.descricao', read_only=True, default=None)
     plano_utilizado = serializers.CharField(source='plano_utilizado.nome', read_only=True, default=None)
+    plano_utilizado_id = serializers.IntegerField(source='plano_utilizado.id', read_only=True, default=None)
     valor_faturamento = serializers.SerializerMethodField()
     sala_nome = serializers.CharField(source='sala.nome', read_only=True)
 
@@ -63,7 +64,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
         model = Agendamento
         fields = [
             'id', 'paciente', 'paciente_nome', 'paciente_telefone', 'data_hora_inicio', 'data_hora_fim',
-            'status', 'plano_utilizado', 'tipo_atendimento', 'observacoes', 
+            'status', 'plano_utilizado', 'plano_utilizado_id', 'tipo_atendimento', 'observacoes', 
             'status_pagamento', 'primeira_consulta', 'link_telemedicina', 
             'modalidade', 'tipo_visita', 'tipo_agendamento', 'medico', 'medico_nome', 'medico_nome_com_prefixo', 'medico_crm',
             'especialidade', 'especialidade_nome', 'procedimento', 'procedimento_descricao',

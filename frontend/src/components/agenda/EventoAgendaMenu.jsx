@@ -49,7 +49,7 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                 sala: salaId,
                 procedimento: procedimentoId,
                 tipo_atendimento: ag.tipo_atendimento || 'Particular',
-                plano_utilizado: extrairId(ag.plano_utilizado),
+                plano_utilizado: ag.plano_utilizado_id || null,
                 // Preserva o encaixe já existente: sala/horário não mudam nesta troca de
                 // status, então uma sobreposição já tolerada não pode virar bloqueio.
                 is_encaixe: ag.is_encaixe
