@@ -186,8 +186,16 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
 
             setTipoAgendamento(tipo);
 
-            const inicioDayjs = dayjs(isFullCalendarEvent ? editingEvent.startStr : dados.data_hora_inicio);
-            const fimDayjs = dayjs(isFullCalendarEvent ? editingEvent.endStr : dados.data_hora_fim);
+            // A MÁGICA CONTRA O ROUBO DE 3 HORAS:
+            // Remove qualquer marcação de fuso (-03:00 ou Z) das strings recebidas,
+            // forçando o dayjs a tratar o horário exatamente como foi clicado (Horário Local).
+            const extractLocal = (str) => str ? str.substring(0, 19) : null;
+            
+            const startClean = isFullCalendarEvent ? extractLocal(editingEvent.startStr) : extractLocal(dados.data_hora_inicio);
+            const endClean = isFullCalendarEvent ? extractLocal(editingEvent.endStr) : extractLocal(dados.data_hora_fim);
+
+            const inicioDayjs = dayjs(startClean);
+            const fimDayjs = dayjs(endClean);
 
             // A MÁGICA DA VELOCIDADE: Criamos "objetos provisórios" para a tela não ficar em branco esperando a API
             const procsIds = dados.lista_procedimentos_ids || (dados.procedimento ? [dados.procedimento] : []);
