@@ -39,8 +39,34 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
     const [pacientes, setPacientes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // A data agora já chega segura do AgendaPrincipal
-    const dataExibicao = dataSelecionada ? new Date(dataSelecionada) : new Date();
+    // ========================================================================
+    // 🛠️ DEBUG E CORREÇÃO DO FUSO HORÁRIO
+    // ========================================================================
+    console.log("👉 [DEBUG 1] Data recebida do calendário:", dataSelecionada, typeof dataSelecionada);
+
+    const obterDataSegura = (dataInput) => {
+        if (!dataInput) return new Date();
+        
+        const d = new Date(dataInput);
+        
+        // Se a data que chegou for exatamente Meia-Noite no fuso global (UTC),
+        // significa que o FullCalendar mandou o dia "puro". 
+        // Lemos o dia real no UTC e forçamos para o meio-dia local.
+        if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) {
+            const ano = d.getUTCFullYear();
+            const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const dia = String(d.getUTCDate()).padStart(2, '0');
+            return new Date(`${ano}-${mes}-${dia}T12:00:00`);
+        }
+        
+        // Se for o horário normal de agora (ex: 11:42), deixa passar normal
+        return d;
+    };
+
+    const dataExibicao = obterDataSegura(dataSelecionada);
+    
+    console.log("👉 [DEBUG 2] Data após blindagem do meio-dia:", dataExibicao.toString());
+    // ========================================================================
 
     // --- ESTADOS PARA O MODAL DE IMPRESSÃO ---
     const [printModalOpen, setPrintModalOpen] = useState(false);
