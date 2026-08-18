@@ -46,5 +46,11 @@ export const crmService = {
   // --- RENTABILIDADE (A NOVA FUNÇÃO) ---
   getRentabilidade: (macroArea = '') => {
     return apiClient.get(`/crm/ciclos/rentabilidade/?macro_area=${macroArea}`);
-  }
+  },
+
+  // --- DASHBOARD EXECUTIVO ---
+  getPainelExecutivo: (macroArea = '') => {
+    // Rota alterada para bater no CicloViewSet do CRM
+    return apiClient.get(`/crm/ciclos/painel_executivo/?macro_area=${macroArea}`);
+  },
 };
