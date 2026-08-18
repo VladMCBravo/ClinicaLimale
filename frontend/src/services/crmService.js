@@ -1,10 +1,11 @@
-// src/services/crmService.js - CORRIGIDO (Padrão do Projeto)
+// src/services/crmService.js
 import apiClient from '../api/axiosConfig';
 
 export const crmService = {
   // --- KANBAN ---
-  getKanban: () => {
-    return apiClient.get('/crm/ciclos/kanban/');
+  // NOVO: Adicionado o parâmetro macroArea
+  getKanban: (macroArea = '') => {
+    return apiClient.get(`/crm/ciclos/kanban/?macro_area=${macroArea}`);
   },
 
   moverFase: (cicloId, novaFase) => {
@@ -18,13 +19,11 @@ export const crmService = {
     return apiClient.get(`/crm/ciclos/${id}/`);
   },
 
-  // --- ADICIONE ESTA FUNÇÃO ---
   updateCiclo: (id, dados) => {
     return apiClient.patch(`/crm/ciclos/${id}/`, dados);
   },
-  // -----------------------------
 
-  // ADICIONE ISSO:
+  // --- AÇÕES ---
   addAcao: (dados) => {
     return apiClient.post('/crm/acoes/', dados);
   },
@@ -39,7 +38,13 @@ export const crmService = {
   },
 
   // --- DASHBOARD EXECUTIVO ---
-  getPainelExecutivo: () => {
-    return apiClient.get('/dashboard/executivo/');
+  // NOVO: Adicionado o parâmetro macroArea mantendo a sua rota original
+  getPainelExecutivo: (macroArea = '') => {
+    return apiClient.get(`/dashboard/executivo/?macro_area=${macroArea}`);
+  },
+
+  // --- RENTABILIDADE (A NOVA FUNÇÃO) ---
+  getRentabilidade: (macroArea = '') => {
+    return apiClient.get(`/crm/ciclos/rentabilidade/?macro_area=${macroArea}`);
   }
 };
