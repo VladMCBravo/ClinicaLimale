@@ -47,10 +47,26 @@ def atualizar_funil_crm(sender, instance, created, **kwargs):
 
     # Atualiza Especialidade/Procedimento no Card
     novo_tipo = ciclo.tipo
-    if instance.tipo_agendamento == 'Consulta' and instance.especialidade:
-        novo_tipo = str(instance.especialidade.nome).upper()[:20]
-    elif instance.tipo_agendamento == 'Procedimento' and instance.procedimento:
+    nova_macro_area = ciclo.macro_area # Começa com a que já estava
+
+    if instance.tipo_agendamento == 'Procedimento' and instance.procedimento:
         novo_tipo = str(instance.procedimento.descricao).upper()[:20]
+        
+        # LÊ DIRETAMENTE DO CADASTRO DO EXAME
+        if instance.procedimento.categoria == 'MED_FETAL':
+            nova_macro_area = 'FETAL'
+        else:
+            nova_macro_area = 'GERAL' # Absorve US_GERAL, MUSCULO, DOPPLER, etc.
+
+    elif instance.tipo_agendamento == 'Consulta' and instance.especialidade:
+        novo_tipo = str(instance.especialidade.nome).upper()[:20]
+        
+        # Para consultas médicas, verificamos o nome da especialidade
+        nome_esp = str(instance.especialidade.nome).lower()
+        if 'fetal' in nome_esp or 'obst' in nome_esp or 'gesta' in nome_esp:
+            nova_macro_area = 'FETAL'
+        else:
+            nova_macro_area = 'GERAL'
 
     # -------------------------------------------------------------
     # A SUA LÓGICA DE RETORNO (VERIFICA O PASSADO)
@@ -138,7 +154,7 @@ def atualizar_funil_crm(sender, instance, created, **kwargs):
             nova_fase = 'F3' # Pós-Exame / Confirmado
 
     # Aplica as mudanças no CRM
-    if nova_fase != ciclo.fase_atual or novo_tipo != ciclo.tipo:
+    if nova_fase != ciclo.fase_atual or novo_tipo != ciclo.tipo or nova_macro_area != ciclo.macro_area:
         Ciclo.objects.filter(id=ciclo.id).update(fase_atual=nova_fase, tipo=novo_tipo)
 
 
