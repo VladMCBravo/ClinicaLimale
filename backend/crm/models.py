@@ -35,6 +35,13 @@ class Ciclo(models.Model):
     ]
     # ---------------------------
 
+    MACRO_AREAS = [
+        ('GERAL', 'Ultrassonografia Geral'),
+        ('FETAL', 'Medicina Fetal'),
+    ]
+
+    macro_area = models.CharField(max_length=10, choices=MACRO_AREAS, default='GERAL')
+
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, related_name='ciclos')
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='GESTACAO')
     fase_atual = models.CharField(max_length=20, choices=FASE_CHOICES, default='F1')
