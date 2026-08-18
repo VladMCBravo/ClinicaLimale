@@ -5,19 +5,20 @@ import { crmService } from '../../services/crmService';
 
 const CORES_PIZZA = ['#1C2E4A', '#3D5A80', '#98C1D9', '#EE6C4D', '#293241', '#E0FBFC'];
 
-export default function CrmDashboardElegante() {
+export default function CrmDashboardElegante({ macroArea }) { // Adicione a prop
     const [dadosBI, setDadosBI] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        crmService.getPainelExecutivo().then(res => {
+        setLoading(true); // Garante o loading ao trocar de aba
+        crmService.getPainelExecutivo(macroArea).then(res => { // Passe a prop
             setDadosBI(res.data);
             setLoading(false);
         }).catch(err => {
             console.error("Erro ao carregar Dashboard", err);
             setLoading(false);
         });
-    }, []);
+    }, [macroArea]); // Adicione ao array de dependências
 
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 5, height: '100%', alignItems: 'center' }}><CircularProgress /></Box>;
     if (!dadosBI) return <Typography>Erro ao carregar os dados de inteligência.</Typography>;

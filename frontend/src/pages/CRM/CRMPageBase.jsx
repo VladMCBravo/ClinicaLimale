@@ -1,18 +1,22 @@
+// Substitua o conteúdo do seu CRMPageBase.jsx
 import React, { useState, useEffect } from 'react';
-import { Box, Tabs, Tab, Typography, Button, Paper, Divider } from '@mui/material';
-import { FaPrint, FaChartPie, FaListUl } from 'react-icons/fa';
+import { Box, Tabs, Tab, Typography, Button, Paper, Divider, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { FaPrint, FaChartPie, FaListUl, FaMoneyBillWave } from 'react-icons/fa';
 import CrmDashboardElegante from './CrmDashboardElegante';
 import CRMKanbanPage from './CRMKanbanPage';
+import CrmRentabilidade from './CrmRentabilidade'; // Importe o novo arquivo
 import { crmService } from '../../services/crmService';
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function CRMPageBase() {
     const [abaPrincipal, setAbaPrincipal] = useState(0);
+    const [macroArea, setMacroArea] = useState(''); // '' = Todos, 'GERAL' = Geral, 'FETAL' = Fetal
     const [kpis, setKpis] = useState({ receita: 0, cac: 0, ltv: 0 });
 
     useEffect(() => {
-        crmService.getPainelExecutivo().then(res => {
+        // Agora os KPIs rodam de novo sempre que a macroArea muda
+        crmService.getPainelExecutivo(macroArea).then(res => {
             const dados = res.data;
             setKpis({
                 receita: dados.kpis_financeiros?.receita_mensal || 0,
@@ -20,28 +24,37 @@ export default function CRMPageBase() {
                 ltv: dados.kpis_estrategicos?.ltv || 0
             });
         }).catch(() => console.error("Erro ao carregar KPIs"));
-    }, []);
+    }, [macroArea]);
+
+    const handleAreaChange = (event, newArea) => {
+        if (newArea !== null) { setMacroArea(newArea); }
+    };
 
     return (
-        <Box sx={{ 
-            height: 'calc(100vh - 64px)', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            bgcolor: '#f4f5f7',
-            overflow: 'hidden' 
-        }}>
+        <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', bgcolor: '#f4f5f7', overflow: 'hidden' }}>
             
-            {/* CABEÇALHO SUPER COMPACTO */}
-            <Paper elevation={0} sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: 0, borderBottom: '1px solid #e0e0e0', flexShrink: 0, '@media print': { display: 'none' } }}>
-                <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#1C2E4A', lineHeight: 1.2 }}>Inteligência e Gestão</Typography>
-                    <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>Visão estratégica do CRM</Typography>
+            {/* CABEÇALHO */}
+            <Paper elevation={0} sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: 0, borderBottom: '1px solid #e0e0e0', flexShrink: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#1C2E4A', lineHeight: 1.2 }}>Inteligência e Gestão</Typography>
+                        <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>Visão estratégica do CRM</Typography>
+                    </Box>
+
+                    {/* SELETOR DE ÁREA (O NOVO CORAÇÃO DO CRM) */}
+                    <ToggleButtonGroup value={macroArea} exclusive onChange={handleAreaChange} size="small" sx={{ height: '32px' }}>
+                        <ToggleButton value="" sx={{ fontSize: '0.75rem', fontWeight: 700 }}>Visão Geral</ToggleButton>
+                        <ToggleButton value="GERAL" sx={{ fontSize: '0.75rem', fontWeight: 700 }}>USG Geral</ToggleButton>
+                        <ToggleButton value="FETAL" sx={{ fontSize: '0.75rem', fontWeight: 700 }}>Medicina Fetal</ToggleButton>
+                    </ToggleButtonGroup>
                 </Box>
                 
                 <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
                     <Tabs value={abaPrincipal} onChange={(e, val) => setAbaPrincipal(val)} textColor="primary" indicatorColor="primary" sx={{ minHeight: '32px' }}>
                         <Tab icon={<FaChartPie size={14} />} iconPosition="start" label="Dashboard" sx={{ fontWeight: 'bold', minHeight: '32px', py: 0, px: 1, fontSize: '0.8rem' }} />
                         <Tab icon={<FaListUl size={14} />} iconPosition="start" label="Funil" sx={{ fontWeight: 'bold', minHeight: '32px', py: 0, px: 1, fontSize: '0.8rem' }} />
+                        {/* NOVA ABA */}
+                        <Tab icon={<FaMoneyBillWave size={14} />} iconPosition="start" label="Rentabilidade" sx={{ fontWeight: 'bold', minHeight: '32px', py: 0, px: 1, fontSize: '0.8rem' }} />
                     </Tabs>
                     <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
                     <Button variant="outlined" size="small" startIcon={<FaPrint />} onClick={() => window.print()} sx={{ borderColor: '#1C2E4A', color: '#1C2E4A', py: 0.2, fontSize: '0.75rem' }}>
@@ -50,16 +63,17 @@ export default function CRMPageBase() {
                 </Box>
             </Paper>
 
-            {/* ÁREA DE CONTEÚDO (Agora ocupa exatos 100% do espaço restante sem vazar) */}
-            <Box sx={{ flexGrow: 1, p: 1.5, minHeight: 0, overflow: 'hidden', '@media print': { overflow: 'visible', p: 0 } }}>
-                {abaPrincipal === 0 && <CrmDashboardElegante />}
-                {abaPrincipal === 1 && <CRMKanbanPage />} 
+            {/* ÁREA DE CONTEÚDO (Injetando a props macroArea) */}
+            <Box sx={{ flexGrow: 1, p: 1.5, minHeight: 0, overflow: 'hidden' }}>
+                {abaPrincipal === 0 && <CrmDashboardElegante macroArea={macroArea} />}
+                {abaPrincipal === 1 && <CRMKanbanPage macroArea={macroArea} />} 
+                {abaPrincipal === 2 && <CrmRentabilidade macroArea={macroArea} />} 
             </Box>
 
             {/* RODAPÉ FIXO */}
-            <Paper elevation={3} sx={{ p: 1, flexShrink: 0, bgcolor: '#1C2E4A', color: 'white', display: 'flex', justifyContent: 'space-around', borderRadius: 0, '@media print': { display: 'none' } }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>💰 Receita Prevista do Mês: {formatMoney(kpis.receita)}</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>🎯 Custo por Paciente (CAC): {formatMoney(kpis.cac)}</Typography>
+            <Paper elevation={3} sx={{ p: 1, flexShrink: 0, bgcolor: '#1C2E4A', color: 'white', display: 'flex', justifyContent: 'space-around', borderRadius: 0 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>💰 Receita Mês ({macroArea || 'Global'}): {formatMoney(kpis.receita)}</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>🎯 Custo de Aquisição (CAC): {formatMoney(kpis.cac)}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem' }}>⭐ Ticket Médio Vitalício (LTV): {formatMoney(kpis.ltv)}</Typography>
             </Paper>
         </Box>
