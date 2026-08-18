@@ -91,6 +91,12 @@ class CicloViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=False, methods=['get'])
+    def rentabilidade(self, request):
+        macro_area = request.query_params.get('macro_area')
+        dados = CRMService.analise_rentabilidade(macro_area_filtro=macro_area)
+        return Response(dados)
+
+    @action(detail=False, methods=['get'])
     def kanban(self, request):
         import time
         t0 = time.time()

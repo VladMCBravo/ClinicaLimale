@@ -16,7 +16,7 @@ const PHASES = [
   { id: 'F5', title: '5. Recuperação', color: '#ffebee', border: '#ef5350' }
 ];
 
-export default function CRMKanbanPage() {
+export default function CRMKanbanPage({ macroArea }) { // Adicione a prop
   const [rawData, setRawData] = useState({ F1: [], F2: [], F3: [], F4: [], F5: [] });
   const [activePhase, setActivePhase] = useState('F2'); 
   const [loading, setLoading] = useState(true);
@@ -25,12 +25,12 @@ export default function CRMKanbanPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedCicloId, setSelectedCicloId] = useState(null);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [macroArea]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const response = await crmService.getKanban();
+      const response = await crmService.getKanban(macroArea);
       const sortCronologico = (lista) => lista.sort((a, b) => {
           const dateA = a.dados_agendamento?.data ? new Date(a.dados_agendamento.data) : new Date(a.data_inicio || 0);
           const dateB = b.dados_agendamento?.data ? new Date(b.dados_agendamento.data) : new Date(b.data_inicio || 0);
