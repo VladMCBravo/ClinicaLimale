@@ -96,6 +96,14 @@ class CicloViewSet(viewsets.ModelViewSet):
         dados = CRMService.analise_rentabilidade(macro_area_filtro=macro_area)
         return Response(dados)
 
+    # --- ADICIONE ESTA NOVA ROTA ABAIXO ---
+    @action(detail=False, methods=['get'])
+    def painel_executivo(self, request):
+        # Agora o backend escuta o botão do React!
+        macro_area = request.query_params.get('macro_area')
+        dados = CRMService.obter_painel_executivo(macro_area_filtro=macro_area)
+        return Response(dados)
+
     @action(detail=False, methods=['get'])
     def kanban(self, request):
         import time
