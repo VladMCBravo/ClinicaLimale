@@ -87,7 +87,6 @@ def atualizar_funil_crm(sender, instance, created, **kwargs):
     if instance.status in status_f5:
         nova_fase = 'F5' # Paciente faltou ou cancelou, vai para recuperação
         
-        # --- NOVA AUTOMAÇÃO: CADÊNCIA D0 / D1 / D3 ---
         # Só disparamos se o ciclo estiver entrando na F5 agora (evita duplicar tarefas)
         if ciclo.fase_atual != 'F5':
             from .services import CRMService
@@ -99,24 +98,32 @@ def atualizar_funil_crm(sender, instance, created, **kwargs):
             if hasattr(instance.paciente, 'perfil_comportamental') and instance.paciente.perfil_comportamental.principal_objecao:
                 objecao = instance.paciente.perfil_comportamental.get_principal_objecao_display()
 
-            # Personaliza a cadência
-            CRMService.criar_acao(
-                ciclo=ciclo, 
-                descricao=f"D0 ({motivo_falta}): Mensagem de resgate imediata. Objecao conhecida: {objecao}.", 
-                data_alvo=hoje
-            )
+            # --- COMUNICAÇÃO SEPARADA POR ÁREA ---
+            if ciclo.macro_area == 'FETAL':
+                CRMService.criar_acao(
+                    ciclo=ciclo, 
+                    descricao=f"🚨 D0 ({motivo_falta} - FETAL): Ligar URGENTE. Risco de perder a janela do exame morfológico/fetal. Objeção: {objecao}", 
+                    data_alvo=hoje
+                )
+                CRMService.criar_acao(
+                    ciclo=ciclo, 
+                    descricao=f"D1 ({motivo_falta} - FETAL): Reforçar a importância médica de manter o controle na semana certa.", 
+                    data_alvo=hoje + timedelta(days=1)
+                )
+            else:
+                # É USG GERAL (Rotina mais rápida)
+                CRMService.criar_acao(
+                    ciclo=ciclo, 
+                    descricao=f"D0 ({motivo_falta} - GERAL): Enviar mensagem de remarcação rápida oferecendo próximo horário vago. Objeção: {objecao}", 
+                    data_alvo=hoje
+                )
+                CRMService.criar_acao(
+                    ciclo=ciclo, 
+                    descricao=f"D1 ({motivo_falta} - GERAL): Oferta de Encaixe se não tiver respondido.", 
+                    data_alvo=hoje + timedelta(days=1)
+                )
 
-            # D1: Baseado no tipo de exame
-            d1_text = f"D1 ({motivo_falta}): Oferecer novo horário."
-            if ciclo.tipo == 'GESTACAO':
-                d1_text = f"D1 ({motivo_falta}): Reforçar a importância de manter o controle do ultrassom na semana certa."
-                
-            CRMService.criar_acao(
-                ciclo=ciclo, 
-                descricao=d1_text, 
-                data_alvo=hoje + timedelta(days=1)
-            )
-            
+            # O D3 é comum para os dois
             CRMService.criar_acao(
                 ciclo=ciclo, 
                 descricao=f"D3 ({motivo_falta}): Última tentativa (Ex: Condição especial/Encaixe).", 

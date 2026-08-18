@@ -1,7 +1,8 @@
 # backend/crm/services.py
 
 from django.db import transaction
-from django.db.models import Sum, Count, Avg, Q
+from django.db.models import Sum, Count, F, Q, ExpressionWrapper, DecimalField
+from django.db.models.functions import ExtractHour
 from django.utils import timezone
 from datetime import timedelta
 
@@ -11,6 +12,44 @@ from .models import Ciclo, ProximaAcao
 from django.apps import apps
 
 class CRMService:
+
+    @staticmethod
+    def analise_rentabilidade(macro_area_filtro=None):
+        Agendamento = apps.get_model('agendamentos', 'Agendamento')
+        
+        # Filtro base
+        queryset = Agendamento.objects.filter(status='Realizado')
+        if macro_area_filtro:
+            queryset = queryset.filter(ciclo__macro_area=macro_area_filtro)
+
+        # 1. Extração do Turno via hora do agendamento (0-12 = Manhã, 12-18 = Tarde, >18 = Noite)
+        dados = queryset.annotate(
+            hora=ExtractHour('data_hora_inicio'),
+            receita=F('pagamento__valor'), # Assumindo que a relação existe
+            custo_medico=F('medico__custo_por_exame'), # O campo de custo
+            lucro_liquido=ExpressionWrapper(
+                F('pagamento__valor') - F('medico__custo_por_exame'), 
+                output_field=DecimalField()
+            )
+        ).values('procedimento__descricao', 'hora', 'medico__nome').annotate(
+            total_exames=Count('id'),
+            receita_total=Sum('receita'),
+            lucro_total=Sum('lucro_liquido')
+        ).order_by('-lucro_total')
+        
+        # Formatar a saída para o React
+        resultado_formatado = []
+        for item in dados:
+            turno = 'Manhã' if item['hora'] < 12 else 'Tarde' if item['hora'] < 18 else 'Noite'
+            resultado_formatado.append({
+                "exame": item['procedimento__descricao'],
+                "turno": turno,
+                "medico": item['medico__nome'],
+                "exames_realizados": item['total_exames'],
+                "rentabilidade": float(item['lucro_total'] or 0)
+            })
+            
+        return resultado_formatado
 
     @staticmethod
     def mover_fase(ciclo_id, nova_fase, usuario_responsavel):
@@ -108,21 +147,29 @@ class CRMService:
             print(f"[CRM] Ciclo {ciclo.id} movido para F3 e tarefa criada.")
 
     @staticmethod
-    def obter_dados_kanban(usuario_filtro=None):
-        """
-        Retorna os dados já agrupados para o Frontend.
-        """
+    def obter_dados_kanban(usuario_filtro=None, macro_area_filtro=None):
         from .serializers import CicloKanbanSerializer
         
-        queryset = Ciclo.objects.filter(status='ativo').select_related('paciente').order_by('-data_inicio')
+        # Mantendo o prefetch para performance
+        queryset = Ciclo.objects.filter(status='ativo').select_related(
+            'paciente',
+            'responsavel',
+            'paciente__perfil_comportamental'
+        ).prefetch_related(
+            'agendamentos',
+            'acoes'
+        ).order_by('-data_inicio')
         
         if usuario_filtro:
             queryset = queryset.filter(responsavel=usuario_filtro)
             
+        # --- FILTRO DE MACRO ÁREA ---
+        if macro_area_filtro:
+            queryset = queryset.filter(macro_area=macro_area_filtro)
+            
         serializer = CicloKanbanSerializer(queryset, many=True)
         data = serializer.data
         
-        # --- CORREÇÃO: F5 INCLUÍDA NO CONTRATO DO KANBAN ---
         kanban_data = { "F1": [], "F2": [], "F3": [], "F4": [], "F5": [], "ENCERRADO": [] }
         
         for item in data:
@@ -135,11 +182,7 @@ class CRMService:
         return kanban_data
     
     @staticmethod
-    def obter_painel_executivo():
-        """
-        Gera os números para o Dashboard Executivo.
-        Cruza dados do CRM (Ciclos) com Financeiro (Pagamentos/Despesas).
-        """
+    def obter_painel_executivo(macro_area_filtro=None): # <-- Adicione o parâmetro aqui
         from faturamento.models import Pagamento, Despesa
         from .models import Ciclo, AnaliseComportamental
         from django.db.models import Sum, Count, Avg, Q
@@ -148,12 +191,23 @@ class CRMService:
         mes_atual = hoje.month
         ano_atual = hoje.year
 
-        # 1. FINANCEIRO (Receita e Margem)
-        receita_mes = Pagamento.objects.filter(
+        # --- Base de Ciclos Filtrada ---
+        ciclos_base = Ciclo.objects.all()
+        if macro_area_filtro:
+            ciclos_base = ciclos_base.filter(macro_area=macro_area_filtro)
+
+        # 1. FINANCEIRO
+        # Se for separar receita por macro área, precisamos filtrar os pagamentos 
+        # vinculados aos agendamentos dos ciclos dessa macro área.
+        query_pagamentos = Pagamento.objects.filter(
             status='Pago', 
             data_pagamento__month=mes_atual, 
             data_pagamento__year=ano_atual
-        ).aggregate(total=Sum('valor'))['total'] or 0.00
+        )
+        if macro_area_filtro:
+            query_pagamentos = query_pagamentos.filter(agendamento__ciclo__macro_area=macro_area_filtro)
+            
+        receita_mes = query_pagamentos.aggregate(total=Sum('valor'))['total'] or 0.00
 
         despesa_mes = Despesa.objects.filter(
             pago=True, 
@@ -164,7 +218,7 @@ class CRMService:
         lucro = float(receita_mes) - float(despesa_mes)
         margem_percentual = round((lucro / float(receita_mes) * 100), 1) if receita_mes > 0 else 0
 
-        # 2. ESTRATÉGICO (CAC e LTV)
+        # 2. ESTRATÉGICO
         marketing = Despesa.objects.filter(
             Q(categoria__nome__icontains='Marketing') | 
             Q(categoria__nome__icontains='Anúncio') | 
@@ -176,13 +230,13 @@ class CRMService:
             pago=True
         ).aggregate(total=Sum('valor'))['total'] or 0.00
         
-        novos_ciclos = Ciclo.objects.filter(data_inicio__month=mes_atual).count()
+        novos_ciclos = ciclos_base.filter(data_inicio__month=mes_atual).count()
         cac = round(float(marketing) / novos_ciclos, 2) if novos_ciclos > 0 else 0.00
         
-        ltv = Ciclo.objects.aggregate(media=Avg('receita_acumulada'))['media'] or 0.00
+        ltv = ciclos_base.aggregate(media=Avg('receita_acumulada'))['media'] or 0.00
 
-        # 3. FUNIL (Snapshot Atual)
-        ciclos_ativos = Ciclo.objects.filter(status='ativo')
+        # 3. FUNIL (Aplicando o filtro na base)
+        ciclos_ativos = ciclos_base.filter(status='ativo')
         funil_stats = {
             'entradas': ciclos_ativos.filter(fase_atual='F1').count(),
             'conversao': ciclos_ativos.filter(fase_atual='F2').count(),
@@ -190,33 +244,36 @@ class CRMService:
             'retencao': ciclos_ativos.filter(fase_atual='F4').count(),
         }
 
-        # =============================================================
-        # 4. INTELIGÊNCIA DE DADOS (AGORA ALINHADO AO NOVO FRONTEND)
-        # =============================================================
-        
-        # A) Motivos de Abandono (Ignorando os nulos/vazios)
+        # 4. INTELIGÊNCIA DE DADOS
         objecoes_bd = AnaliseComportamental.objects.exclude(
             Q(principal_objecao__isnull=True) | Q(principal_objecao__exact='')
-        ).values('principal_objecao').annotate(total=Count('id')).order_by('-total')
+        )
+        
+        # Se filtramos por área, cruzamos o perfil comportamental com os ciclos
+        if macro_area_filtro:
+            objecoes_bd = objecoes_bd.filter(paciente__ciclos__macro_area=macro_area_filtro)
+            
+        objecoes_bd = objecoes_bd.values('principal_objecao').annotate(total=Count('id')).order_by('-total')
 
         motivos_perda = []
         for item in objecoes_bd:
             nome_amigavel = dict(AnaliseComportamental.OBJECOES_COMUNS).get(item['principal_objecao'], item['principal_objecao'])
             motivos_perda.append({"motivo": nome_amigavel, "quantidade": item['total']})
 
-        # B) Origem de Captação (Ignorando os nulos/vazios)
         origens_bd = AnaliseComportamental.objects.exclude(
             Q(origem_aquisicao__isnull=True) | Q(origem_aquisicao__exact='')
-        ).values('origem_aquisicao').annotate(total=Count('id')).order_by('-total')
+        )
+        
+        if macro_area_filtro:
+            origens_bd = origens_bd.filter(paciente__ciclos__macro_area=macro_area_filtro)
+            
+        origens_bd = origens_bd.values('origem_aquisicao').annotate(total=Count('id')).order_by('-total')
 
         grafico_origem = []
         for item in origens_bd:
             nome_amigavel = dict(AnaliseComportamental.ORIGEM_CHOICES).get(item['origem_aquisicao'], item['origem_aquisicao'])
             grafico_origem.append({"origem": nome_amigavel, "quantidade": item['total']})
 
-        # -------------------------------------------------------------
-        # RETORNO FINAL: Exatamente como o Frontend Elegante espera
-        # -------------------------------------------------------------
         return {
             "kpis_financeiros": {
                 "receita_mensal": float(receita_mes),
@@ -228,7 +285,7 @@ class CRMService:
                 "ltv": float(ltv)
             },
             "riscos": {
-                "nivel_alto": Ciclo.objects.filter(nivel_risco='CRITICO').count()
+                "nivel_alto": ciclos_base.filter(nivel_risco='CRITICO').count()
             },
             "funil": funil_stats,
             "inteligencia_negocio": {

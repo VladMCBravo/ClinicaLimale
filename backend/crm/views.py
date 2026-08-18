@@ -95,28 +95,17 @@ class CicloViewSet(viewsets.ModelViewSet):
         import time
         t0 = time.time()
         
-        # 1. Filtro e Query
-        queryset = self.filter_queryset(self.get_queryset().filter(status='ativo'))
-        t1 = time.time()
+        # --- NOVO: Captura o filtro da URL ---
+        macro_area = request.query_params.get('macro_area')
         
-        # 2. Serialização (Onde a lentidão provavelmente mora)
-        serializer = self.get_serializer(queryset, many=True)
-        data_serializada = serializer.data
-        t2 = time.time()
-
-        print(f"⏱️ [CRM DEBUG] Busca no Banco: {t1 - t0:.3f}s | Serialização (O Gargalo): {t2 - t1:.3f}s")
-
-        # 3. Agrupamento
-        kanban_data = { "F1": [], "F2": [], "F3": [], "F4": [], "F5": [], "ENCERRADO": [] }
-        for item in data_serializada:
-            fase = item.get('fase_atual', 'F1')
-            if fase in kanban_data:
-                kanban_data[fase].append(item)
-            else:
-                kanban_data.setdefault(fase, []).append(item)
-                
+        # O CRMService vai fazer o trabalho pesado agora
+        kanban_data = CRMService.obter_dados_kanban(
+            usuario_filtro=None, 
+            macro_area_filtro=macro_area
+        )
+        
         t3 = time.time()
-        print(f"⏱️ [CRM DEBUG] Agrupamento Final: {t3 - t2:.3f}s | TEMPO TOTAL: {t3 - t0:.3f}s")
+        print(f"⏱️ [CRM DEBUG] Tempo Total Kanban API: {t3 - t0:.3f}s")
 
         return Response(kanban_data)
 
