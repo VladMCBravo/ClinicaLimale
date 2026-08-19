@@ -1,10 +1,11 @@
+// src/components/configuracoes/MeuPerfilTab.jsx
 import React, { useState, useEffect } from 'react';
 import { 
     Box, Typography, Tabs, Tab, Grid, TextField, Button, 
     CircularProgress, Alert, InputAdornment, IconButton, Divider, Chip
 } from '@mui/material';
 import { 
-    Person, LocationOn, Security, Visibility, VisibilityOff, CloudUpload, CheckCircle
+    Person, LocationOn, Security, Visibility, VisibilityOff, CloudUpload, CheckCircle, Lock
 } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
 
@@ -27,7 +28,8 @@ export default function MeuPerfilTab() {
     const [perfil, setPerfil] = useState({
         first_name: '', last_name: '', telefone: '',
         logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
-        cargo: '', crm: '', pin_ponto: '', medico_especialidades: [] 
+        cargo: '', crm: '', pin_ponto: '', medico_especialidades: [],
+        password: '' // <-- ADICIONADO: controle da nova senha
     });
 
     const [certStatus, setCertStatus] = useState(false);
@@ -46,7 +48,8 @@ export default function MeuPerfilTab() {
             setPerfil({
                 ...res.data,
                 pin_ponto: res.data.pin_ponto || '',
-                medico_especialidades: res.data.medico_especialidades || [] // Captura a lista do backend
+                password: '', // Reseta a senha ao carregar
+                medico_especialidades: res.data.medico_especialidades || [] 
             });
             setCertStatus(res.data.tem_certificado_valido); 
         } catch (error) {
@@ -96,8 +99,17 @@ export default function MeuPerfilTab() {
                 cep: perfil.cep,
                 pin_ponto: perfil.pin_ponto 
             };
+            
+            // Só envia a senha de login se o usuário tiver digitado uma nova
+            if (perfil.password) {
+                payload.password = perfil.password;
+            }
+            
             await apiClient.patch('/usuarios/me/', payload);
-            mostrarFeedback('Perfil atualizado com sucesso!');
+            mostrarFeedback('Informações atualizadas com sucesso!');
+            
+            // Limpa o campo de senha da tela por segurança após salvar
+            setPerfil(prev => ({ ...prev, password: '' }));
         } catch (error) {
             mostrarFeedback('Erro ao atualizar perfil.', 'error');
         } finally {
@@ -145,7 +157,7 @@ export default function MeuPerfilTab() {
 
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
 
-    const gridTamanho = perfil.cargo === 'medico' ? 3 : 4;
+    const gridTamanho = perfil.cargo === 'medico' ? 4 : 6;
 
     return (
         <Box>
@@ -155,10 +167,12 @@ export default function MeuPerfilTab() {
                 <Tabs value={tab} onChange={(e, v) => setTab(v)} textColor="primary" indicatorColor="primary" sx={{ minHeight: 40 }}>
                     <Tab icon={<Person sx={{mr:1, mb:0}}/>} iconPosition="start" label="Dados Pessoais" sx={{ minHeight: 40 }} />
                     <Tab icon={<LocationOn sx={{mr:1, mb:0}}/>} iconPosition="start" label="Endereço" sx={{ minHeight: 40 }} />
+                    <Tab icon={<Lock sx={{mr:1, mb:0}}/>} iconPosition="start" label="Segurança e Acesso" sx={{ minHeight: 40 }} />
                     {perfil.cargo === 'medico' && <Tab icon={<Security sx={{mr:1, mb:0}}/>} iconPosition="start" label="Assinatura Digital" sx={{ minHeight: 40 }} />}
                 </Tabs>
             </Box>
 
+            {/* ABA 0: DADOS PESSOAIS */}
             <TabPanel value={tab} index={0}>
                 <form onSubmit={handleSalvarPerfil}>
                     <Grid container spacing={2}>
@@ -168,36 +182,14 @@ export default function MeuPerfilTab() {
                         <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="Telefone" name="telefone" value={perfil.telefone || ''} onChange={handleChange} /></Grid>
                         <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="Cargo" value={(perfil.cargo || '').toUpperCase()} disabled /></Grid>
                         {perfil.cargo === 'medico' && <Grid item xs={12} sm={gridTamanho}><TextField size="small" fullWidth label="CRM" value={perfil.crm || 'Não informado'} disabled /></Grid>}
-                        
-                        <Grid item xs={12} sm={gridTamanho}>
-                            <TextField 
-                                size="small" fullWidth label="PIN (Ponto Eletrônico)" name="pin_ponto" 
-                                type={showPin ? "text" : "password"} 
-                                value={perfil.pin_ponto || ''} onChange={handleChange} 
-                                inputProps={{ maxLength: 6 }}
-                                placeholder="4 a 6 dígitos"
-                                InputProps={{
-                                    endAdornment: (
-                                        <InputAdornment position="end">
-                                            <IconButton size="small" onClick={() => setShowPin(!showPin)} edge="end">
-                                                {showPin ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                                            </IconButton>
-                                        </InputAdornment>
-                                    )
-                                }}
-                            />
-                        </Grid>
 
-                        {/* --- EXIBIÇÃO DAS ESPECIALIDADES DO MÉDICO --- */}
                         {perfil.cargo === 'medico' && perfil.medico_especialidades.length > 0 && (
                             <Grid item xs={12}>
                                 <Typography variant="subtitle2" sx={{ mt: 1, mb: 1, color: 'text.secondary' }}>Minhas Especialidades / RQEs</Typography>
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                                     {perfil.medico_especialidades.map((item, idx) => (
                                         <Chip 
-                                            key={idx} 
-                                            color="primary" 
-                                            variant="outlined" 
+                                            key={idx} color="primary" variant="outlined" 
                                             label={`${item.especialidade_nome || 'Especialidade'} ${item.rqe ? ` - RQE: ${item.rqe}` : ''}`} 
                                         />
                                     ))}
@@ -209,13 +201,13 @@ export default function MeuPerfilTab() {
                         )}
                     </Grid>
                     <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                        <Button type="submit" variant="contained" size="small" disabled={savingInfo}>{savingInfo ? <CircularProgress size={20} /> : 'Salvar Alterações'}</Button>
+                        <Button type="submit" variant="contained" size="small" disabled={savingInfo}>{savingInfo ? <CircularProgress size={20} /> : 'Salvar Dados'}</Button>
                     </Box>
                 </form>
             </TabPanel>
 
+            {/* ABA 1: ENDEREÇO */}
             <TabPanel value={tab} index={1}>
-                {/* O restante das tabs permanece igual... */}
                 <form onSubmit={handleSalvarPerfil}>
                     <Grid container spacing={2}>
                         <Grid item xs={12} sm={3}><TextField size="small" fullWidth label="CEP" name="cep" value={perfil.cep || ''} onChange={handleChange} onBlur={buscarCep} /></Grid>
@@ -232,8 +224,63 @@ export default function MeuPerfilTab() {
                 </form>
             </TabPanel>
 
+            {/* ABA 2: SEGURANÇA E ACESSO (NOVA ABA) */}
+            <TabPanel value={tab} index={2}>
+                <form onSubmit={handleSalvarPerfil}>
+                    <Grid container spacing={4}>
+                        <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>Senha de Acesso ao Sistema</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Esta é a senha utilizada para entrar no sistema com o seu usuário ({perfil.username}).
+                            </Typography>
+                            <TextField 
+                                size="small" fullWidth label="Nova Senha de Login" name="password" 
+                                type={showSenha ? "text" : "password"} 
+                                value={perfil.password || ''} onChange={handleChange} 
+                                placeholder="Deixe em branco para manter a atual"
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => setShowSenha(!showSenha)} edge="end">
+                                                {showSenha ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                    )
+                                }}
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>PIN do Ponto Eletrônico</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Código numérico utilizado exclusivamente para registrar entradas e saídas no relógio de ponto.
+                            </Typography>
+                            <TextField 
+                                size="small" fullWidth label="PIN (4 a 6 dígitos)" name="pin_ponto" 
+                                type={showPin ? "text" : "password"} 
+                                value={perfil.pin_ponto || ''} onChange={handleChange} 
+                                inputProps={{ maxLength: 6 }}
+                                InputProps={{
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={() => setShowPin(!showPin)} edge="end">
+                                                {showPin ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                                            </IconButton>
+                                        </InputAdornment>
+                                    )
+                                }}
+                            />
+                        </Grid>
+                    </Grid>
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button type="submit" variant="contained" size="small" disabled={savingInfo}>{savingInfo ? <CircularProgress size={20} /> : 'Salvar Credenciais'}</Button>
+                    </Box>
+                </form>
+            </TabPanel>
+
+            {/* ABA 3: ASSINATURA DIGITAL (MUDOU O INDEX DE 2 PARA 3) */}
             {perfil.cargo === 'medico' && (
-                <TabPanel value={tab} index={2}>
+                <TabPanel value={tab} index={3}>
                     <Box sx={{ p: 1.5, mb: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: '#f8f9fa' }}>
                         <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 'bold' }}>Status da Assinatura Digital</Typography>
                         {certStatus ? (
