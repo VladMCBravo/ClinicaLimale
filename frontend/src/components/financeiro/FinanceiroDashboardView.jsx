@@ -66,16 +66,16 @@ export default function FinanceiroDashboardView() {
     };
 
     const KpiCard = ({ titulo, valor, cor, icone }) => (
-        <Paper className="tasy-flat-panel" sx={{ p: 1.5, display: 'flex', alignItems: 'center', height: '100%', borderLeft: `4px solid ${cor}` }}>
+        <Paper className="tasy-flat-panel" sx={{ p: 1, display: 'flex', alignItems: 'center', height: '100%', borderLeft: `4px solid ${cor}` }}>
             <Box sx={{ flexGrow: 1 }}>
-                <Typography sx={{ fontSize: '0.70rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase' }}>
+                <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' }}>
                     {titulo}
                 </Typography>
-                <Typography sx={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#343a40', mt: 0.5 }}>
+                <Typography sx={{ fontSize: '1rem', fontWeight: 900, color: '#343a40', mt: 0.2 }}>
                     {valor}
                 </Typography>
             </Box>
-            <Box sx={{ color: cor, opacity: 0.8, fontSize: '1.5rem' }}>
+            <Box sx={{ color: cor, opacity: 0.8, fontSize: '1.2rem' }}>
                 {icone}
             </Box>
         </Paper>
@@ -89,17 +89,18 @@ export default function FinanceiroDashboardView() {
     return (
         <Box className="tasy-workspace" sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 1, backgroundColor: '#f1f3f5', overflow: 'hidden' }}>
             
-            {/* NOVO CABEÇALHO COM AS SUB-ABAS */}
-            <Paper className="tasy-flat-panel" sx={{ p: 0, mb: 1, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-                <Box sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Box sx={{ bgcolor: '#e3f2fd', p: 0.8, borderRadius: 1, display: 'flex', alignItems: 'center' }}>
-                        <AccountBalanceWallet sx={{ color: '#1565c0', fontSize: 20 }} />
+            {/* NOVO CABEÇALHO COMPACTO: Título na esquerda, Abas na direita */}
+            <Paper className="tasy-flat-panel" sx={{ mb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, pr: 1 }}>
+                
+                <Box sx={{ p: 1, pl: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{ bgcolor: '#e3f2fd', p: 0.6, borderRadius: 1, display: 'flex', alignItems: 'center' }}>
+                        <AccountBalanceWallet sx={{ color: '#1565c0', fontSize: 18 }} />
                     </Box>
                     <Box>
-                        <Typography variant="caption" fontWeight="bold" color="text.secondary" display="block" lineHeight={1}>
+                        <Typography variant="caption" fontWeight="bold" color="text.secondary" display="block" lineHeight={1} fontSize="0.65rem">
                             GESTÃO CLÍNICA
                         </Typography>
-                        <Typography variant="subtitle1" fontWeight="800" color="#343a40" lineHeight={1.2}>
+                        <Typography variant="subtitle2" fontWeight="800" color="#343a40" lineHeight={1}>
                             Inteligência Financeira
                         </Typography>
                     </Box>
@@ -110,11 +111,11 @@ export default function FinanceiroDashboardView() {
                     onChange={(e, val) => setSubAbaAtual(val)} 
                     indicatorColor="primary" 
                     textColor="primary"
-                    sx={{ minHeight: 40, borderTop: '1px solid #e9ecef' }}
+                    sx={{ minHeight: 36 }}
                 >
-                    <Tab icon={<ShowChart sx={{ fontSize: 18 }}/>} iconPosition="start" label="Dashboard & Projeções" sx={{ minHeight: 40, fontSize: '0.75rem', fontWeight: 'bold' }} />
-                    <Tab icon={<AccountBalanceWallet sx={{ fontSize: 18 }}/>} iconPosition="start" label="Receitas & Despesas" sx={{ minHeight: 40, fontSize: '0.75rem', fontWeight: 'bold' }} />
-                    <Tab icon={<AssignmentInd sx={{ fontSize: 18 }}/>} iconPosition="start" label="Operação & Rentabilidade" sx={{ minHeight: 40, fontSize: '0.75rem', fontWeight: 'bold' }} />
+                    <Tab icon={<ShowChart sx={{ fontSize: 16 }}/>} iconPosition="start" label="Dashboard & Projeções" sx={{ minHeight: 36, fontSize: '0.70rem', fontWeight: 'bold', p: 1 }} />
+                    <Tab icon={<AccountBalanceWallet sx={{ fontSize: 16 }}/>} iconPosition="start" label="Receitas & Despesas" sx={{ minHeight: 36, fontSize: '0.70rem', fontWeight: 'bold', p: 1 }} />
+                    <Tab icon={<AssignmentInd sx={{ fontSize: 16 }}/>} iconPosition="start" label="Operação & Rentabilidade" sx={{ minHeight: 36, fontSize: '0.70rem', fontWeight: 'bold', p: 1 }} />
                 </Tabs>
             </Paper>
 
