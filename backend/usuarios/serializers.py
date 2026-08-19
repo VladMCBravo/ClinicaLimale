@@ -136,16 +136,26 @@ class JornadaDeTrabalhoSerializer(serializers.ModelSerializer):
         read_only_fields = ['medico_nome', 'dia_da_semana_display']
 
 class UserMeUpdateSerializer(serializers.ModelSerializer):
-    # Adicionamos como leitura apenas para garantir que o médico veja suas especialidades
     medico_especialidades = MedicoEspecialidadeSerializer(many=True, read_only=True)
+    # 1. Adicionamos o campo password como write_only para segurança
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
     class Meta:
         model = CustomUser
         fields = [
             'first_name', 'last_name', 'genero', 'data_nascimento', 
             'telefone', 'logradouro', 'numero', 'complemento', 
-            'bairro', 'cidade', 'uf', 'cep', 'medico_especialidades'
+            'bairro', 'cidade', 'uf', 'cep', 'medico_especialidades',
+            'pin_ponto', 'password' # 2. Incluímos pin_ponto e password
         ]
+
+    def update(self, instance, validated_data):
+        # 3. Interceptamos a senha para usar o set_password (criptografia)
+        password = validated_data.pop('password', None)
+        if password:
+            instance.set_password(password)
+            
+        return super().update(instance, validated_data)
 
 class ValorEspecialidadeConvenioSerializer(serializers.ModelSerializer):
     plano_convenio_id = serializers.IntegerField(source='plano_convenio.id', read_only=True)
