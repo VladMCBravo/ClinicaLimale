@@ -1,7 +1,7 @@
 // src/pages/FinanceiroPage.jsx
 import React, { useState } from 'react';
 import { Paper, Box, Tabs, Tab } from '@mui/material';
-import { FaMoneyBillWave, FaHandHoldingUsd, FaChartLine, FaFileMedical, FaRegHandshake, FaChartBar } from 'react-icons/fa';
+import { FaMoneyBillWave, FaHandHoldingUsd, FaChartLine, FaFileMedical, FaRegHandshake } from 'react-icons/fa';
 
 // Importa o CSS Global
 import '../components/financeiro/Financeiro.css';
@@ -11,7 +11,6 @@ import ContasReceberView from '../components/financeiro/ContasReceberView';
 import DespesasView from '../components/financeiro/DespesasView';
 import FaturamentoConveniosView from '../components/financeiro/FaturamentoConveniosView';
 import ProcedimentosView from '../components/financeiro/ProcedimentosView';
-import RelatoriosFinanceirosView from '../components/financeiro/RelatoriosFinanceirosView';
 
 function a11yProps(index) {
     return { id: `financeiro-tab-${index}`, 'aria-controls': `financeiro-tabpanel-${index}` };
@@ -30,9 +29,9 @@ export default function FinanceiroPage() {
                     value={activeTab} 
                     onChange={handleChange} 
                     className="fin-tabs-root"
-                    variant="standard" /* Remove a rolagem, tenta caber tudo */
-                    centered={false}   /* Alinha à esquerda (mais profissional) ou true para centralizar */
-                    TabIndicatorProps={{ style: { height: 3, borderRadius: '3px 3px 0 0' } }} // Indicador mais bonito
+                    variant="standard"
+                    centered={false}
+                    TabIndicatorProps={{ style: { height: 3, borderRadius: '3px 3px 0 0' } }}
                 >
                     <Tab 
                         icon={<FaChartLine size={14} />} 
@@ -64,12 +63,6 @@ export default function FinanceiroPage() {
                         {...a11yProps(4)}
                         className="fin-tab-item"
                     />
-                    <Tab
-                        icon={<FaChartBar size={14} />}
-                        label="Relatórios"
-                        {...a11yProps(5)}
-                        className="fin-tab-item"
-                    />
                 </Tabs>
             </Box>
 
@@ -80,7 +73,6 @@ export default function FinanceiroPage() {
                 {activeTab === 2 && <DespesasView />}
                 {activeTab === 3 && <FaturamentoConveniosView />}
                 {activeTab === 4 && <ProcedimentosView />}
-                {activeTab === 5 && <RelatoriosFinanceirosView />}
             </Box>
         </Paper>
     );
