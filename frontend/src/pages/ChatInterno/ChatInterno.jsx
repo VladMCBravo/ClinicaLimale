@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Dialog, Box } from '@mui/material'; // <-- IMPORTAÇÃO NOVA DO MUI
 import { useChat } from '../../contexts/ChatContext';
-import apiClient from '../../api/axiosConfig'; // <-- IMPORTANDO O SEU APICLIENT
+import apiClient from '../../api/axiosConfig';
 import '../../atendimento.css';
 
 const ChatInterno = ({ onClose, token }) => {
-  const { socket, mensagensNaoLidas, isChatOpen, abrirChat, fecharChat } = useChat();
+  const { socket } = useChat();
   const [contatoAtivo, setContatoAtivo] = useState(null);
   const [mensagens, setMensagens] = useState([]);
   const [abaDireita, setAbaDireita] = useState('agendamentos'); 
@@ -42,26 +43,25 @@ const ChatInterno = ({ onClose, token }) => {
     }
   }, [socket]);
 
-  // 2. BUSCAR AGENDAMENTOS DO DIA (Usando apiClient)
+  // 2. BUSCAR AGENDAMENTOS DO DIA (Usando apiClient blindado)
   useEffect(() => {
     if (abaDireita === 'agendamentos') {
       setLoading(true);
       apiClient.get('/agendamentos/hoje/')
         .then(res => {
           const data = res.data;
-          // Blindagem: Garante que é um Array antes de salvar no estado
           setAgendamentosHoje(Array.isArray(data) ? data : (data.results || []));
           setLoading(false);
         })
         .catch(err => {
           console.error("Erro ao buscar agendamentos:", err);
-          setAgendamentosHoje([]); // Array vazio impede quebra de tela
+          setAgendamentosHoje([]); 
           setLoading(false);
         });
     }
   }, [abaDireita]);
 
-  // 3. BUSCAR HISTÓRICO REST (Usando apiClient)
+  // 3. BUSCAR HISTÓRICO REST
   useEffect(() => {
     if (contatoAtivo) {
       setMensagens([]); 
@@ -79,7 +79,7 @@ const ChatInterno = ({ onClose, token }) => {
     }
   }, [contatoAtivo]);
 
-  // 4. BUSCAR PACIENTES (Usando apiClient)
+  // 4. BUSCAR PACIENTES
   const buscarPacientes = (e) => {
     e.preventDefault();
     if (!termoBusca) return;
@@ -98,7 +98,7 @@ const ChatInterno = ({ onClose, token }) => {
       });
   };
 
-  // 5. FUNÇÕES DE ENVIO PARA O CHAT
+  // 5. FUNÇÕES DE ENVIO
   const enviarMensagemTexto = (e) => {
     e.preventDefault();
     const texto = mensagemInputRef.current.value;
@@ -127,126 +127,140 @@ const ChatInterno = ({ onClose, token }) => {
     }
   };
 
+  // RENDERIZAÇÃO BLINDADA COM MUI DIALOG
   return (
-    <div className="tasy-workspace fixed inset-0 bg-black/50 flex justify-center items-center z-[9999]">
-      <div className="tasy-flat-panel w-[95vw] h-[90vh] flex relative flex-row">
-        
+    <Dialog
+      open={true}
+      onClose={onClose}
+      maxWidth={false}
+      PaperProps={{
+        sx: {
+          width: '95vw',
+          maxWidth: '1400px',
+          height: '90vh',
+          display: 'flex',
+          flexDirection: 'row',
+          borderRadius: 2,
+          overflow: 'hidden',
+          backgroundColor: '#f8f9fa'
+        }
+      }}
+    >
         {/* COLUNA ESQUERDA: LISTA DA EQUIPE */}
-        <div className="w-1/4 border-r border-gray-200 flex flex-col bg-white">
-          <div className="tasy-section-header !m-0 !border-x-0 !border-t-0">
+        <Box sx={{ width: '25%', display: 'flex', flexDirection: 'column', borderRight: '1px solid #e5e7eb', bgcolor: '#fff' }}>
+          <div className="p-3 bg-white border-b border-gray-200 text-[#495057] font-bold text-[12px] uppercase tracking-wide">
             Equipe Interna
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
+          <Box sx={{ flex: 1, overflowY: 'auto', p: 1 }}>
             {equipe.map((func) => (
               <div 
                 key={func.id}
                 onClick={() => setContatoAtivo(func)}
-                className={`flex items-center p-2 cursor-pointer border-b border-gray-100 transition-colors ${contatoAtivo?.id === func.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : 'hover:bg-gray-50'}`}
+                className={`flex items-center p-2 mb-1 rounded-md cursor-pointer transition-colors ${contatoAtivo?.id === func.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}
               >
-                <div className={`w-2 h-2 rounded-full mr-3 shadow-sm ${func.is_online ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                <div className={`w-2.5 h-2.5 rounded-full mr-3 shadow-sm ${func.is_online ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                 <span className="text-[13px] text-gray-700 font-semibold">{func.nome}</span>
               </div>
             ))}
-          </div>
-        </div>
+          </Box>
+        </Box>
 
-        {/* COLUNA DO MEIO: CONVERSA E RENDERIZAÇÃO DOS CARDS */}
-        <div className="w-2/4 border-r border-gray-200 flex flex-col bg-[#f8f9fa] relative">
+        {/* COLUNA DO MEIO: CONVERSA */}
+        <Box sx={{ width: '50%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
           {contatoAtivo ? (
             <>
-              <div className="tasy-section-header !m-0 !border-x-0 !border-t-0 flex justify-between items-center">
+              <div className="p-3 bg-white border-b border-gray-200 text-[#495057] font-bold text-[12px] uppercase tracking-wide flex justify-between items-center shadow-sm z-10">
                 <span>Conversando com: {contatoAtivo.nome}</span>
               </div>
-              <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-2">
+              
+              <Box sx={{ flex: 1, p: 3, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 {mensagens.map((msg, idx) => (
-                  <div key={idx} className={`max-w-[75%] ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}>
+                  <div key={idx} className={`max-w-[80%] ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}>
                     {msg.attachment_type === 'appointment' ? (
-                      <div className="tasy-panel theme-blue !mb-0 shadow-sm border border-[#1c7ed6]">
-                        <div className="tasy-panel-header !bg-[#e7f5ff]">
-                          <div className="tasy-panel-title text-[#1864ab]">📅 Ficha de Agendamento</div>
+                      <div className="tasy-panel theme-blue shadow-sm border border-[#1c7ed6] rounded-md overflow-hidden bg-white">
+                        <div className="px-3 py-1.5 bg-[#e7f5ff] text-[#1864ab] font-bold text-[11px] uppercase border-b border-[#1c7ed6]">
+                          📅 Ficha de Agendamento
                         </div>
-                        <div className="tasy-panel-body bg-white text-[12px]">
+                        <div className="p-3 text-[12px]">
                           <p className="font-bold text-[#495057]">{msg.content}</p>
                           <button className="mt-2 text-[11px] text-[#1c7ed6] font-bold hover:underline uppercase">Abrir no Sistema</button>
                         </div>
                       </div>
                     ) : msg.attachment_type === 'patient' ? (
-                      <div className="tasy-panel theme-purple !mb-0 shadow-sm border border-[#7048e8]">
-                        <div className="tasy-panel-header !bg-[#f3f0ff]">
-                          <div className="tasy-panel-title text-[#5f3dc4]">👤 Contato de Paciente</div>
+                      <div className="tasy-panel theme-purple shadow-sm border border-[#7048e8] rounded-md overflow-hidden bg-white">
+                        <div className="px-3 py-1.5 bg-[#f3f0ff] text-[#5f3dc4] font-bold text-[11px] uppercase border-b border-[#7048e8]">
+                          👤 Contato de Paciente
                         </div>
-                        <div className="tasy-panel-body bg-white text-[12px]">
+                        <div className="p-3 text-[12px]">
                           <p className="font-bold text-[#495057]">{msg.content}</p>
                         </div>
                       </div>
                     ) : (
-                      <div className={`px-3 py-1.5 text-[13px] rounded-sm border ${msg.sender === 'me' ? 'bg-blue-100 border-blue-200 text-[#222]' : 'bg-white border-gray-300 text-[#222]'}`}>
+                      <div className={`px-3 py-2 text-[13px] rounded-lg shadow-sm border ${msg.sender === 'me' ? 'bg-[#e7f5ff] border-blue-200 text-[#222]' : 'bg-white border-gray-200 text-[#222]'}`}>
                         {msg.content}
                       </div>
                     )}
                   </div>
                 ))}
-              </div>
-              <form onSubmit={enviarMensagemTexto} className="p-2 bg-white border-t border-gray-300 flex gap-2">
+              </Box>
+
+              <form onSubmit={enviarMensagemTexto} className="p-3 bg-white border-t border-gray-200 flex gap-2">
                 <input 
                   type="text" ref={mensagemInputRef} placeholder="Digite sua mensagem..." 
-                  className="flex-1 border border-gray-300 px-3 py-1.5 text-[13px] focus:outline-none focus:border-gray-500 bg-[#f8f9fa] rounded-sm"
+                  className="flex-1 border border-gray-300 px-4 py-2 text-[13px] focus:outline-none focus:border-blue-500 bg-[#f8f9fa] rounded-full transition-colors"
                 />
-                <button type="submit" className="bg-[#495057] hover:bg-[#343a40] text-white px-4 py-1.5 text-[13px] font-bold rounded-sm uppercase tracking-wide">
+                <button type="submit" className="bg-[#1c7ed6] hover:bg-[#1864ab] text-white px-5 py-2 text-[13px] font-bold rounded-full uppercase tracking-wide transition-colors shadow-sm">
                   Enviar
                 </button>
               </form>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-[#adb5bd] text-[13px] font-semibold uppercase">
-              Selecione um contato
+            <div className="flex-1 flex items-center justify-center text-[#adb5bd] text-[13px] font-bold uppercase tracking-widest">
+              Selecione um contato para iniciar
             </div>
           )}
-        </div>
+        </Box>
 
-        {/* COLUNA DIREITA: INTEGRAÇÃO COM DADOS REAIS */}
-        <div className="w-1/4 flex flex-col bg-white relative">
-          <div className="tasy-section-header !m-0 !border-x-0 !border-t-0 flex justify-between items-center">
-            <span>Apoio Clínico</span>
-            <button onClick={onClose} className="text-[#e03131] hover:text-[#c92a2a] text-[11px] font-bold cursor-pointer">✕ FECHAR</button>
+        {/* COLUNA DIREITA: DADOS REAIS */}
+        <Box sx={{ width: '25%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e5e7eb', bgcolor: '#fff' }}>
+          <div className="p-3 bg-white border-b border-gray-200 flex justify-between items-center">
+            <span className="text-[#495057] font-bold text-[12px] uppercase tracking-wide">Apoio Clínico</span>
+            <button onClick={onClose} className="text-[#e03131] hover:text-[#c92a2a] text-[10px] font-bold cursor-pointer uppercase tracking-wider">✕ Fechar</button>
           </div>
+
           <div className="flex text-[11px] font-bold text-gray-500 border-b border-gray-200 bg-[#f8f9fa]">
             <button 
-              className={`flex-1 p-2 uppercase transition-colors ${abaDireita === 'agendamentos' ? 'border-b-2 border-[#868e96] text-[#495057] bg-white' : 'hover:bg-gray-100'}`}
+              className={`flex-1 p-2.5 uppercase transition-colors ${abaDireita === 'agendamentos' ? 'border-b-2 border-[#1c7ed6] text-[#1c7ed6] bg-white' : 'hover:bg-gray-100'}`}
               onClick={() => setAbaDireita('agendamentos')}
             >
               Agendamentos
             </button>
             <button 
-              className={`flex-1 p-2 uppercase transition-colors ${abaDireita === 'busca' ? 'border-b-2 border-[#868e96] text-[#495057] bg-white' : 'hover:bg-gray-100'}`}
+              className={`flex-1 p-2.5 uppercase transition-colors ${abaDireita === 'busca' ? 'border-b-2 border-[#1c7ed6] text-[#1c7ed6] bg-white' : 'hover:bg-gray-100'}`}
               onClick={() => setAbaDireita('busca')}
             >
               Busca
             </button>
           </div>
 
-          <div className="p-3 flex-1 overflow-y-auto">
-            {loading && <div className="text-center text-xs text-gray-400 py-4">Carregando dados...</div>}
+          <Box sx={{ flex: 1, p: 2, overflowY: 'auto' }}>
+            {loading && <div className="text-center text-xs text-gray-400 py-4 font-semibold uppercase">Carregando dados...</div>}
 
             {abaDireita === 'agendamentos' && !loading && (
-              <div>
+              <div className="flex flex-col gap-2">
                 {agendamentosHoje?.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center">Nenhum agendamento para hoje.</p>
+                  <p className="text-xs text-gray-400 text-center mt-4">Nenhum agendamento hoje.</p>
                 ) : (
                   agendamentosHoje?.map(agendamento => (
-                    <div key={agendamento.id} className="tasy-panel theme-blue">
-                      <div className="tasy-panel-header">
-                        <div className="tasy-panel-title">
-                          {agendamento.data_hora ? new Date(agendamento.data_hora).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'} • {agendamento.paciente?.nome || 'Paciente ID: ' + agendamento.paciente}
-                        </div>
+                    <div key={agendamento.id} className="border border-gray-200 rounded-md shadow-sm overflow-hidden bg-white">
+                      <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-700">
+                        {agendamento.data_hora ? new Date(agendamento.data_hora).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'} • {agendamento.paciente?.nome || 'Paciente ID: ' + agendamento.paciente}
                       </div>
-                      <div className="tasy-panel-body">
-                        <div className="text-[12px] text-[#495057] mb-2">{agendamento.procedimento?.nome || 'Consulta Padrão'}</div>
-                        <div className="flex gap-2">
-                          <button onClick={() => enviarCardAgendamento(agendamento)} className="text-[10px] font-bold text-white bg-[#1c7ed6] hover:bg-[#1864ab] px-2 py-1 rounded-sm uppercase">
-                            Enviar p/ Chat
-                          </button>
-                        </div>
+                      <div className="p-3">
+                        <div className="text-[12px] text-[#495057] mb-3 font-medium">{agendamento.procedimento?.nome || 'Consulta Padrão'}</div>
+                        <button onClick={() => enviarCardAgendamento(agendamento)} className="w-full text-[10px] font-bold text-[#1c7ed6] border border-[#1c7ed6] hover:bg-[#e7f5ff] py-1.5 rounded-sm uppercase transition-colors">
+                          Enviar p/ Chat
+                        </button>
                       </div>
                     </div>
                   ))
@@ -256,30 +270,26 @@ const ChatInterno = ({ onClose, token }) => {
 
             {abaDireita === 'busca' && (
               <div>
-                <form onSubmit={buscarPacientes} className="flex gap-1 mb-3">
+                <form onSubmit={buscarPacientes} className="flex gap-1 mb-4">
                   <input 
                     type="text" value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} placeholder="Nome ou CPF..." 
-                    className="flex-1 border border-gray-300 px-3 py-2 text-[13px] bg-[#f8f9fa] focus:outline-none focus:border-gray-500 rounded-sm"
+                    className="flex-1 border border-gray-300 px-3 py-2 text-[12px] bg-[#f8f9fa] focus:outline-none focus:border-blue-500 rounded-sm"
                   />
-                  <button type="submit" className="bg-[#495057] text-white px-2 rounded-sm text-[11px] font-bold">BUSCAR</button>
+                  <button type="submit" className="bg-[#495057] hover:bg-[#343a40] text-white px-3 rounded-sm text-[11px] font-bold transition-colors">BUSCAR</button>
                 </form>
-                {!loading && resultadosBusca?.map(paciente => (
-                  <div key={paciente.id} className="tasy-panel theme-purple">
-                    <div className="tasy-panel-header">
-                      <div className="tasy-panel-title">{paciente.nome}</div>
+                <div className="flex flex-col gap-2">
+                  {!loading && resultadosBusca?.map(paciente => (
+                    <div key={paciente.id} className="border border-gray-200 rounded-md shadow-sm overflow-hidden bg-white">
+                      <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-700">{paciente.nome}</div>
+                      <div className="p-3 text-[12px] text-[#495057] font-medium">CPF: {paciente.cpf || 'Não informado'}</div>
                     </div>
-                    <div className="tasy-panel-body">
-                      <div className="text-[12px] text-[#495057] mb-2">CPF: {paciente.cpf || 'Não informado'}</div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
-          </div>
-        </div>
-
-      </div>
-    </div>
+          </Box>
+        </Box>
+    </Dialog>
   );
 };
 
