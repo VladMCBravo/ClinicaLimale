@@ -13,7 +13,12 @@ export const ChatProvider = ({ children }) => {
 
   useEffect(() => {
     if (user && token) {
-      const ws = new WebSocket(`ws://localhost:8000/ws/chat/?token=${token}`);
+      // Regra dinâmica: Se for produção (Vercel), usa a URL do Render. Se for local, usa localhost.
+      const wsUrl = process.env.NODE_ENV === 'production'
+        ? `wss://clinicalimale.onrender.com/ws/chat/?token=${token}`
+        : `ws://localhost:8000/ws/chat/?token=${token}`;
+
+      const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => console.log('🟢 Conectado ao Servidor de Chat Global');
 

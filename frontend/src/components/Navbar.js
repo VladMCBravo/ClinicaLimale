@@ -140,7 +140,6 @@ const Navbar = () => {
                             <NavLink to="/telemedicina"><FaVideo /> <span>Telemedicina</span></NavLink>
                             <NavLink to="/laudos"><FaFileMedical /> <span>Laudos</span></NavLink>
                             <NavLink to="/pacientes"><FaUserFriends /> <span>Pacientes</span></NavLink>
-                            <NavLink to="/chat"><FaComments /> <span>Chat</span></NavLink>
                             {user.isAdmin && (
                                 <>
                                     <NavLink to="/financeiro"><FaFileInvoiceDollar /> <span>Financeiro</span></NavLink>

@@ -15,7 +15,9 @@ const ChatInterno = ({ onClose, token }) => {
   const [loading, setLoading] = useState(false);
 
   const mensagemInputRef = useRef(null);
-  const baseUrl = 'http://localhost:8000'; // Ajuste conforme seu ambiente
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://clinicalimale.onrender.com'
+    : 'http://localhost:8000';
 
   // Estado para armazenar a lista da equipe (simulando que você buscou da API)
   const [equipe, setEquipe] = useState([
