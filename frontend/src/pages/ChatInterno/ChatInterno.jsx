@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useChat } from '../contexts/ChatContext';
+import { useChat } from '../../contexts/ChatContext';
 import '../../atendimento.css';
 
 const ChatInterno = ({ onClose, token }) => {
