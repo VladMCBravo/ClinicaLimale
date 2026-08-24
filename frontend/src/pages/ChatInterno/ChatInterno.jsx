@@ -25,7 +25,7 @@ const ChatInterno = ({ onClose, token }) => {
   const [resultadosBusca, setResultadosBusca] = useState([]);
   const [loadingApoio, setLoadingApoio] = useState(false);
 
-  const mensagemInputRef = useRef(null);
+  const [mensagemAtual, setMensagemAtual] = useState('');
   const mensagensFimRef = useRef(null);
 
   // Rolagem automática para a última mensagem
@@ -123,14 +123,14 @@ const ChatInterno = ({ onClose, token }) => {
   // 6. FUNÇÕES DE ENVIO
   const enviarMensagemTexto = (e) => {
     e.preventDefault();
-    const texto = mensagemInputRef.current?.value;
+    const texto = mensagemAtual;
     if (texto && socket && contatoAtivo) {
       socket.send(JSON.stringify({
         receiver_id: contatoAtivo.id,
         content: texto,
         attachment_type: 'text'
       }));
-      mensagemInputRef.current.value = '';
+      setMensagemAtual('');
     }
   };
 
