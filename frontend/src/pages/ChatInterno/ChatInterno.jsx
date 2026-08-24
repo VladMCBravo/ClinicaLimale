@@ -283,7 +283,8 @@ const ChatInterno = ({ onClose, token }) => {
               {/* INPUT DE MENSAGEM */}
               <Box component="form" onSubmit={enviarMensagemTexto} sx={{ p: 2, bgcolor: '#fff', borderTop: '1px solid #e0e0e0', display: 'flex', gap: 1 }}>
                 <TextField 
-                  inputRef={mensagemInputRef}
+                  value={mensagemAtual}
+                  onChange={(e) => setMensagemAtual(e.target.value)}
                   fullWidth 
                   size="small" 
                   placeholder="Escreva uma mensagem..." 
