@@ -58,6 +58,8 @@ const ChatInterno = ({ onClose, token }) => {
   useEffect(() => {
     if (socket) {
       const handleMessage = (event) => {
+        console.log("📥 [WEBSOCKET RECEBEU]:", event.data); // <-- NOSSO RADAR AQUI
+        
         const data = JSON.parse(event.data);
         if (data.type === 'chat_message') {
           setMensagens((prev) => [...prev, data.message]);
@@ -123,30 +125,36 @@ const ChatInterno = ({ onClose, token }) => {
   // 6. FUNÇÕES DE ENVIO
   const enviarMensagemTexto = (e) => {
     e.preventDefault();
-    const texto = mensagemAtual;
-    if (texto && socket && contatoAtivo) {
-      socket.send(JSON.stringify({
-        receiver_id: contatoAtivo.id,
-        content: texto,
-        attachment_type: 'text'
-      }));
-      setMensagemAtual('');
+    
+    console.log("👉 [DEBUG CHAT] 1. Botão Enviar acionado!");
+    console.log("👉 [DEBUG CHAT] 2. Mensagem digitada:", mensagemAtual);
+    console.log("👉 [DEBUG CHAT] 3. Contato Selecionado:", contatoAtivo ? contatoAtivo.nome_exibicao : 'Nenhum');
+    console.log("👉 [DEBUG CHAT] 4. Existe um socket criado?", !!socket);
+    console.log("👉 [DEBUG CHAT] 5. Qual o status da conexão? (1 = OPEN):", socket ? socket.readyState : 'NULO');
+
+    if (!socket || socket.readyState !== 1) {
+      alert(`Falha! O socket não está conectado. Status atual: ${socket?.readyState}`);
+      return;
     }
-  };
 
-  const enviarCardAgendamento = (agendamento) => {
-    if (socket && contatoAtivo) {
-      // Usando os nomes de variáveis corretos baseados no seu sistema
-      const horaStr = agendamento.data_hora_inicio ? new Date(agendamento.data_hora_inicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
-      const nomePaciente = agendamento.paciente_nome || 'Paciente não informado';
-
-      socket.send(JSON.stringify({
+    if (mensagemAtual.trim() && contatoAtivo) {
+      const payload = {
         receiver_id: contatoAtivo.id,
-        content: `Agendamento: ${nomePaciente} às ${horaStr}`, 
-        attachment_type: 'appointment',
-        attachment_id: agendamento.id,
-        attachment_data: agendamento 
-      }));
+        content: mensagemAtual.trim(),
+        attachment_type: 'text'
+      };
+      
+      console.log("👉 [DEBUG CHAT] 6. Enviando este JSON para o Django:", payload);
+      
+      try {
+        socket.send(JSON.stringify(payload));
+        console.log("👉 [DEBUG CHAT] 7. Disparo realizado com sucesso pro backend!");
+        setMensagemAtual('');
+      } catch (err) {
+        console.error("❌ ERRO ao tentar disparar o socket:", err);
+      }
+    } else {
+      console.warn("👉 [DEBUG CHAT] BLOQUEADO: Ou a mensagem está vazia, ou nenhum contato foi selecionado.");
     }
   };
 
