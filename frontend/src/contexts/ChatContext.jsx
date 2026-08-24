@@ -15,7 +15,7 @@ export const ChatProvider = ({ children }) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   // 2. INSTANCIAR O OBJETO DE ÁUDIO (usando o useState para criar apenas uma vez)
-  const [audioAlerta] = useState(new Audio(somNotificacao));
+  // const [audioAlerta] = useState(new Audio(somNotificacao));
 
   useEffect(() => {
     if (user && token) {
@@ -34,9 +34,9 @@ export const ChatProvider = ({ children }) => {
             // 3. TOCAR O SOM
             // Usamos o .catch porque navegadores bloqueiam áudio se o usuário 
             // não tiver interagido com a página (clicado em algo) previamente.
-            audioAlerta.play().catch((err) => {
-              console.log("O navegador bloqueou o áudio automático:", err);
-            });
+            // audioAlerta.play().catch((err) => {
+            //   console.log("O navegador bloqueou o áudio automático:", err);
+            // });
           }
         }
       };
