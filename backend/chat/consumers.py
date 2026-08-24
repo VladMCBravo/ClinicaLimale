@@ -10,7 +10,7 @@ User = get_user_model()
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope["user"]
-        
+        print("🔍 SCOPE USER:", self.user, "| anonymous?", self.user.is_anonymous)
         if self.user.is_anonymous:
             await self.close()
             return
