@@ -6,16 +6,16 @@ import {
 } from '@mui/material';
 import { Close as CloseIcon, Send as SendIcon, Person as PersonIcon, Event as EventIcon } from '@mui/icons-material';
 import { useChat } from '../../contexts/ChatContext';
-import { useAuth } from '../../hooks/useAuth'; // Para saber quem é o usuário logado
+import { useAuth } from '../../hooks/useAuth'; 
 import apiClient from '../../api/axiosConfig';
 
 const ChatInterno = ({ onClose, token }) => {
-  const { user: currentUser } = useAuth(); // Usuário logado
+  const { user: currentUser } = useAuth(); 
   const { socket } = useChat();
   
   const [contatoAtivo, setContatoAtivo] = useState(null);
   const [mensagens, setMensagens] = useState([]);
-  const [abaDireita, setAbaDireita] = useState(0); // 0 = Agendamentos, 1 = Busca
+  const [abaDireita, setAbaDireita] = useState(0); 
   
   const [equipe, setEquipe] = useState([]);
   const [loadingEquipe, setLoadingEquipe] = useState(true);
@@ -28,7 +28,6 @@ const ChatInterno = ({ onClose, token }) => {
   const [mensagemAtual, setMensagemAtual] = useState('');
   const mensagensFimRef = useRef(null);
 
-  // Rolagem automática para a última mensagem
   useEffect(() => {
     mensagensFimRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensagens]);
@@ -38,15 +37,13 @@ const ChatInterno = ({ onClose, token }) => {
     setLoadingEquipe(true);
     apiClient.get('/usuarios/usuarios/')
       .then(res => {
-        // Filtra apenas usuários ativos e remove o próprio usuário logado da lista
         const usuariosValidos = res.data.filter(u => u.is_active && u.id !== currentUser?.id);
         const equipeFormatada = usuariosValidos.map(u => ({
           ...u,
           nome_exibicao: `${u.first_name} ${u.last_name}`,
-          is_online: false // O WebSocket vai acender isso se a pessoa estiver logada
+          is_online: false 
         }));
         
-        // Ordena por nome
         equipeFormatada.sort((a, b) => a.nome_exibicao.localeCompare(b.nome_exibicao));
         setEquipe(equipeFormatada);
       })
@@ -58,7 +55,7 @@ const ChatInterno = ({ onClose, token }) => {
   useEffect(() => {
     if (socket) {
       const handleMessage = (event) => {
-        console.log("📥 [WEBSOCKET RECEBEU]:", event.data); // <-- NOSSO RADAR AQUI
+        console.log("📥 [WEBSOCKET RECEBEU]:", event.data); 
         
         const data = JSON.parse(event.data);
         if (data.type === 'chat_message') {
@@ -122,7 +119,7 @@ const ChatInterno = ({ onClose, token }) => {
       .finally(() => setLoadingApoio(false));
   };
 
-  // 6. FUNÇÕES DE ENVIO
+  // 6. FUNÇÕES DE ENVIO (COM DEBUGS)
   const enviarMensagemTexto = (e) => {
     e.preventDefault();
     
@@ -158,6 +155,38 @@ const ChatInterno = ({ onClose, token }) => {
     }
   };
 
+  const enviarCardAgendamento = (agendamento) => {
+    console.log("👉 [DEBUG CARD] 1. Botão Enviar Cartão acionado!", agendamento);
+    if (!socket || socket.readyState !== 1) {
+      alert(`Falha! O socket não está conectado. Status atual: ${socket?.readyState}`);
+      return;
+    }
+
+    if (socket && contatoAtivo) {
+      const horaStr = agendamento.data_hora_inicio ? new Date(agendamento.data_hora_inicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+      const nomePaciente = agendamento.paciente_nome || 'Paciente não informado';
+
+      const payload = {
+        receiver_id: contatoAtivo.id,
+        content: `Agendamento: ${nomePaciente} às ${horaStr}`, 
+        attachment_type: 'appointment',
+        attachment_id: agendamento.id,
+        attachment_data: agendamento 
+      };
+
+      console.log("👉 [DEBUG CARD] 2. Enviando JSON:", payload);
+
+      try {
+        socket.send(JSON.stringify(payload));
+        console.log("👉 [DEBUG CARD] 3. Cartão disparado com sucesso!");
+      } catch (err) {
+        console.error("❌ ERRO ao tentar disparar o socket:", err);
+      }
+    } else {
+        console.warn("👉 [DEBUG CARD] BLOQUEADO: Nenhum contato selecionado.");
+    }
+  };
+
   return (
     <Dialog
       open={true}
@@ -168,9 +197,7 @@ const ChatInterno = ({ onClose, token }) => {
         sx: { height: '90vh', display: 'flex', flexDirection: 'row', borderRadius: 2, overflow: 'hidden' }
       }}
     >
-        {/* =========================================================================
-            COLUNA ESQUERDA: LISTA DA EQUIPE
-        ========================================================================= */}
+        {/* COLUNA ESQUERDA: LISTA DA EQUIPE */}
         <Box sx={{ width: '25%', display: 'flex', flexDirection: 'column', borderRight: '1px solid #e0e0e0', bgcolor: '#fff' }}>
           <Box sx={{ p: 2, bgcolor: '#1a233b', color: '#fff', display: 'flex', alignItems: 'center' }}>
             <Typography variant="subtitle1" fontWeight="bold">Comunicação Interna</Typography>
@@ -221,13 +248,10 @@ const ChatInterno = ({ onClose, token }) => {
           </Box>
         </Box>
 
-        {/* =========================================================================
-            COLUNA DO MEIO: ÁREA DO CHAT
-        ========================================================================= */}
+        {/* COLUNA DO MEIO: ÁREA DO CHAT */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', bgcolor: '#f0f2f5', position: 'relative' }}>
           {contatoAtivo ? (
             <>
-              {/* HEADER DO CHAT */}
               <Box sx={{ p: 2, bgcolor: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center' }}>
                 <Avatar sx={{ bgcolor: '#1976d2', mr: 2 }}>{contatoAtivo.nome_exibicao.charAt(0)}</Avatar>
                 <Box>
@@ -236,7 +260,6 @@ const ChatInterno = ({ onClose, token }) => {
                 </Box>
               </Box>
               
-              {/* MENSAGENS */}
               <Box sx={{ flex: 1, p: 3, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {mensagens.map((msg, idx) => {
                   const isMe = msg.sender === 'me';
@@ -244,7 +267,6 @@ const ChatInterno = ({ onClose, token }) => {
                     <Box key={idx} sx={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
                       <Box sx={{ maxWidth: '75%' }}>
                         
-                        {/* RENDERIZAÇÃO CONDICIONAL POR TIPO DE ANEXO */}
                         {msg.attachment_type === 'appointment' ? (
                           <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #90caf9' }}>
                             <Box sx={{ bgcolor: '#e3f2fd', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -267,12 +289,11 @@ const ChatInterno = ({ onClose, token }) => {
                             </Box>
                           </Paper>
                         ) : (
-                          // MENSAGEM DE TEXTO NORMAL
                           <Paper elevation={0} sx={{ 
                             p: 1.5, 
                             px: 2,
                             borderRadius: 2, 
-                            bgcolor: isMe ? '#dcf8c6' : '#fff', // Cor verde estilo WhatsApp para mensagens próprias
+                            bgcolor: isMe ? '#dcf8c6' : '#fff', 
                             border: '1px solid',
                             borderColor: isMe ? '#c8e6c9' : '#e0e0e0',
                             borderTopRightRadius: isMe ? 0 : 8,
@@ -288,7 +309,6 @@ const ChatInterno = ({ onClose, token }) => {
                 <div ref={mensagensFimRef} />
               </Box>
 
-              {/* INPUT DE MENSAGEM */}
               <Box component="form" onSubmit={enviarMensagemTexto} sx={{ p: 2, bgcolor: '#fff', borderTop: '1px solid #e0e0e0', display: 'flex', gap: 1 }}>
                 <TextField 
                   value={mensagemAtual}
@@ -313,9 +333,7 @@ const ChatInterno = ({ onClose, token }) => {
           )}
         </Box>
 
-        {/* =========================================================================
-            COLUNA DIREITA: APOIO CLÍNICO
-        ========================================================================= */}
+        {/* COLUNA DIREITA: APOIO CLÍNICO */}
         <Box sx={{ width: '25%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e0e0e0', bgcolor: '#fff' }}>
           
           <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
@@ -331,7 +349,6 @@ const ChatInterno = ({ onClose, token }) => {
           <Box sx={{ flex: 1, p: 2, overflowY: 'auto', bgcolor: '#f8f9fa' }}>
             {loadingApoio && <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress size={24} /></Box>}
 
-            {/* ABA: AGENDAMENTOS */}
             {abaDireita === 0 && !loadingApoio && (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 {agendamentosHoje?.length === 0 ? (
@@ -366,7 +383,6 @@ const ChatInterno = ({ onClose, token }) => {
               </Box>
             )}
 
-            {/* ABA: BUSCA PACIENTES */}
             {abaDireita === 1 && (
               <Box>
                 <Box component="form" onSubmit={buscarPacientes} sx={{ display: 'flex', gap: 1, mb: 2 }}>
