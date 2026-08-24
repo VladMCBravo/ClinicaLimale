@@ -3,7 +3,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
 // 1. IMPORTAR O ARQUIVO DE SOM
-import somNotificacao from '../assets/notification.mp3'; 
+// import somNotificacao from '../assets/notification.mp3'; 
 
 const ChatContext = createContext();
 export const useChat = () => useContext(ChatContext);

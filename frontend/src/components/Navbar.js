@@ -1,12 +1,11 @@
+// src/components/Navbar.jsx (Trechos corrigidos)
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import apiClient from '../api/axiosConfig'; // <-- IMPORTANDO O SEU APICLIENT AQUI TAMBÉM
-import {
-    FaUserFriends, FaFileInvoiceDollar, FaCog, FaSignOutAlt, 
-    FaTachometerAlt, FaVideo, FaStethoscope, FaFileMedical, 
-    FaClock, FaComments
-} from 'react-icons/fa';
+import apiClient from '../api/axiosConfig';
+import { useChat } from '../contexts/ChatContext'; // 1. IMPORTAR O CONTEXTO AQUI
+import { FaUserFriends, FaFileInvoiceDollar, FaCog, FaSignOutAlt, FaTachometerAlt, FaVideo, FaStethoscope, FaFileMedical, FaClock, FaComments } from 'react-icons/fa';
+
 import { 
     AccessTime, Fingerprint, Input, FreeBreakfast, MeetingRoom 
 } from '@mui/icons-material';
@@ -22,6 +21,8 @@ import './Navbar.css';
 const Navbar = () => {
     const { user, logout, token } = useAuth();
     
+    const { mensagensNaoLidas, isChatOpen, abrirChat, fecharChat } = useChat();
+
     // --- ESTADOS DO MODAL DE PONTO ---
     const [modalPontoOpen, setModalPontoOpen] = useState(false);
     const [horaAtual, setHoraAtual] = useState(new Date());
@@ -31,7 +32,6 @@ const Navbar = () => {
     const [mensagemPonto, setMensagemPonto] = useState({ tipo: '', texto: '' });
     const [localizacao, setLocalizacao] = useState(null);
     const [chatOpen, setChatOpen] = useState(false);
-    const [mensagensNaoLidas, setMensagensNaoLidas] = useState(0);
 
     // Relógio rodando apenas quando o modal está aberto
     useEffect(() => {
@@ -156,7 +156,13 @@ const Navbar = () => {
                         <StatusRobo /> 
                         <span className="user-greeting">Olá, {formatarSaudacao(user)} {user.first_name || ''}</span>
                         <div className="user-actions">
-                            <IconButton onClick={() => setChatOpen(true)} className="icon-button" sx={{ color: '#4caf50' }} title="Chat"></IconButton>
+                            {/* 3. BOTÃO DO CHAT CORRIGIDO COM BADGE E ÍCONE */}
+                            <IconButton onClick={abrirChat} className="icon-button" sx={{ color: '#ffffff' }} title="Chat Interno">
+                                <Badge badgeContent={mensagensNaoLidas} color="error">
+                                    <FaComments />
+                                </Badge>
+                            </IconButton>
+
                             <IconButton onClick={handleAbrirModalPonto} className="icon-button" sx={{ color: '#4caf50' }} title="Bater Ponto">
                                 <FaClock />
                             </IconButton>
@@ -209,11 +215,11 @@ const Navbar = () => {
                     <Button onClick={() => setModalPontoOpen(false)} sx={{ mt: 3, color: 'text.secondary' }}>Cancelar</Button>
                 </DialogContent>
             </Dialog>
-            {/* 4. RENDERIZAÇÃO DO CHAT */}
-            {chatOpen && (
+            {/* 4. RENDERIZANDO O CHAT USANDO A LÓGICA DO CONTEXTO */}
+            {isChatOpen && (
                 <ChatInterno 
-                    onClose={() => setChatOpen(false)} 
-                    token={token || localStorage.getItem('token')} // Passe o token aqui
+                    onClose={fecharChat} 
+                    token={token || localStorage.getItem('token')}
                 />
             )}
         </>
