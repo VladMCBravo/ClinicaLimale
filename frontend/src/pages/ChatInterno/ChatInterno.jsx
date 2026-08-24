@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChat } from '../contexts/ChatContext';
-import './atendimento.css'; 
+import '../../atendimento.css';
 
 const ChatInterno = ({ onClose, token }) => {
   const { socket, mensagensNaoLidas, isChatOpen, abrirChat, fecharChat } = useChat();
