@@ -13,7 +13,7 @@ import {
     IconButton, Dialog, DialogContent, 
     Button, TextField, Typography, Box, Alert, Grid, CircularProgress, Badge
 } from '@mui/material';
-import ChatInterno from './ChatInterno'; // Ajuste o caminho se necessário
+import ChatInterno from '../pages/ChatInterno/ChatInterno';
 import StatusRobo from './StatusRobo';
 import logoImage from '../assets/logo.png';
 import './Navbar.css';
