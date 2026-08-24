@@ -25,7 +25,8 @@ import LaudosPageV2 from './pages/LaudosPageV2';
 import PortalResultados from './pages/PortalResultados';
 import VincularExames from './pages/VincularExames';
 import TelemedicinaPage from './pages/TelemedicinaPage';
-import PontoKioskPage from './pages/PontoKioskPage'; // <-- NOVO IMPORT
+import PontoKioskPage from './pages/PontoKioskPage';
+import { ChatProvider } from './contexts/ChatContext'; 
 import ConfiguracoesPage from './pages/ConfiguracoesPage'; 
 
 import CRMPageBase from './pages/CRM/CRMPageBase';
@@ -54,39 +55,39 @@ function App() {
       <SnackbarProvider>
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
           <Router>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/resultados" element={<PortalResultados />} />
-              {/* --- ROTA DO KIOSK DE PONTO (PÚBLICA) --- */}
-              <Route path="/ponto" element={<PontoKioskPage />} />
-              
-              <Route element={<ProtectedRoute />}>
-                <Route element={<MainLayout />}>
-                  
-                  {/* --- ACESSO GERAL (Médicos, Recepção, Admin) --- */}
-                  <Route path="/" element={<RotaInicialDinamica />} />
-                  <Route path="/painel" element={<PainelRecepcaoPage />} />
-                  <Route path="/laudos" element={<LaudosPage />} />
-                  {/* ROTA OCULTA DO TURING V2 */}
-                  <Route path="/laudos-v2" element={<LaudosPageV2 />} />
-                  <Route path="/vincular" element={<VincularExames />} />
-                  <Route path="/pacientes" element={<PacientesPage />} />
-                  
-                  {/* ROTA DO WORKSPACE CENTRALIZADA */}
-                  <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioWorkspace />} />
+            
+            {/* O CHAT PROVIDER ABRAÇA TODAS AS ROTAS */}
+            <ChatProvider>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/resultados" element={<PortalResultados />} />
+                <Route path="/ponto" element={<PontoKioskPage />} />
+                
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<MainLayout />}>
+                    
+                    <Route path="/" element={<RotaInicialDinamica />} />
+                    <Route path="/painel" element={<PainelRecepcaoPage />} />
+                    <Route path="/laudos" element={<LaudosPage />} />
+                    <Route path="/laudos-v2" element={<LaudosPageV2 />} />
+                    <Route path="/vincular" element={<VincularExames />} />
+                    <Route path="/pacientes" element={<PacientesPage />} />
+                    
+                    <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioWorkspace />} />
 
-                  <Route path="/telemedicina" element={<TelemedicinaPage />} />
-                  <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+                    <Route path="/telemedicina" element={<TelemedicinaPage />} />
+                    <Route path="/configuracoes" element={<ConfiguracoesPage />} />
 
-                  {/* --- ÁREA RESTRITA (ADMINISTRADOR) --- */}
-                  <Route element={<AdminRoute />}>
-                      <Route path="/financeiro/*" element={<FinanceiroPage />} />
-                      <Route path="/crm/kanban" element={<CRMPageBase />} />
+                    <Route element={<AdminRoute />}>
+                        <Route path="/financeiro/*" element={<FinanceiroPage />} />
+                        <Route path="/crm/kanban" element={<CRMPageBase />} />
+                    </Route>
+
                   </Route>
-
                 </Route>
-              </Route>
-            </Routes>
+              </Routes>
+            </ChatProvider> {/* <-- FECHAMENTO CORRIGIDO AQUI (Depois de Routes) */}
+            
           </Router>
         </LocalizationProvider>
       </SnackbarProvider>
