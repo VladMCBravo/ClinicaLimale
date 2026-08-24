@@ -44,6 +44,7 @@ urlpatterns = [
     path('api/usuarios/', include('usuarios.urls')),
     path('api/faturamento/', include('faturamento.urls')),
     path('api/chatbot/', include('chatbot.urls')),
+    path('api/chat/', include('chat.urls')),
     path('api/integracao/pacientes/<int:paciente_id>/', include('integracao_dicom.urls')),
     
     # --- Rotas do Prontuário ---

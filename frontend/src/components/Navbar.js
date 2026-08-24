@@ -5,21 +5,22 @@ import apiClient from '../api/axiosConfig'; // <-- IMPORTANDO O SEU APICLIENT AQ
 import {
     FaUserFriends, FaFileInvoiceDollar, FaCog, FaSignOutAlt, 
     FaTachometerAlt, FaVideo, FaStethoscope, FaFileMedical, 
-    FaClock 
+    FaClock, FaComments
 } from 'react-icons/fa';
 import { 
     AccessTime, Fingerprint, Input, FreeBreakfast, MeetingRoom 
 } from '@mui/icons-material';
 import { 
     IconButton, Dialog, DialogContent, 
-    Button, TextField, Typography, Box, Alert, Grid, CircularProgress
+    Button, TextField, Typography, Box, Alert, Grid, CircularProgress, Badge
 } from '@mui/material';
+import ChatInterno from './ChatInterno'; // Ajuste o caminho se necessário
 import StatusRobo from './StatusRobo';
 import logoImage from '../assets/logo.png';
 import './Navbar.css';
 
 const Navbar = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, token } = useAuth();
     
     // --- ESTADOS DO MODAL DE PONTO ---
     const [modalPontoOpen, setModalPontoOpen] = useState(false);
@@ -29,6 +30,8 @@ const Navbar = () => {
     const [loadingPonto, setLoadingPonto] = useState(false);
     const [mensagemPonto, setMensagemPonto] = useState({ tipo: '', texto: '' });
     const [localizacao, setLocalizacao] = useState(null);
+    const [chatOpen, setChatOpen] = useState(false);
+    const [mensagensNaoLidas, setMensagensNaoLidas] = useState(0);
 
     // Relógio rodando apenas quando o modal está aberto
     useEffect(() => {
@@ -137,6 +140,7 @@ const Navbar = () => {
                             <NavLink to="/telemedicina"><FaVideo /> <span>Telemedicina</span></NavLink>
                             <NavLink to="/laudos"><FaFileMedical /> <span>Laudos</span></NavLink>
                             <NavLink to="/pacientes"><FaUserFriends /> <span>Pacientes</span></NavLink>
+                            <NavLink to="/chat"><FaComments /> <span>Chat</span></NavLink>
                             {user.isAdmin && (
                                 <>
                                     <NavLink to="/financeiro"><FaFileInvoiceDollar /> <span>Financeiro</span></NavLink>
@@ -152,7 +156,7 @@ const Navbar = () => {
                         <StatusRobo /> 
                         <span className="user-greeting">Olá, {formatarSaudacao(user)} {user.first_name || ''}</span>
                         <div className="user-actions">
-                            
+                            <IconButton onClick={() => setChatOpen(true)} className="icon-button" sx={{ color: '#4caf50' }} title="Chat"></IconButton>
                             <IconButton onClick={handleAbrirModalPonto} className="icon-button" sx={{ color: '#4caf50' }} title="Bater Ponto">
                                 <FaClock />
                             </IconButton>
@@ -205,6 +209,13 @@ const Navbar = () => {
                     <Button onClick={() => setModalPontoOpen(false)} sx={{ mt: 3, color: 'text.secondary' }}>Cancelar</Button>
                 </DialogContent>
             </Dialog>
+            {/* 4. RENDERIZAÇÃO DO CHAT */}
+            {chatOpen && (
+                <ChatInterno 
+                    onClose={() => setChatOpen(false)} 
+                    token={token || localStorage.getItem('token')} // Passe o token aqui
+                />
+            )}
         </>
     );
 };

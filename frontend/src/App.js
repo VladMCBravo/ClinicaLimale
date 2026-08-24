@@ -26,6 +26,7 @@ import PortalResultados from './pages/PortalResultados';
 import VincularExames from './pages/VincularExames';
 import TelemedicinaPage from './pages/TelemedicinaPage';
 import PontoKioskPage from './pages/PontoKioskPage'; // <-- NOVO IMPORT
+import { ChatProvider } from './contexts/ChatContext'; // <-- NOVO IMPORT
 import ConfiguracoesPage from './pages/ConfiguracoesPage'; 
 
 import CRMPageBase from './pages/CRM/CRMPageBase';

@@ -1,28 +1,31 @@
-# core/asgi.py - VERSÃO CORRIGIDA
+# core/asgi.py
 
 import os
 from django.core.asgi import get_asgi_application
 
 # 1. Inicializa o Django PRIMEIRO.
-# Esta linha efetivamente chama django.setup() e carrega os apps.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django_asgi_app = get_asgi_application()
 
-# 2. AGORA que o Django está pronto, podemos importar
-#    componentes que dependem dele, como o routing.
+# 2. AGORA que o Django está pronto, podemos importar as rotas
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
+
 import chatbot.routing
+import chat.routing  # <- NOVO: Importamos as rotas do chat interno
 
-# Esta é a configuração principal do Channels.
+# 3. Somamos as listas de rotas dos dois apps
+combined_websocket_urlpatterns = (
+    chatbot.routing.websocket_urlpatterns + 
+    chat.routing.websocket_urlpatterns
+)
+
+# 4. Configuração principal do Channels
 application = ProtocolTypeRouter({
-    # Para requisições HTTP, usa a aplicação que já inicializamos.
     "http": django_asgi_app,
-
-    # Para conexões WebSocket, agora é seguro carregar as rotas.
     "websocket": AuthMiddlewareStack(
         URLRouter(
-            chatbot.routing.websocket_urlpatterns
+            combined_websocket_urlpatterns  # <- Usamos as rotas combinadas aqui
         )
     ),
 })

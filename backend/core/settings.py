@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     'faturamento',
     'dashboard',
     'chatbot',
+    'chat',
     'channels',
     'integracao_dicom',
     'laudos',
