@@ -1,50 +1,69 @@
 // src/contexts/ChatContext.jsx
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
 const ChatContext = createContext();
 export const useChat = () => useContext(ChatContext);
 
 export const ChatProvider = ({ children }) => {
-  const { user } = useAuth(); // Puxamos apenas o user do Hook
+  // 1. Puxa as variáveis de forma segura do hook
+  const auth = useAuth() || {};
+  const user = auth.user;
+  const token = auth.token;
+
   const [socket, setSocket] = useState(null);
   const [mensagensNaoLidas, setMensagensNaoLidas] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  useEffect(() => {
-    // 1. Buscamos o token diretamente da raiz do navegador com garantia!
-    const tokenSeguro = localStorage.getItem('token');
+  // 2. O SEGREDO: Usamos Refs para que o WebSocket consiga ler esses valores
+  // sem precisar reiniciar a conexão toda vez que a janela abre/fecha!
+  const isChatOpenRef = useRef(isChatOpen);
+  const userRef = useRef(user);
 
-    if (user && tokenSeguro) {
-      // 2. Apontamento dinâmico: Render em Produção, Localhost em testes
+  useEffect(() => { isChatOpenRef.current = isChatOpen; }, [isChatOpen]);
+  useEffect(() => { userRef.current = user; }, [user]);
+
+  // 3. MOTOR DE CONEXÃO BLINDADO
+  useEffect(() => {
+    // Busca o token do hook ou do cofre local
+    const tokenSeguro = token || localStorage.getItem('token') || localStorage.getItem('access');
+
+    if (tokenSeguro) {
       const wsUrl = process.env.NODE_ENV === 'production'
         ? `wss://clinicalimale.onrender.com/ws/chat/?token=${tokenSeguro}`
         : `ws://localhost:8000/ws/chat/?token=${tokenSeguro}`;
 
-      console.log("👉 [DEBUG CONTEXTO] Iniciando WebSocket em:", wsUrl);
-
+      console.log("👉 [DEBUG WS] Iniciando motor WebSocket...");
       const ws = new WebSocket(wsUrl);
 
-      ws.onopen = () => console.log('🟢 [WEBSOCKET] Conectado ao Servidor de Chat Global!');
-      
-      ws.onerror = (error) => console.error('🔴 [WEBSOCKET] Erro de conexão:', error);
+      ws.onopen = () => {
+          console.log('🟢 [WEBSOCKET] Conectado e PRONTO!');
+          setSocket(ws);
+      };
+
+      ws.onclose = () => {
+          console.log('⚪ [WEBSOCKET] Conexão encerrada.');
+          setSocket(null);
+      };
+
+      ws.onerror = (err) => console.error('🔴 [WEBSOCKET] Erro:', err);
 
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.type === 'chat_message') {
-          if (data.message.sender_id !== user.id && !isChatOpen) {
+          // Lemos os valores a partir do Ref (sem reiniciar a conexão)
+          const currentUser = userRef.current;
+          const chatAberto = isChatOpenRef.current;
+
+          if (currentUser && data.message.sender_id !== currentUser.id && !chatAberto) {
             setMensagensNaoLidas((prev) => prev + 1);
           }
         }
       };
 
-      setSocket(ws);
-      
       return () => ws.close();
-    } else {
-      console.warn("👉 [DEBUG CONTEXTO] Conexão abortada. User:", !!user, "Token:", !!tokenSeguro);
     }
-  }, [user, isChatOpen]); 
+  }, [token]); // Depende APENAS do Token. Só reconecta se o usuário deslogar/logar.
 
   const abrirChat = () => {
     setIsChatOpen(true);
