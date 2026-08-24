@@ -1,29 +1,60 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, Box } from '@mui/material'; // <-- IMPORTAÇÃO NOVA DO MUI
+import { 
+  Dialog, Box, Typography, IconButton, TextField, Button, 
+  List, ListItem, ListItemAvatar, ListItemText, Avatar, Badge,
+  CircularProgress, Divider, Tabs, Tab, Paper
+} from '@mui/material';
+import { Close as CloseIcon, Send as SendIcon, Person as PersonIcon, Event as EventIcon } from '@mui/icons-material';
 import { useChat } from '../../contexts/ChatContext';
+import { useAuth } from '../../hooks/useAuth'; // Para saber quem é o usuário logado
 import apiClient from '../../api/axiosConfig';
-import '../../atendimento.css';
 
 const ChatInterno = ({ onClose, token }) => {
+  const { user: currentUser } = useAuth(); // Usuário logado
   const { socket } = useChat();
+  
   const [contatoAtivo, setContatoAtivo] = useState(null);
   const [mensagens, setMensagens] = useState([]);
-  const [abaDireita, setAbaDireita] = useState('agendamentos'); 
+  const [abaDireita, setAbaDireita] = useState(0); // 0 = Agendamentos, 1 = Busca
+  
+  const [equipe, setEquipe] = useState([]);
+  const [loadingEquipe, setLoadingEquipe] = useState(true);
   
   const [agendamentosHoje, setAgendamentosHoje] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   const [resultadosBusca, setResultadosBusca] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingApoio, setLoadingApoio] = useState(false);
 
   const mensagemInputRef = useRef(null);
+  const mensagensFimRef = useRef(null);
 
-  const [equipe, setEquipe] = useState([
-    { id: 2, nome: 'Dra. Ana', is_online: false },
-    { id: 3, nome: 'Recepção - Maria', is_online: false },
-    { id: 4, nome: 'Dr. Carlos', is_online: false },
-  ]);
+  // Rolagem automática para a última mensagem
+  useEffect(() => {
+    mensagensFimRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [mensagens]);
 
-  // 1. OUVINTE DO WEBSOCKET
+  // 1. BUSCAR EQUIPE REAL
+  useEffect(() => {
+    setLoadingEquipe(true);
+    apiClient.get('/usuarios/usuarios/')
+      .then(res => {
+        // Filtra apenas usuários ativos e remove o próprio usuário logado da lista
+        const usuariosValidos = res.data.filter(u => u.is_active && u.id !== currentUser?.id);
+        const equipeFormatada = usuariosValidos.map(u => ({
+          ...u,
+          nome_exibicao: `${u.first_name} ${u.last_name}`,
+          is_online: false // O WebSocket vai acender isso se a pessoa estiver logada
+        }));
+        
+        // Ordena por nome
+        equipeFormatada.sort((a, b) => a.nome_exibicao.localeCompare(b.nome_exibicao));
+        setEquipe(equipeFormatada);
+      })
+      .catch(err => console.error("Erro ao buscar equipe:", err))
+      .finally(() => setLoadingEquipe(false));
+  }, [currentUser]);
+
+  // 2. OUVINTE DO WEBSOCKET (Mensagens e Status)
   useEffect(() => {
     if (socket) {
       const handleMessage = (event) => {
@@ -43,25 +74,7 @@ const ChatInterno = ({ onClose, token }) => {
     }
   }, [socket]);
 
-  // 2. BUSCAR AGENDAMENTOS DO DIA (Usando apiClient blindado)
-  useEffect(() => {
-    if (abaDireita === 'agendamentos') {
-      setLoading(true);
-      apiClient.get('/agendamentos/hoje/')
-        .then(res => {
-          const data = res.data;
-          setAgendamentosHoje(Array.isArray(data) ? data : (data.results || []));
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error("Erro ao buscar agendamentos:", err);
-          setAgendamentosHoje([]); 
-          setLoading(false);
-        });
-    }
-  }, [abaDireita]);
-
-  // 3. BUSCAR HISTÓRICO REST
+  // 3. BUSCAR HISTÓRICO REST AO CLICAR NUM CONTATO
   useEffect(() => {
     if (contatoAtivo) {
       setMensagens([]); 
@@ -79,29 +92,38 @@ const ChatInterno = ({ onClose, token }) => {
     }
   }, [contatoAtivo]);
 
-  // 4. BUSCAR PACIENTES
+  // 4. BUSCAR AGENDAMENTOS DO DIA
+  useEffect(() => {
+    if (abaDireita === 0) {
+      setLoadingApoio(true);
+      apiClient.get('/agendamentos/hoje/')
+        .then(res => {
+          const data = res.data;
+          setAgendamentosHoje(Array.isArray(data) ? data : (data.results || []));
+        })
+        .catch(err => console.error("Erro ao buscar agendamentos:", err))
+        .finally(() => setLoadingApoio(false));
+    }
+  }, [abaDireita]);
+
+  // 5. BUSCAR PACIENTES
   const buscarPacientes = (e) => {
     e.preventDefault();
     if (!termoBusca) return;
-    
-    setLoading(true);
+    setLoadingApoio(true);
     apiClient.get(`/pacientes/?search=${termoBusca}`)
       .then(res => {
         const data = res.data;
         setResultadosBusca(Array.isArray(data) ? data : (data.results || []));
-        setLoading(false);
       })
-      .catch(err => {
-        console.error("Erro ao buscar pacientes:", err);
-        setResultadosBusca([]);
-        setLoading(false);
-      });
+      .catch(err => console.error("Erro ao buscar pacientes:", err))
+      .finally(() => setLoadingApoio(false));
   };
 
-  // 5. FUNÇÕES DE ENVIO
+  // 6. FUNÇÕES DE ENVIO
   const enviarMensagemTexto = (e) => {
     e.preventDefault();
-    const texto = mensagemInputRef.current.value;
+    const texto = mensagemInputRef.current?.value;
     if (texto && socket && contatoAtivo) {
       socket.send(JSON.stringify({
         receiver_id: contatoAtivo.id,
@@ -114,8 +136,9 @@ const ChatInterno = ({ onClose, token }) => {
 
   const enviarCardAgendamento = (agendamento) => {
     if (socket && contatoAtivo) {
-      const horaStr = agendamento.data_hora ? new Date(agendamento.data_hora).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
-      const nomePaciente = agendamento.paciente?.nome || 'Paciente não informado';
+      // Usando os nomes de variáveis corretos baseados no seu sistema
+      const horaStr = agendamento.data_hora_inicio ? new Date(agendamento.data_hora_inicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+      const nomePaciente = agendamento.paciente_nome || 'Paciente não informado';
 
       socket.send(JSON.stringify({
         receiver_id: contatoAtivo.id,
@@ -127,165 +150,233 @@ const ChatInterno = ({ onClose, token }) => {
     }
   };
 
-  // RENDERIZAÇÃO BLINDADA COM MUI DIALOG
   return (
     <Dialog
       open={true}
       onClose={onClose}
-      maxWidth={false}
+      maxWidth="xl"
+      fullWidth
       PaperProps={{
-        sx: {
-          width: '95vw',
-          maxWidth: '1400px',
-          height: '90vh',
-          display: 'flex',
-          flexDirection: 'row',
-          borderRadius: 2,
-          overflow: 'hidden',
-          backgroundColor: '#f8f9fa'
-        }
+        sx: { height: '90vh', display: 'flex', flexDirection: 'row', borderRadius: 2, overflow: 'hidden' }
       }}
     >
-        {/* COLUNA ESQUERDA: LISTA DA EQUIPE */}
-        <Box sx={{ width: '25%', display: 'flex', flexDirection: 'column', borderRight: '1px solid #e5e7eb', bgcolor: '#fff' }}>
-          <div className="p-3 bg-white border-b border-gray-200 text-[#495057] font-bold text-[12px] uppercase tracking-wide">
-            Equipe Interna
-          </div>
-          <Box sx={{ flex: 1, overflowY: 'auto', p: 1 }}>
-            {equipe.map((func) => (
-              <div 
-                key={func.id}
-                onClick={() => setContatoAtivo(func)}
-                className={`flex items-center p-2 mb-1 rounded-md cursor-pointer transition-colors ${contatoAtivo?.id === func.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50 border-l-4 border-transparent'}`}
-              >
-                <div className={`w-2.5 h-2.5 rounded-full mr-3 shadow-sm ${func.is_online ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                <span className="text-[13px] text-gray-700 font-semibold">{func.nome}</span>
-              </div>
-            ))}
+        {/* =========================================================================
+            COLUNA ESQUERDA: LISTA DA EQUIPE
+        ========================================================================= */}
+        <Box sx={{ width: '25%', display: 'flex', flexDirection: 'column', borderRight: '1px solid #e0e0e0', bgcolor: '#fff' }}>
+          <Box sx={{ p: 2, bgcolor: '#1a233b', color: '#fff', display: 'flex', alignItems: 'center' }}>
+            <Typography variant="subtitle1" fontWeight="bold">Comunicação Interna</Typography>
+          </Box>
+          
+          <Box sx={{ flex: 1, overflowY: 'auto' }}>
+            {loadingEquipe ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress size={30} /></Box>
+            ) : (
+              <List disablePadding>
+                {equipe.map((func) => (
+                  <React.Fragment key={func.id}>
+                    <ListItem 
+                      button 
+                      selected={contatoAtivo?.id === func.id}
+                      onClick={() => setContatoAtivo(func)}
+                      sx={{ 
+                        '&.Mui-selected': { bgcolor: '#e3f2fd', borderLeft: '4px solid #1976d2' },
+                        '&:hover': { bgcolor: '#f5f5f5' },
+                        borderLeft: '4px solid transparent'
+                      }}
+                    >
+                      <ListItemAvatar>
+                        <Badge 
+                          overlap="circular" 
+                          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                          variant="dot"
+                          color={func.is_online ? "success" : "error"}
+                          sx={{ '& .MuiBadge-badge': { border: '2px solid white' } }}
+                        >
+                          <Avatar sx={{ bgcolor: func.cargo === 'medico' ? '#0288d1' : '#7b1fa2' }}>
+                            {func.nome_exibicao.charAt(0)}
+                          </Avatar>
+                        </Badge>
+                      </ListItemAvatar>
+                      <ListItemText 
+                        primary={func.nome_exibicao} 
+                        secondary={func.cargo}
+                        primaryTypographyProps={{ fontWeight: contatoAtivo?.id === func.id ? 'bold' : 'normal', fontSize: '0.9rem' }}
+                        secondaryTypographyProps={{ textTransform: 'capitalize', fontSize: '0.75rem' }}
+                      />
+                    </ListItem>
+                    <Divider component="li" />
+                  </React.Fragment>
+                ))}
+              </List>
+            )}
           </Box>
         </Box>
 
-        {/* COLUNA DO MEIO: CONVERSA */}
-        <Box sx={{ width: '50%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        {/* =========================================================================
+            COLUNA DO MEIO: ÁREA DO CHAT
+        ========================================================================= */}
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', bgcolor: '#f0f2f5', position: 'relative' }}>
           {contatoAtivo ? (
             <>
-              <div className="p-3 bg-white border-b border-gray-200 text-[#495057] font-bold text-[12px] uppercase tracking-wide flex justify-between items-center shadow-sm z-10">
-                <span>Conversando com: {contatoAtivo.nome}</span>
-              </div>
+              {/* HEADER DO CHAT */}
+              <Box sx={{ p: 2, bgcolor: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center' }}>
+                <Avatar sx={{ bgcolor: '#1976d2', mr: 2 }}>{contatoAtivo.nome_exibicao.charAt(0)}</Avatar>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{contatoAtivo.nome_exibicao}</Typography>
+                  <Typography variant="caption" color="text.secondary" textTransform="capitalize">{contatoAtivo.cargo}</Typography>
+                </Box>
+              </Box>
               
-              <Box sx={{ flex: 1, p: 3, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                {mensagens.map((msg, idx) => (
-                  <div key={idx} className={`max-w-[80%] ${msg.sender === 'me' ? 'self-end' : 'self-start'}`}>
-                    {msg.attachment_type === 'appointment' ? (
-                      <div className="tasy-panel theme-blue shadow-sm border border-[#1c7ed6] rounded-md overflow-hidden bg-white">
-                        <div className="px-3 py-1.5 bg-[#e7f5ff] text-[#1864ab] font-bold text-[11px] uppercase border-b border-[#1c7ed6]">
-                          📅 Ficha de Agendamento
-                        </div>
-                        <div className="p-3 text-[12px]">
-                          <p className="font-bold text-[#495057]">{msg.content}</p>
-                          <button className="mt-2 text-[11px] text-[#1c7ed6] font-bold hover:underline uppercase">Abrir no Sistema</button>
-                        </div>
-                      </div>
-                    ) : msg.attachment_type === 'patient' ? (
-                      <div className="tasy-panel theme-purple shadow-sm border border-[#7048e8] rounded-md overflow-hidden bg-white">
-                        <div className="px-3 py-1.5 bg-[#f3f0ff] text-[#5f3dc4] font-bold text-[11px] uppercase border-b border-[#7048e8]">
-                          👤 Contato de Paciente
-                        </div>
-                        <div className="p-3 text-[12px]">
-                          <p className="font-bold text-[#495057]">{msg.content}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className={`px-3 py-2 text-[13px] rounded-lg shadow-sm border ${msg.sender === 'me' ? 'bg-[#e7f5ff] border-blue-200 text-[#222]' : 'bg-white border-gray-200 text-[#222]'}`}>
-                        {msg.content}
-                      </div>
-                    )}
-                  </div>
-                ))}
+              {/* MENSAGENS */}
+              <Box sx={{ flex: 1, p: 3, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {mensagens.map((msg, idx) => {
+                  const isMe = msg.sender === 'me';
+                  return (
+                    <Box key={idx} sx={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                      <Box sx={{ maxWidth: '75%' }}>
+                        
+                        {/* RENDERIZAÇÃO CONDICIONAL POR TIPO DE ANEXO */}
+                        {msg.attachment_type === 'appointment' ? (
+                          <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #90caf9' }}>
+                            <Box sx={{ bgcolor: '#e3f2fd', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <EventIcon color="primary" fontSize="small" />
+                              <Typography variant="caption" fontWeight="bold" color="primary">FICHA DE AGENDAMENTO</Typography>
+                            </Box>
+                            <Box sx={{ p: 2, bgcolor: '#fff' }}>
+                              <Typography variant="body2" fontWeight="bold" sx={{ color: '#333' }}>{msg.content}</Typography>
+                              <Button size="small" variant="outlined" sx={{ mt: 1, textTransform: 'none' }}>Ver no Prontuário</Button>
+                            </Box>
+                          </Paper>
+                        ) : msg.attachment_type === 'patient' ? (
+                          <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #ce93d8' }}>
+                            <Box sx={{ bgcolor: '#f3e5f5', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <PersonIcon color="secondary" fontSize="small" />
+                              <Typography variant="caption" fontWeight="bold" color="secondary">CONTATO DE PACIENTE</Typography>
+                            </Box>
+                            <Box sx={{ p: 2, bgcolor: '#fff' }}>
+                              <Typography variant="body2" fontWeight="bold" sx={{ color: '#333' }}>{msg.content}</Typography>
+                            </Box>
+                          </Paper>
+                        ) : (
+                          // MENSAGEM DE TEXTO NORMAL
+                          <Paper elevation={0} sx={{ 
+                            p: 1.5, 
+                            px: 2,
+                            borderRadius: 2, 
+                            bgcolor: isMe ? '#dcf8c6' : '#fff', // Cor verde estilo WhatsApp para mensagens próprias
+                            border: '1px solid',
+                            borderColor: isMe ? '#c8e6c9' : '#e0e0e0',
+                            borderTopRightRadius: isMe ? 0 : 8,
+                            borderTopLeftRadius: !isMe ? 0 : 8,
+                          }}>
+                            <Typography variant="body2" sx={{ color: '#222' }}>{msg.content}</Typography>
+                          </Paper>
+                        )}
+                      </Box>
+                    </Box>
+                  );
+                })}
+                <div ref={mensagensFimRef} />
               </Box>
 
-              <form onSubmit={enviarMensagemTexto} className="p-3 bg-white border-t border-gray-200 flex gap-2">
-                <input 
-                  type="text" ref={mensagemInputRef} placeholder="Digite sua mensagem..." 
-                  className="flex-1 border border-gray-300 px-4 py-2 text-[13px] focus:outline-none focus:border-blue-500 bg-[#f8f9fa] rounded-full transition-colors"
+              {/* INPUT DE MENSAGEM */}
+              <Box component="form" onSubmit={enviarMensagemTexto} sx={{ p: 2, bgcolor: '#fff', borderTop: '1px solid #e0e0e0', display: 'flex', gap: 1 }}>
+                <TextField 
+                  inputRef={mensagemInputRef}
+                  fullWidth 
+                  size="small" 
+                  placeholder="Escreva uma mensagem..." 
+                  variant="outlined"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 5, bgcolor: '#f8f9fa' } }}
                 />
-                <button type="submit" className="bg-[#1c7ed6] hover:bg-[#1864ab] text-white px-5 py-2 text-[13px] font-bold rounded-full uppercase tracking-wide transition-colors shadow-sm">
-                  Enviar
-                </button>
-              </form>
+                <IconButton type="submit" color="primary" sx={{ bgcolor: '#1976d2', color: '#fff', '&:hover': { bgcolor: '#1565c0' } }}>
+                  <SendIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-[#adb5bd] text-[13px] font-bold uppercase tracking-widest">
-              Selecione um contato para iniciar
-            </div>
+            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Typography variant="button" color="text.secondary" sx={{ letterSpacing: 1 }}>
+                Selecione um membro da equipe para iniciar
+              </Typography>
+            </Box>
           )}
         </Box>
 
-        {/* COLUNA DIREITA: DADOS REAIS */}
-        <Box sx={{ width: '25%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e5e7eb', bgcolor: '#fff' }}>
-          <div className="p-3 bg-white border-b border-gray-200 flex justify-between items-center">
-            <span className="text-[#495057] font-bold text-[12px] uppercase tracking-wide">Apoio Clínico</span>
-            <button onClick={onClose} className="text-[#e03131] hover:text-[#c92a2a] text-[10px] font-bold cursor-pointer uppercase tracking-wider">✕ Fechar</button>
-          </div>
+        {/* =========================================================================
+            COLUNA DIREITA: APOIO CLÍNICO
+        ========================================================================= */}
+        <Box sx={{ width: '25%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e0e0e0', bgcolor: '#fff' }}>
+          
+          <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+            <Tabs value={abaDireita} onChange={(e, val) => setAbaDireita(val)} sx={{ minHeight: 36 }}>
+              <Tab label="Agenda Hoje" sx={{ minHeight: 36, py: 0, fontSize: '0.75rem', fontWeight: 'bold' }} />
+              <Tab label="Pacientes" sx={{ minHeight: 36, py: 0, fontSize: '0.75rem', fontWeight: 'bold' }} />
+            </Tabs>
+            <IconButton size="small" onClick={onClose} sx={{ color: '#d32f2f' }} title="Fechar Chat">
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
 
-          <div className="flex text-[11px] font-bold text-gray-500 border-b border-gray-200 bg-[#f8f9fa]">
-            <button 
-              className={`flex-1 p-2.5 uppercase transition-colors ${abaDireita === 'agendamentos' ? 'border-b-2 border-[#1c7ed6] text-[#1c7ed6] bg-white' : 'hover:bg-gray-100'}`}
-              onClick={() => setAbaDireita('agendamentos')}
-            >
-              Agendamentos
-            </button>
-            <button 
-              className={`flex-1 p-2.5 uppercase transition-colors ${abaDireita === 'busca' ? 'border-b-2 border-[#1c7ed6] text-[#1c7ed6] bg-white' : 'hover:bg-gray-100'}`}
-              onClick={() => setAbaDireita('busca')}
-            >
-              Busca
-            </button>
-          </div>
+          <Box sx={{ flex: 1, p: 2, overflowY: 'auto', bgcolor: '#f8f9fa' }}>
+            {loadingApoio && <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress size={24} /></Box>}
 
-          <Box sx={{ flex: 1, p: 2, overflowY: 'auto' }}>
-            {loading && <div className="text-center text-xs text-gray-400 py-4 font-semibold uppercase">Carregando dados...</div>}
-
-            {abaDireita === 'agendamentos' && !loading && (
-              <div className="flex flex-col gap-2">
+            {/* ABA: AGENDAMENTOS */}
+            {abaDireita === 0 && !loadingApoio && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 {agendamentosHoje?.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center mt-4">Nenhum agendamento hoje.</p>
+                  <Typography variant="body2" color="text.secondary" align="center" mt={2}>Agenda vazia hoje.</Typography>
                 ) : (
                   agendamentosHoje?.map(agendamento => (
-                    <div key={agendamento.id} className="border border-gray-200 rounded-md shadow-sm overflow-hidden bg-white">
-                      <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-700">
-                        {agendamento.data_hora ? new Date(agendamento.data_hora).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'} • {agendamento.paciente?.nome || 'Paciente ID: ' + agendamento.paciente}
-                      </div>
-                      <div className="p-3">
-                        <div className="text-[12px] text-[#495057] mb-3 font-medium">{agendamento.procedimento?.nome || 'Consulta Padrão'}</div>
-                        <button onClick={() => enviarCardAgendamento(agendamento)} className="w-full text-[10px] font-bold text-[#1c7ed6] border border-[#1c7ed6] hover:bg-[#e7f5ff] py-1.5 rounded-sm uppercase transition-colors">
-                          Enviar p/ Chat
-                        </button>
-                      </div>
-                    </div>
+                    <Paper key={agendamento.id} elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
+                      <Box sx={{ bgcolor: '#f5f5f5', px: 1.5, py: 1, borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="caption" fontWeight="bold" color="text.secondary">
+                          {agendamento.data_hora_inicio ? new Date(agendamento.data_hora_inicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">ID: {agendamento.paciente_id || agendamento.paciente}</Typography>
+                      </Box>
+                      <Box sx={{ p: 1.5 }}>
+                        <Typography variant="body2" fontWeight="bold" noWrap>{agendamento.paciente_nome}</Typography>
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }} noWrap>
+                          {agendamento.procedimento_descricao || 'Consulta Padrão'}
+                        </Typography>
+                        <Button 
+                          fullWidth 
+                          size="small" 
+                          variant="outlined" 
+                          onClick={() => enviarCardAgendamento(agendamento)}
+                          sx={{ textTransform: 'none' }}
+                        >
+                          Enviar Cartão p/ Chat
+                        </Button>
+                      </Box>
+                    </Paper>
                   ))
                 )}
-              </div>
+              </Box>
             )}
 
-            {abaDireita === 'busca' && (
-              <div>
-                <form onSubmit={buscarPacientes} className="flex gap-1 mb-4">
-                  <input 
-                    type="text" value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} placeholder="Nome ou CPF..." 
-                    className="flex-1 border border-gray-300 px-3 py-2 text-[12px] bg-[#f8f9fa] focus:outline-none focus:border-blue-500 rounded-sm"
+            {/* ABA: BUSCA PACIENTES */}
+            {abaDireita === 1 && (
+              <Box>
+                <Box component="form" onSubmit={buscarPacientes} sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                  <TextField 
+                    fullWidth size="small" placeholder="Nome ou CPF..." 
+                    value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)}
+                    sx={{ bgcolor: '#fff' }}
                   />
-                  <button type="submit" className="bg-[#495057] hover:bg-[#343a40] text-white px-3 rounded-sm text-[11px] font-bold transition-colors">BUSCAR</button>
-                </form>
-                <div className="flex flex-col gap-2">
-                  {!loading && resultadosBusca?.map(paciente => (
-                    <div key={paciente.id} className="border border-gray-200 rounded-md shadow-sm overflow-hidden bg-white">
-                      <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-700">{paciente.nome}</div>
-                      <div className="p-3 text-[12px] text-[#495057] font-medium">CPF: {paciente.cpf || 'Não informado'}</div>
-                    </div>
+                  <Button type="submit" variant="contained" disableElevation sx={{ minWidth: '40px', px: 1 }}>🔍</Button>
+                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {!loadingApoio && resultadosBusca?.map(paciente => (
+                    <Paper key={paciente.id} elevation={0} sx={{ p: 1.5, border: '1px solid #e0e0e0', borderRadius: 2 }}>
+                      <Typography variant="body2" fontWeight="bold">{paciente.nome_completo || paciente.nome}</Typography>
+                      <Typography variant="caption" color="text.secondary" display="block">CPF: {paciente.cpf || 'Não informado'}</Typography>
+                    </Paper>
                   ))}
-                </div>
-              </div>
+                </Box>
+              </Box>
             )}
           </Box>
         </Box>
