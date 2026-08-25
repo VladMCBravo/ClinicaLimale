@@ -45,16 +45,17 @@ const ChatInterno = ({ onClose, token }) => {
     setLoadingEquipe(true);
     apiClient.get('/usuarios/usuarios/')
       .then(res => {
-        // Nova regra de filtro adicionada aqui
+        // Nova regra: Além de checar cargo e status, exige que o usuário tenha um "primeiro nome" preenchido
         const usuariosValidos = res.data.filter(u => 
           u.is_active && 
           u.id !== currentUser?.id &&
-          (u.cargo === 'admin' || u.cargo === 'recepcao')
+          (u.cargo === 'admin' || u.cargo === 'recepcao') &&
+          (u.first_name && u.first_name.trim() !== '') // <-- NOVA CONDIÇÃO AQUI
         );
         
         const equipeFormatada = usuariosValidos.map(u => ({
           ...u,
-          nome_exibicao: `${u.first_name} ${u.last_name}`,
+          nome_exibicao: `${u.first_name} ${u.last_name || ''}`.trim(), // Tratamento extra caso não tenha sobrenome
           is_online: false 
         }));
         
