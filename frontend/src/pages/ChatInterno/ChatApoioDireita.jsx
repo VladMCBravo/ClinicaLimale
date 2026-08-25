@@ -6,8 +6,8 @@ import {
 import { Close as CloseIcon } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
 
-// Ajuste o caminho do PacienteModal conforme a sua estrutura de pastas
-import PacienteModal from '../../components/PacienteModal';
+// Importação ajustada após a correção do Vercel
+import PacienteModal from '../../components/PacienteModal'; 
 
 export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnviarPaciente }) {
   const [abaDireita, setAbaDireita] = useState(0);
@@ -16,7 +16,6 @@ export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnvia
   // --- ESTADOS DA AGENDA ---
   const [agendamentos, setAgendamentos] = useState([]);
   const [dataAgenda, setDataAgenda] = useState(() => {
-    // Inicializa com a data de hoje no formato YYYY-MM-DD
     const hoje = new Date();
     return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
   });
@@ -42,20 +41,16 @@ export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnvia
       .finally(() => setLoadingApoio(false));
   };
 
-  // Dispara a busca sempre que a aba for Agenda(0) ou a Data mudar
   useEffect(() => {
-    if (abaDireita === 0) {
-      buscarAgendamentos();
-    }
+    if (abaDireita === 0) buscarAgendamentos();
   }, [abaDireita, dataAgenda]);
 
   // 2. ALTERAR STATUS DO AGENDAMENTO
   const handleStatusChange = async (agendamentoId, novoStatus) => {
     setIsUpdatingStatus(true);
     try {
-      // PATCH permite atualização parcial (apenas o status)
       await apiClient.patch(`/agendamentos/${agendamentoId}/`, { status: novoStatus });
-      buscarAgendamentos(); // Recarrega a lista para mostrar a cor/status atualizado
+      buscarAgendamentos(); 
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
       alert("Não foi possível atualizar o status.");
@@ -78,7 +73,6 @@ export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnvia
       .finally(() => setLoadingApoio(false));
   };
 
-  // 4. ABRIR EDIÇÃO DO PACIENTE
   const handleEditarPaciente = (paciente) => {
     setPacienteEditando(paciente);
     setModalPacienteOpen(true);
@@ -99,62 +93,68 @@ export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnvia
       </Box>
 
       {/* CONTEÚDO DAS ABAS */}
-      <Box sx={{ flex: 1, p: 2, overflowY: 'auto', bgcolor: '#f8f9fa' }}>
+      <Box sx={{ flex: 1, p: 1.5, overflowY: 'auto', bgcolor: '#f8f9fa' }}>
         {loadingApoio && <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress size={24} /></Box>}
 
         {/* --- ABA 0: AGENDA --- */}
         {abaDireita === 0 && !loadingApoio && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             
-            {/* SELETOR DE DATA */}
             <TextField
-              type="date"
-              size="small"
-              fullWidth
-              value={dataAgenda}
+              type="date" size="small" fullWidth value={dataAgenda}
               onChange={(e) => setDataAgenda(e.target.value)}
-              sx={{ bgcolor: '#fff', mb: 1 }}
+              sx={{ bgcolor: '#fff', mb: 1, '& .MuiInputBase-input': { py: 0.8, fontSize: '0.8rem' } }}
             />
 
             {agendamentos?.length === 0 ? (
               <Typography variant="body2" color="text.secondary" align="center" mt={2}>Agenda vazia neste dia.</Typography>
             ) : (
               agendamentos?.map(agendamento => (
-                <Paper key={agendamento.id} elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
-                  <Box sx={{ bgcolor: '#f5f5f5', px: 1.5, py: 1, borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="caption" fontWeight="bold" color="text.secondary">
+                <Paper key={agendamento.id} elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 1.5, p: 1, bgcolor: '#fff' }}>
+                  
+                  {/* Linha 1: Horário (tag azul) e Nome do Paciente */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, gap: 1 }}>
+                    <Typography variant="caption" sx={{ bgcolor: '#e3f2fd', color: '#1976d2', px: 1, py: 0.2, borderRadius: 1, fontWeight: 'bold' }}>
                       {agendamento.data_hora_inicio ? new Date(agendamento.data_hora_inicio).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
                     </Typography>
-                  </Box>
-                  <Box sx={{ p: 1.5 }}>
-                    <Typography variant="body2" fontWeight="bold" noWrap>{agendamento.paciente_nome}</Typography>
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }} noWrap>
-                      {agendamento.procedimento_descricao || 'Consulta Padrão'}
+                    <Typography variant="body2" fontWeight="bold" noWrap sx={{ flex: 1, fontSize: '0.75rem' }}>
+                      {agendamento.paciente_nome}
                     </Typography>
-                    
-                    {/* SELETOR DE STATUS */}
-                    <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+                  </Box>
+                  
+                  {/* Linha 2: Nome do Procedimento */}
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1, pl: 0.5, fontSize: '0.7rem' }} noWrap>
+                    {agendamento.procedimento_descricao || 'Consulta Padrão'}
+                  </Typography>
+                  
+                  {/* Linha 3: Controles lado a lado (Select de status e Botão de Enviar) */}
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <FormControl size="small" sx={{ flex: 1 }}>
                         <Select
                             value={agendamento.status || ''}
                             onChange={(e) => handleStatusChange(agendamento.id, e.target.value)}
                             disabled={isUpdatingStatus}
-                            sx={{ fontSize: '0.75rem', height: 30 }}
+                            sx={{ 
+                              fontSize: '0.7rem', 
+                              height: 28, 
+                              '& .MuiSelect-select': { py: 0, display: 'flex', alignItems: 'center' } 
+                            }}
                         >
-                            <MenuItem value="Agendado" sx={{fontSize: '0.8rem'}}>🗓️ Agendado</MenuItem>
-                            <MenuItem value="Confirmado" sx={{fontSize: '0.8rem'}}>✅ Confirmado</MenuItem>
-                            <MenuItem value="Aguardando Pagamento" sx={{fontSize: '0.8rem'}}>⏳ Aguard. Pgto.</MenuItem>
-                            <MenuItem value="Realizado" sx={{fontSize: '0.8rem'}}>🏁 Realizado</MenuItem>
-                            <MenuItem value="Não Compareceu" sx={{fontSize: '0.8rem'}}>👻 Faltou</MenuItem>
-                            <MenuItem value="Cancelado" sx={{fontSize: '0.8rem'}}>❌ Cancelado</MenuItem>
+                            <MenuItem value="Agendado" sx={{fontSize: '0.75rem'}}>🗓️ Agendado</MenuItem>
+                            <MenuItem value="Confirmado" sx={{fontSize: '0.75rem'}}>✅ Confirmado</MenuItem>
+                            <MenuItem value="Aguardando Pagamento" sx={{fontSize: '0.75rem'}}>⏳ Aguard. Pgto.</MenuItem>
+                            <MenuItem value="Realizado" sx={{fontSize: '0.75rem'}}>🏁 Realizado</MenuItem>
+                            <MenuItem value="Não Compareceu" sx={{fontSize: '0.75rem'}}>👻 Faltou</MenuItem>
+                            <MenuItem value="Cancelado" sx={{fontSize: '0.75rem'}}>❌ Cancelado</MenuItem>
                         </Select>
                     </FormControl>
 
                     <Button 
-                      fullWidth size="small" variant="outlined" 
+                      variant="outlined" 
                       onClick={() => onEnviarAgendamento(agendamento)}
-                      sx={{ textTransform: 'none', fontSize: '0.7rem' }}
+                      sx={{ textTransform: 'none', fontSize: '0.7rem', height: 28, px: 1, minWidth: 'auto', color: '#1a233b', borderColor: '#cfd8dc' }}
                     >
-                      Enviar Cartão p/ Chat
+                      Enviar
                     </Button>
                   </Box>
                 </Paper>
@@ -166,32 +166,41 @@ export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnvia
         {/* --- ABA 1: PACIENTES --- */}
         {abaDireita === 1 && (
           <Box>
-            <Box component="form" onSubmit={buscarPacientes} sx={{ display: 'flex', gap: 1, mb: 2 }}>
+            <Box component="form" onSubmit={buscarPacientes} sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
               <TextField 
-                fullWidth size="small" placeholder="Nome ou CPF..." 
+                fullWidth size="small" placeholder="Nome..." 
                 value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)}
-                sx={{ bgcolor: '#fff' }}
+                sx={{ bgcolor: '#fff', '& .MuiInputBase-input': { py: 0.8, fontSize: '0.8rem' } }}
               />
-              <Button type="submit" variant="contained" disableElevation sx={{ minWidth: '40px', px: 1 }}>🔍</Button>
+              <Button type="submit" variant="contained" disableElevation sx={{ minWidth: '40px', px: 1, height: 32, bgcolor: '#1a233b' }}>🔍</Button>
             </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {!loadingApoio && resultadosBusca?.map(paciente => (
-                <Paper key={paciente.id} elevation={0} sx={{ p: 1.5, border: '1px solid #e0e0e0', borderRadius: 2 }}>
-                  <Typography variant="body2" fontWeight="bold">{paciente.nome_completo || paciente.nome}</Typography>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>CPF: {paciente.cpf || 'Não informado'}</Typography>
+                <Paper key={paciente.id} elevation={0} sx={{ p: 1, border: '1px solid #e0e0e0', borderRadius: 1.5 }}>
+                  <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.75rem', mb: 0.5 }}>{paciente.nome_completo || paciente.nome}</Typography>
                   
+                  {/* Trocamos o CPF pelos dados de contato diretos! */}
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem' }}>
+                    📱 {paciente.telefone_celular || 'Sem telefone'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1, fontSize: '0.7rem' }}>
+                    ✉️ {paciente.email || 'Sem e-mail'}
+                  </Typography>
+                  
+                  {/* Botões super compactos na mesma linha */}
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button 
-                        size="small" variant="contained" color="secondary" fullWidth disableElevation
+                        variant="contained" fullWidth disableElevation
                         onClick={() => onEnviarPaciente(paciente)}
-                        sx={{ textTransform: 'none', fontSize: '0.7rem' }}
+                        sx={{ textTransform: 'none', fontSize: '0.7rem', height: 26, bgcolor: '#1a233b', '&:hover': { bgcolor: '#16233a' } }}
                     >
                         Enviar Contato
                     </Button>
                     <Button 
-                        size="small" variant="outlined" fullWidth
+                        variant="outlined" fullWidth
                         onClick={() => handleEditarPaciente(paciente)}
-                        sx={{ textTransform: 'none', fontSize: '0.7rem' }}
+                        sx={{ textTransform: 'none', fontSize: '0.7rem', height: 26, color: '#1a233b', borderColor: '#cfd8dc' }}
                     >
                         Editar
                     </Button>
@@ -203,7 +212,7 @@ export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnvia
         )}
       </Box>
 
-      {/* MODAL DE EDIÇÃO DO PACIENTE (Importado do seu sistema) */}
+      {/* MODAL DE EDIÇÃO DO PACIENTE */}
       {modalPacienteOpen && (
           <PacienteModal
               open={modalPacienteOpen}
@@ -211,7 +220,6 @@ export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnvia
               pacienteParaEditar={pacienteEditando}
               onSave={() => {
                   setModalPacienteOpen(false);
-                  // Recarrega a busca para refletir a edição
                   buscarPacientes(new Event('submit')); 
               }}
           />
