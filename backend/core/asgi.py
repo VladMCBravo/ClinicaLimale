@@ -1,4 +1,5 @@
 # core/asgi.py
+
 import os
 from django.core.asgi import get_asgi_application
 
@@ -9,7 +10,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 
 import chatbot.routing
 import chat.routing
-from chat.middleware import TokenAuthMiddleware  # NOVO
+from chat.middleware import TokenAuthMiddleware
 
 combined_websocket_urlpatterns = (
     chatbot.routing.websocket_urlpatterns +
@@ -18,7 +19,7 @@ combined_websocket_urlpatterns = (
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
-    "websocket": TokenAuthMiddleware(          # trocado de AuthMiddlewareStack
+    "websocket": TokenAuthMiddleware(
         URLRouter(combined_websocket_urlpatterns)
     ),
 })
