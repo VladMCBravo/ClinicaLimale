@@ -166,9 +166,14 @@ const ChatInterno = ({ onClose, token }) => {
   const enviarCardPaciente = (paciente) => {
     if (!checkSocket()) return;
 
+    // Resgatamos o telefone e email em vez do CPF
+    const telefone = paciente.telefone_celular || 'Não informado';
+    const email = paciente.email || 'Não informado';
+
     const payload = {
       receiver_id: contatoAtivo.id,
-      content: `Contato de Paciente:\n${paciente.nome_completo || paciente.nome}\nCPF: ${paciente.cpf || 'Não informado'}`, 
+      // A string content abaixo é o texto que o chat vai desenhar dentro do balão
+      content: `👤 ${paciente.nome_completo || paciente.nome}\n📱 Tel: ${telefone}\n✉️ Email: ${email}`, 
       attachment_type: 'patient',
       attachment_id: paciente.id,
       attachment_data: paciente 
