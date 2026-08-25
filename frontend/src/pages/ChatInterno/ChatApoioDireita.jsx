@@ -7,7 +7,7 @@ import { Close as CloseIcon } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
 
 // Ajuste o caminho do PacienteModal conforme a sua estrutura de pastas
-import PacienteModal from '../PacienteModal'; 
+import PacienteModal from '../../components/PacienteModal';
 
 export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnviarPaciente }) {
   const [abaDireita, setAbaDireita] = useState(0);
