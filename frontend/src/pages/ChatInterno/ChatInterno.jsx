@@ -27,6 +27,14 @@ const ChatInterno = ({ onClose, token }) => {
 
   const [mensagemAtual, setMensagemAtual] = useState('');
   const mensagensFimRef = useRef(null);
+  // ---> ADICIONE ESTAS DUAS LINHAS AQUI <---
+  const [naoLidasPorContato, setNaoLidasPorContato] = useState({});
+  const contatoAtivoRef = useRef(contatoAtivo);
+
+  // Atualiza a referência sempre que você troca de contato (necessário para o socket ler a aba atual)
+  useEffect(() => { 
+    contatoAtivoRef.current = contatoAtivo; 
+  }, [contatoAtivo]);
 
   useEffect(() => {
     mensagensFimRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -61,11 +69,26 @@ const ChatInterno = ({ onClose, token }) => {
   useEffect(() => {
     if (socket) {
       const handleMessage = (event) => {
-        console.log("📥 [WEBSOCKET RECEBEU]:", event.data); 
-        
         const data = JSON.parse(event.data);
+        
         if (data.type === 'chat_message') {
-          setMensagens((prev) => [...prev, data.message]);
+          const msg = data.message;
+          const currentContato = contatoAtivoRef.current;
+          
+          // Verifica se a mensagem pertence à conversa que estou visualizando agora
+          const pertenceAAbaAtual = currentContato && (msg.sender_id === currentContato.id || msg.receiver_id === currentContato.id);
+          
+          if (pertenceAAbaAtual) {
+            // Se estou com o chat da pessoa aberto, só jogo a mensagem na tela
+            setMensagens((prev) => [...prev, { ...msg, sender: msg.sender_id === currentUser.id ? 'me' : 'other' }]);
+          } else if (msg.sender_id !== currentUser.id) {
+            // Se NÃO está aberto, incrementa a notificação visual na lista daquele contato
+            setNaoLidasPorContato(prev => ({
+              ...prev,
+              [msg.sender_id]: (prev[msg.sender_id] || 0) + 1
+            }));
+          }
+
         } else if (data.type === 'user_status') {
           setEquipe((prevEquipe) => 
             prevEquipe.map((func) => 
@@ -74,10 +97,11 @@ const ChatInterno = ({ onClose, token }) => {
           );
         }
       };
+      
       socket.addEventListener('message', handleMessage);
       return () => socket.removeEventListener('message', handleMessage);
     }
-  }, [socket]);
+  }, [socket, currentUser.id]);
 
   // 3. BUSCAR HISTÓRICO REST AO CLICAR NUM CONTATO
   useEffect(() => {
@@ -193,6 +217,16 @@ const ChatInterno = ({ onClose, token }) => {
     }
   };
 
+  const handleSelecionarContato = (func) => {
+    setContatoAtivo(func);
+    // Remove o aviso visual de "não lidas" desse contato específico quando clicamos nele
+    setNaoLidasPorContato(prev => {
+        const newState = { ...prev };
+        delete newState[func.id]; 
+        return newState;
+    });
+  };
+
   return (
     <Dialog
       open={true}
@@ -219,7 +253,7 @@ const ChatInterno = ({ onClose, token }) => {
                     <ListItem 
                       button 
                       selected={contatoAtivo?.id === func.id}
-                      onClick={() => setContatoAtivo(func)}
+                      onClick={() => handleSelecionarContato(func)} // <-- 1. ALTERADO AQUI
                       sx={{ 
                         '&.Mui-selected': { bgcolor: '#e3f2fd', borderLeft: '4px solid #1976d2' },
                         '&:hover': { bgcolor: '#f5f5f5' },
@@ -245,6 +279,10 @@ const ChatInterno = ({ onClose, token }) => {
                         primaryTypographyProps={{ fontWeight: contatoAtivo?.id === func.id ? 'bold' : 'normal', fontSize: '0.9rem' }}
                         secondaryTypographyProps={{ textTransform: 'capitalize', fontSize: '0.75rem' }}
                       />
+                    {/* 2. ADICIONE ISTO AQUI (Selo vermelho com número) */}
+                      {naoLidasPorContato[func.id] > 0 && (
+                        <Badge badgeContent={naoLidasPorContato[func.id]} color="error" sx={{ mr: 2 }} />
+                      )}
                     </ListItem>
                     <Divider component="li" />
                   </React.Fragment>
@@ -269,43 +307,46 @@ const ChatInterno = ({ onClose, token }) => {
               <Box sx={{ flex: 1, p: 3, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {mensagens.map((msg, idx) => {
                   const isMe = msg.sender === 'me';
+                  
+                  // Tenta pegar a hora do backend, se não vier (mensagem recém disparada), pega a hora local do navegador
+                  const horaMsg = msg.timestamp || msg.created_at || new Date().toISOString();
+                  const horaStr = new Date(horaMsg).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
                   return (
                     <Box key={idx} sx={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
                       <Box sx={{ maxWidth: '75%' }}>
                         
                         {msg.attachment_type === 'appointment' ? (
                           <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #90caf9' }}>
-                            <Box sx={{ bgcolor: '#e3f2fd', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <EventIcon color="primary" fontSize="small" />
-                              <Typography variant="caption" fontWeight="bold" color="primary">FICHA DE AGENDAMENTO</Typography>
-                            </Box>
+                            {/* ... conteúdo do cabeçalho ... */}
                             <Box sx={{ p: 2, bgcolor: '#fff' }}>
                               <Typography variant="body2" fontWeight="bold" sx={{ color: '#333' }}>{msg.content}</Typography>
                               <Button size="small" variant="outlined" sx={{ mt: 1, textTransform: 'none' }}>Ver no Prontuário</Button>
+                              {/* HORA AQUI */}
+                              <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mt: 1, color: '#9e9e9e', fontSize: '0.65rem' }}>{horaStr}</Typography>
                             </Box>
                           </Paper>
                         ) : msg.attachment_type === 'patient' ? (
                           <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #ce93d8' }}>
-                            <Box sx={{ bgcolor: '#f3e5f5', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <PersonIcon color="secondary" fontSize="small" />
-                              <Typography variant="caption" fontWeight="bold" color="secondary">CONTATO DE PACIENTE</Typography>
-                            </Box>
+                            {/* ... conteúdo do cabeçalho ... */}
                             <Box sx={{ p: 2, bgcolor: '#fff' }}>
                               <Typography variant="body2" fontWeight="bold" sx={{ color: '#333' }}>{msg.content}</Typography>
+                              {/* HORA AQUI */}
+                              <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mt: 1, color: '#9e9e9e', fontSize: '0.65rem' }}>{horaStr}</Typography>
                             </Box>
                           </Paper>
                         ) : (
                           <Paper elevation={0} sx={{ 
-                            p: 1.5, 
-                            px: 2,
-                            borderRadius: 2, 
+                            p: 1.5, px: 2, borderRadius: 2, 
                             bgcolor: isMe ? '#dcf8c6' : '#fff', 
-                            border: '1px solid',
-                            borderColor: isMe ? '#c8e6c9' : '#e0e0e0',
-                            borderTopRightRadius: isMe ? 0 : 8,
-                            borderTopLeftRadius: !isMe ? 0 : 8,
+                            border: '1px solid', borderColor: isMe ? '#c8e6c9' : '#e0e0e0',
+                            borderTopRightRadius: isMe ? 0 : 8, borderTopLeftRadius: !isMe ? 0 : 8,
                           }}>
                             <Typography variant="body2" sx={{ color: '#222' }}>{msg.content}</Typography>
+                            {/* HORA AQUI */}
+                            <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mt: 0.5, color: isMe ? '#558b2f' : '#9e9e9e', fontSize: '0.65rem' }}>
+                              {horaStr}
+                            </Typography>
                           </Paper>
                         )}
                       </Box>
