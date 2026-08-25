@@ -26,8 +26,9 @@ import PortalResultados from './pages/PortalResultados';
 import VincularExames from './pages/VincularExames';
 import TelemedicinaPage from './pages/TelemedicinaPage';
 import PontoKioskPage from './pages/PontoKioskPage';
-import { ChatProvider } from './contexts/ChatContext'; 
-import ConfiguracoesPage from './pages/ConfiguracoesPage'; 
+import { AuthProvider } from './contexts/AuthContext';
+import { ChatProvider } from './contexts/ChatContext';
+import ConfiguracoesPage from './pages/ConfiguracoesPage';
 
 import CRMPageBase from './pages/CRM/CRMPageBase';
 import ProntuarioWorkspace from './pages/PainelMedico/ProntuarioWorkspace';
@@ -55,39 +56,43 @@ function App() {
       <SnackbarProvider>
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
           <Router>
-            
-            {/* O CHAT PROVIDER ABRAÇA TODAS AS ROTAS */}
-            <ChatProvider>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/resultados" element={<PortalResultados />} />
-                <Route path="/ponto" element={<PontoKioskPage />} />
-                
-                <Route element={<ProtectedRoute />}>
-                  <Route element={<MainLayout />}>
-                    
-                    <Route path="/" element={<RotaInicialDinamica />} />
-                    <Route path="/painel" element={<PainelRecepcaoPage />} />
-                    <Route path="/laudos" element={<LaudosPage />} />
-                    <Route path="/laudos-v2" element={<LaudosPageV2 />} />
-                    <Route path="/vincular" element={<VincularExames />} />
-                    <Route path="/pacientes" element={<PacientesPage />} />
-                    
-                    <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioWorkspace />} />
 
-                    <Route path="/telemedicina" element={<TelemedicinaPage />} />
-                    <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+            {/* AUTH PROVIDER precisa estar dentro do Router (usa useNavigate)
+                e por fora do ChatProvider (que depende do usuário logado) */}
+            <AuthProvider>
+              {/* O CHAT PROVIDER ABRAÇA TODAS AS ROTAS */}
+              <ChatProvider>
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/resultados" element={<PortalResultados />} />
+                  <Route path="/ponto" element={<PontoKioskPage />} />
+                  
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<MainLayout />}>
+                      
+                      <Route path="/" element={<RotaInicialDinamica />} />
+                      <Route path="/painel" element={<PainelRecepcaoPage />} />
+                      <Route path="/laudos" element={<LaudosPage />} />
+                      <Route path="/laudos-v2" element={<LaudosPageV2 />} />
+                      <Route path="/vincular" element={<VincularExames />} />
+                      <Route path="/pacientes" element={<PacientesPage />} />
+                      
+                      <Route path="/pacientes/:pacienteId/prontuario" element={<ProntuarioWorkspace />} />
 
-                    <Route element={<AdminRoute />}>
-                        <Route path="/financeiro/*" element={<FinanceiroPage />} />
-                        <Route path="/crm/kanban" element={<CRMPageBase />} />
+                      <Route path="/telemedicina" element={<TelemedicinaPage />} />
+                      <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+
+                      <Route element={<AdminRoute />}>
+                          <Route path="/financeiro/*" element={<FinanceiroPage />} />
+                          <Route path="/crm/kanban" element={<CRMPageBase />} />
+                      </Route>
+
                     </Route>
-
                   </Route>
-                </Route>
-              </Routes>
-            </ChatProvider> {/* <-- FECHAMENTO CORRIGIDO AQUI (Depois de Routes) */}
-            
+                </Routes>
+              </ChatProvider>
+            </AuthProvider>
+
           </Router>
         </LocalizationProvider>
       </SnackbarProvider>
