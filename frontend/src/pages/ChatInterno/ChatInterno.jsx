@@ -37,7 +37,13 @@ const ChatInterno = ({ onClose, token }) => {
     setLoadingEquipe(true);
     apiClient.get('/usuarios/usuarios/')
       .then(res => {
-        const usuariosValidos = res.data.filter(u => u.is_active && u.id !== currentUser?.id);
+        // Nova regra de filtro adicionada aqui
+        const usuariosValidos = res.data.filter(u => 
+          u.is_active && 
+          u.id !== currentUser?.id &&
+          (u.cargo === 'admin' || u.cargo === 'recepcao')
+        );
+        
         const equipeFormatada = usuariosValidos.map(u => ({
           ...u,
           nome_exibicao: `${u.first_name} ${u.last_name}`,
