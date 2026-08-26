@@ -175,13 +175,13 @@ class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
 class AtestadoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AtestadoSerializer
     
-    # 1. SUBSTITUÍMOS O 'permission_classes' FIXO PELA FUNÇÃO DINÂMICA ABAIXO:
     def get_permissions(self):
         if self.request.method == 'GET':
-            # Se for apenas para LER (listar para o chat), exige apenas acesso ao prontuário
-            return [CanViewProntuario()]
+            # MUDANÇA AQUI: IsAuthenticated permite que a Recepção e Admin 
+            # leiam a lista de documentos para poder enviá-los no chat.
+            return [IsAuthenticated()]
         
-        # Se for para CRIAR (POST, salvar um atestado novo), mantém a trava rígida original
+        # Mantém a segurança estrita do sistema para quem tentar CRIAR (POST) um atestado
         return [CanCreateAtestado()]
 
     def get_queryset(self):
