@@ -174,7 +174,15 @@ class PrescricaoListCreateAPIView(generics.ListCreateAPIView):
 
 class AtestadoListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = AtestadoSerializer
-    permission_classes = [CanCreateAtestado]
+    
+    # 1. SUBSTITUÍMOS O 'permission_classes' FIXO PELA FUNÇÃO DINÂMICA ABAIXO:
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            # Se for apenas para LER (listar para o chat), exige apenas acesso ao prontuário
+            return [CanViewProntuario()]
+        
+        # Se for para CRIAR (POST, salvar um atestado novo), mantém a trava rígida original
+        return [CanCreateAtestado()]
 
     def get_queryset(self):
         # Tenta pegar o ID da URL (Novo) ou dos parâmetros de busca (Antigo)
