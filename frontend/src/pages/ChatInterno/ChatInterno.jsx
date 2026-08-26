@@ -4,7 +4,7 @@ import {
   List, ListItem, ListItemAvatar, ListItemText, Avatar, Badge,
   CircularProgress, Divider, Paper
 } from '@mui/material';
-import { Send as SendIcon, Person as PersonIcon, Event as EventIcon } from '@mui/icons-material';
+import { Send as SendIcon, Person as PersonIcon, Event as EventIcon, Description as DescriptionIcon } from '@mui/icons-material';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../hooks/useAuth'; 
 import apiClient from '../../api/axiosConfig';
@@ -183,6 +183,42 @@ const ChatInterno = ({ onClose, token }) => {
     catch (err) { console.error("Erro socket:", err); }
   };
 
+  // --- NOVA FUNÇÃO: ENVIAR CARD DO DOCUMENTO ---
+  const enviarCardDocumento = (doc, paciente) => {
+    if (!checkSocket()) return;
+
+    const dataBR = new Date(doc.data_emissao || doc.created_at).toLocaleDateString('pt-BR');
+    const tipo = doc.tipo_atestado || 'Documento Médico';
+
+    const payload = {
+      receiver_id: contatoAtivo.id,
+      content: `📄 ${tipo}\n👤 Paciente: ${paciente.nome_completo || paciente.nome}\n📅 Data: ${dataBR}`, 
+      attachment_type: 'document',
+      attachment_id: doc.id,
+      attachment_data: doc 
+    };
+
+    try { socket.send(JSON.stringify(payload)); } 
+    catch (err) { console.error("Erro socket:", err); }
+  };
+
+  // --- NOVA FUNÇÃO: ABRIR O PDF DO CHAT ---
+  const baixarDocumento = async (id) => {
+    try {
+        const res = await apiClient.get(`/pdf/atestado/${id}/`, { responseType: 'blob' });
+        const fileURL = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+        window.open(fileURL, '_blank');
+    } catch (err) {
+        try { // Fallback para a rota alternativa que estava no seu AtestadoModal
+            const resAlt = await apiClient.get(`/prontuario/atestados/${id}/pdf/`, { responseType: 'blob' });
+            const fileURLAlt = URL.createObjectURL(new Blob([resAlt.data], { type: 'application/pdf' }));
+            window.open(fileURLAlt, '_blank');
+        } catch (err2) {
+            alert("Erro ao abrir documento. Ele pode ter sido excluído.");
+        }
+    }
+  };
+
   const handleSelecionarContato = (func) => {
     setContatoAtivo(func);
     setNaoLidasPorContato(prev => {
@@ -290,6 +326,24 @@ const ChatInterno = ({ onClose, token }) => {
                               <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mt: 1, color: '#9e9e9e', fontSize: '0.65rem' }}>{horaStr}</Typography>
                             </Box>
                           </Paper>
+                        ) : msg.attachment_type === 'document' ? (
+                          <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #ff9800' }}>
+                            <Box sx={{ bgcolor: '#fff3e0', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <DescriptionIcon color="warning" fontSize="small" />
+                              <Typography variant="caption" fontWeight="bold" color="warning.dark">DOCUMENTO MÉDICO</Typography>
+                            </Box>
+                            <Box sx={{ p: 2, bgcolor: '#fff', whiteSpace: 'pre-wrap' }}>
+                              <Typography variant="body2" fontWeight="bold" sx={{ color: '#333' }}>{msg.content}</Typography>
+                              <Button 
+                                size="small" variant="outlined" color="warning" 
+                                onClick={() => baixarDocumento(msg.attachment_id)}
+                                sx={{ mt: 1, textTransform: 'none' }}
+                              >
+                                Visualizar PDF
+                              </Button>
+                              <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mt: 1, color: '#9e9e9e', fontSize: '0.65rem' }}>{horaStr}</Typography>
+                            </Box>
+                          </Paper>
                         ) : msg.attachment_type === 'patient' ? (
                           <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #ce93d8' }}>
                             <Box sx={{ bgcolor: '#f3e5f5', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -347,6 +401,7 @@ const ChatInterno = ({ onClose, token }) => {
           onClose={onClose} 
           onEnviarAgendamento={enviarCardAgendamento} 
           onEnviarPaciente={enviarCardPaciente}
+          onEnviarDocumento={enviarCardDocumento} /* <--- NOVA LINHA AQUI */
         />
         
     </Dialog>
