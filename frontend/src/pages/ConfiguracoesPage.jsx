@@ -1,7 +1,7 @@
 // src/pages/ConfiguracoesPage.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-    Box, Typography, Tabs, Tab, Paper, Container, Divider, useTheme
+    Box, Typography, Tabs, Tab, Paper, Container, Divider, useTheme, CircularProgress
 } from '@mui/material';
 import { 
     People, Business, AttachMoney, AccessTime, Badge, 
@@ -9,6 +9,7 @@ import {
     Map, Fingerprint
 } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import apiClient from '../api/axiosConfig'; // <-- Import necessário
 
 // Imports dos seus componentes
 import MeuPerfilTab from '../components/configuracoes/MeuPerfilTab';
@@ -22,7 +23,6 @@ import SalasTab from '../components/configuracoes/SalasTab';
 import DadosClinicaTab from '../components/configuracoes/DadosClinicaTab';
 import RelatorioPontoTab from '../components/configuracoes/RelatorioPontoTab';
 
-// TabPanel refatorado para ocupar o espaço total da tela e delegar o scroll
 function TabPanel({ children, value, index, ...other }) {
     return (
         <div 
@@ -30,11 +30,9 @@ function TabPanel({ children, value, index, ...other }) {
             hidden={value !== index} 
             {...other} 
             style={{ 
-                width: '100%', 
-                height: '100%', 
+                width: '100%', height: '100%', 
                 display: value === index ? 'flex' : 'none',
-                flexDirection: 'column',
-                overflow: 'hidden' // Esconde o scroll no nível superior
+                flexDirection: 'column', overflow: 'hidden' 
             }}
         >
             {value === index && (
@@ -69,44 +67,72 @@ export default function ConfiguracoesPage() {
     const [mainTab, setMainTab] = useState(0);
     const [equipeTab, setEquipeTab] = useState(0);
     const [servicosTab, setServicosTab] = useState(0);
+    
+    // ESTADOS PARA A CHAVE DINÂMICA
+    const [configClinica, setConfigClinica] = useState(null);
+    const [loadingConfig, setLoadingConfig] = useState(true);
+
     const { user } = useAuth(); 
     const isAdmin = user?.isAdmin || false;
+    const isRecepcao = user?.cargo === 'recepcao';
 
+    // 1. Busca a configuração no momento em que a página abre
     useEffect(() => {
-        if (!isAdmin && mainTab !== 0) {
+        const fetchConfig = async () => {
+            try {
+                const response = await apiClient.get('/usuarios/clinica/configuracao/');
+                setConfigClinica(response.data);
+            } catch (error) {
+                console.error("Erro ao carregar permissões", error);
+            } finally {
+                setLoadingConfig(false);
+            }
+        };
+        fetchConfig();
+    }, []);
+
+    // 2. A REGRA DE OURO: É Admin OU (É Recepção e a chave está ligada no banco)
+    const permissaoLiberada = configClinica?.recepcao_ve_configuracoes || false;
+    const podeVerConfiguracoes = isAdmin || (isRecepcao && permissaoLiberada);
+
+    // 3. Se a aba ativa não for a 0 e o usuário perdeu a permissão, chuta ele pra aba 0
+    useEffect(() => {
+        if (!podeVerConfiguracoes && mainTab !== 0 && !loadingConfig) {
             setMainTab(0);
         }
-    }, [isAdmin, mainTab]);
+    }, [podeVerConfiguracoes, mainTab, loadingConfig]);
+
+    if (loadingConfig) {
+        return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
+    }
 
     return (
-        // Ajuste no height caso você tenha uma navbar fixa no topo. (Ex: 80px)
         <Container maxWidth="xl" sx={{ pt: 1, pb: 1, height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            
             <Paper elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 
                 {/* Abas Principais Fixas */}
                 <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#fff', flexShrink: 0 }}>
                     <Tabs value={mainTab} onChange={(e, v) => setMainTab(v)} textColor="primary" indicatorColor="primary">
                         <Tab icon={<AccountCircle sx={{ fontSize: 20 }}/>} iconPosition="start" label="Meu Perfil" />
-                        {isAdmin && <Tab icon={<People sx={{ fontSize: 20 }}/>} iconPosition="start" label="Equipe" />}
-                        {isAdmin && <Tab icon={<Business sx={{ fontSize: 20 }}/>} iconPosition="start" label="Clínica" />}
-                        {isAdmin && <Tab icon={<AttachMoney sx={{ fontSize: 20 }}/>} iconPosition="start" label="Financeiro" />}
+                        {/* Renderização Condicional baseada na regra de ouro */}
+                        {podeVerConfiguracoes && <Tab icon={<People sx={{ fontSize: 20 }}/>} iconPosition="start" label="Equipe" />}
+                        {podeVerConfiguracoes && <Tab icon={<Business sx={{ fontSize: 20 }}/>} iconPosition="start" label="Clínica" />}
+                        {podeVerConfiguracoes && <Tab icon={<AttachMoney sx={{ fontSize: 20 }}/>} iconPosition="start" label="Financeiro" />}
                     </Tabs>
                 </Box>
 
                 {/* Área de Conteúdo */}
                 <Box sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', bgcolor: '#fafafa' }}>
                     
-                    {/* === ABA 0: MEU PERFIL === */}
+                    {/* === ABA 0: MEU PERFIL (Sempre visível) === */}
                     <TabPanel value={mainTab} index={0}>
-                        {/* O overflowY: 'auto' fica aqui na casca que envolve o componente */}
                         <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white', flexGrow: 1, overflowY: 'auto' }}>
                             <MeuPerfilTab />
                         </Paper>
                     </TabPanel>
                          
-                    {/* === ABAS DO ADMIN === */}
-                    {isAdmin && (
+                    {/* === ABAS PROTEGIDAS === */}
+                    {podeVerConfiguracoes && (
                         <>
                             {/* ABA 1: EQUIPE */}
                             <TabPanel value={mainTab} index={1}>
@@ -151,7 +177,6 @@ export default function ConfiguracoesPage() {
                                 <Paper elevation={0} sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white', flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                                     <Typography variant="subtitle1" sx={{mb: 1, fontWeight: 'bold', flexShrink: 0}}>Categorias Financeiras</Typography>
                                     <Divider sx={{mb: 2, flexShrink: 0}} />
-                                    {/* Isolando a rolagem apenas no conteúdo financeiro */}
                                     <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
                                         <CategoriasTab />
                                     </Box>
