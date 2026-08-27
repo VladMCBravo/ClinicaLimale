@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Box, Typography, TextField, Button, Paper, CircularProgress, Alert, Grid 
-} from '@mui/material';
+import { Box, Typography, Button, CircularProgress, Grid } from '@mui/material';
 import { AccessTime, Fingerprint, Input, FreeBreakfast, MeetingRoom } from '@mui/icons-material';
-import apiClient from '../api/axiosConfig'; // <-- USANDO SEU APICLIENT PARA CORRIGIR O ERRO DE CORS
+import apiClient from '../api/axiosConfig'; // Mantido seu apiClient
 
 export default function PontoKioskPage() {
     const [horaAtual, setHoraAtual] = useState(new Date());
-    const [cpf, setCpf] = useState('');
-    const [pin, setPin] = useState('');
     const [loading, setLoading] = useState(false);
     const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
     const [localizacao, setLocalizacao] = useState(null);
+    const [statusLeitor, setStatusLeitor] = useState('Selecione o tipo de batida abaixo para iniciar.');
 
     // Relógio em tempo real
     useEffect(() => {
@@ -24,106 +21,141 @@ export default function PontoKioskPage() {
         if ("geolocation" in navigator) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => setLocalizacao({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-                (err) => setMensagem({ tipo: 'error', texto: 'Permita o acesso à localização para bater o ponto.' }),
-                { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 } // <--- NOVO CÓDIGO AQUI
+                (err) => console.log('Sem localização'),
+                { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
             );
-        } else {
-            setMensagem({ tipo: 'error', texto: 'Geolocalização não suportada.' });
         }
     }, []);
 
     const handleBaterPonto = async (tipo_batida) => {
-        if (!cpf || !pin) {
-            setMensagem({ tipo: 'warning', texto: 'Preencha seu CPF e PIN.' });
-            return;
-        }
-        
         setLoading(true);
         setMensagem({ tipo: '', texto: '' });
+        
+        // Avisa a interface que o Python foi acionado
+        setStatusLeitor('Luz acesa. Coloque o dedo no leitor...');
 
         try {
-            // Usando apiClient (resolve o erro do Vercel vs Localhost)
-            const response = await apiClient.post('/usuarios/ponto/bater/', {
-                cpf: cpf.replace(/\D/g, ''),
-                pin: pin,
+            // 1. Chama o middleware local (Python) para ler a digital do USB
+            const respostaLocal = await fetch('http://localhost:8080/api/capturar-digital');
+            const dadosLocal = await respostaLocal.json();
+
+            if (dadosLocal.status !== 'sucesso') {
+                throw new Error("Erro ao acessar o leitor biométrico da máquina.");
+            }
+
+            setStatusLeitor('Digital lida! Buscando funcionário no sistema...');
+
+            // 2. Envia a digital capturada para o Django
+            // ATENÇÃO: Rota nova no backend que não pede CPF
+            const response = await apiClient.post('/usuarios/ponto/bater-biometria/', {
+                digital_raw_b64: dadosLocal.imagem_base64,
                 tipo: tipo_batida,
-                // Envia as coordenadas se tiver, ou null se for PC
                 latitude: localizacao ? localizacao.latitude : null,
                 longitude: localizacao ? localizacao.longitude : null
             });
 
-            setMensagem({ tipo: 'success', texto: `${response.data.detail} (${response.data.tipo})` });
-            setCpf('');
-            setPin('');
-            setTimeout(() => setMensagem({ tipo: '', texto: '' }), 5000);
+            // Mostra o nome do funcionário retornado pelo Django
+            setMensagem({ tipo: 'success', texto: `${response.data.detail} - Funcionário: ${response.data.nome_funcionario}` });
+            setStatusLeitor('Ponto registrado com sucesso!');
 
         } catch (error) {
-            const erroMsg = error.response?.data?.detail || "Erro ao conectar com o servidor.";
+            const erroMsg = error.response?.data?.detail || error.message || "Erro ao ler digital ou conectar com o servidor.";
             setMensagem({ tipo: 'error', texto: erroMsg });
+            setStatusLeitor('Falha na operação.');
         } finally {
             setLoading(false);
+            // Reseta a mensagem após 5 segundos
+            setTimeout(() => {
+                setMensagem({ tipo: '', texto: '' });
+                setStatusLeitor('Selecione o tipo de batida abaixo para iniciar.');
+            }, 5000);
         }
     };
 
     return (
-        <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f0f2f5', p: 2 }}>
-            <Paper elevation={4} sx={{ maxWidth: 500, width: '100%', p: 4, borderRadius: 4, textAlign: 'center' }}>
+        // Substituímos o Box gigante pela classe tasy-workspace para herdar o scroll da clínica
+        <div className="tasy-workspace" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#e9ecef', padding: '20px' }}>
+            
+            {/* Painel Tasy Flat Design (sem a sombra arredondada do Paper) */}
+            <div className="tasy-panel theme-blue" style={{ maxWidth: '550px', width: '100%' }}>
                 
-                <AccessTime sx={{ fontSize: 50, color: '#1a233b', mb: 1 }} />
-                
-                <Typography variant="h2" sx={{ fontWeight: 'bold', mb: 0.5, fontFamily: 'monospace', color: '#1a233b' }}>
-                    {horaAtual.toLocaleTimeString('pt-BR')}
-                </Typography>
-                <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 4, textTransform: 'lowercase' }}>
-                    {horaAtual.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </Typography>
+                <div className="tasy-panel-header">
+                    <span className="tasy-panel-title">
+                        <Fingerprint style={{ fontSize: '16px' }} />
+                        Relógio de Ponto Biométrico
+                    </span>
+                </div>
 
-                {mensagem.texto && (
-                    <Alert severity={mensagem.tipo} sx={{ mb: 3, textAlign: 'left' }}>
-                        {mensagem.texto}
-                    </Alert>
-                )}
+                <div className="tasy-panel-body" style={{ textAlign: 'center', padding: '40px 20px' }}>
+                    
+                    <AccessTime sx={{ fontSize: 45, color: '#495057', mb: 1 }} />
+                    
+                    <Typography variant="h3" sx={{ fontWeight: 'bold', mb: 0.5, color: '#212529', letterSpacing: '-1px' }}>
+                        {horaAtual.toLocaleTimeString('pt-BR')}
+                    </Typography>
+                    <Typography variant="subtitle2" sx={{ mb: 4, color: '#868e96', textTransform: 'uppercase' }}>
+                        {horaAtual.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </Typography>
 
-                <TextField 
-                    fullWidth label="Seu CPF" variant="outlined" margin="dense"
-                    value={cpf} onChange={(e) => setCpf(e.target.value)}
-                    placeholder="Somente números"
-                />
-                
-                <TextField 
-                    fullWidth label="PIN de Ponto" type="password" variant="outlined" margin="dense"
-                    value={pin} onChange={(e) => setPin(e.target.value)}
-                    inputProps={{ maxLength: 6 }} sx={{ mb: 4, mt: 2 }}
-                    placeholder="Senha de 4 a 6 dígitos"
-                />
+                    {/* Mensagem de Erro/Sucesso customizada para o Tasy */}
+                    {mensagem.texto && (
+                        <div style={{
+                            padding: '12px',
+                            marginBottom: '20px',
+                            backgroundColor: mensagem.tipo === 'success' ? '#d3f9d8' : '#ffe3e3',
+                            color: mensagem.tipo === 'success' ? '#2b8a3e' : '#c92a2a',
+                            border: `1px solid ${mensagem.tipo === 'success' ? '#b2f2bb' : '#ffc9c9'}`,
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            textAlign: 'left'
+                        }}>
+                            {mensagem.texto}
+                        </div>
+                    )}
 
-                {loading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress /></Box>
-                ) : (
-                    <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                            <Button fullWidth variant="contained" color="success" size="large" onClick={() => handleBaterPonto('entrada')} startIcon={<Input />}>
-                                Entrada
-                            </Button>
+                    {/* Status visual do leitor */}
+                    <div className="tasy-section-header" style={{ marginBottom: '20px', backgroundColor: '#f8f9fa', color: '#1c7ed6' }}>
+                        {statusLeitor}
+                    </div>
+
+                    {loading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                            <CircularProgress size={40} sx={{ color: '#1c7ed6' }} />
+                        </Box>
+                    ) : (
+                        <Grid container spacing={1.5}>
+                            <Grid item xs={6}>
+                                <Button fullWidth disableElevation variant="contained" 
+                                    sx={{ bgcolor: '#2f9e44', '&:hover': { bgcolor: '#2b8a3e' }, py: 2, borderRadius: 0 }} 
+                                    onClick={() => handleBaterPonto('entrada')} startIcon={<Input />}>
+                                    Entrada
+                                </Button>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Button fullWidth disableElevation variant="contained" 
+                                    sx={{ bgcolor: '#e8590c', '&:hover': { bgcolor: '#d9480f' }, py: 2, borderRadius: 0 }} 
+                                    onClick={() => handleBaterPonto('saida_pausa')} startIcon={<FreeBreakfast />}>
+                                    Pausa
+                                </Button>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Button fullWidth disableElevation variant="contained" 
+                                    sx={{ bgcolor: '#1c7ed6', '&:hover': { bgcolor: '#1971c2' }, py: 2, borderRadius: 0 }} 
+                                    onClick={() => handleBaterPonto('retorno_pausa')} startIcon={<Fingerprint />}>
+                                    Retorno
+                                </Button>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Button fullWidth disableElevation variant="contained" 
+                                    sx={{ bgcolor: '#e03131', '&:hover': { bgcolor: '#c92a2a' }, py: 2, borderRadius: 0 }} 
+                                    onClick={() => handleBaterPonto('saida')} startIcon={<MeetingRoom />}>
+                                    Saída
+                                </Button>
+                            </Grid>
                         </Grid>
-                        <Grid item xs={6}>
-                            <Button fullWidth variant="outlined" color="warning" size="large" onClick={() => handleBaterPonto('saida_pausa')} startIcon={<FreeBreakfast />}>
-                                Pausa
-                            </Button>
-                        </Grid>
-                        <Grid item xs={6}>
-                            <Button fullWidth variant="outlined" color="info" size="large" onClick={() => handleBaterPonto('retorno_pausa')} startIcon={<Fingerprint />}>
-                                Retorno
-                            </Button>
-                        </Grid>
-                        <Grid item xs={6}>
-                            <Button fullWidth variant="contained" color="error" size="large" onClick={() => handleBaterPonto('saida')} startIcon={<MeetingRoom />}>
-                                Saída
-                            </Button>
-                        </Grid>
-                    </Grid>
-                )}
-            </Paper>
-        </Box>
+                    )}
+                </div>
+            </div>
+        </div>
     );
 }

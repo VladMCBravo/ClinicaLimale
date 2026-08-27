@@ -125,6 +125,13 @@ class CustomUser(AbstractUser):
         help_text="PIN numérico de 4 a 6 dígitos para o ponto eletrônico"
     )
     # <-- FIM DO NOVO CAMPO -->
+
+    # <-- NOVO CAMPO PARA BIOMETRIA -->
+    digital_template = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Template da digital gerado pelo SDK da Futronic"
+    )
     
     CARGO_CHOICES = [
         ('admin', 'Administrador'),

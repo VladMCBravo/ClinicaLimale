@@ -1,6 +1,7 @@
 # backend/usuarios/views.py - VERSÃO CORRIGIDA
 import re
 import math
+import base64
 from rest_framework import viewsets, generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -465,3 +466,108 @@ class RegistroPontoAdminViewSet(viewsets.ModelViewSet):
         obs_atual = instance.observacao or ""
         instance.observacao = f"[CANCELADO POR RH: {self.request.user.get_full_name()}] {obs_atual}"
         instance.save()
+
+class ListarBiometriasView(APIView):
+    """
+    Retorna a lista de todas as digitais cadastradas.
+    O React baixa essa lista e manda para o aplicativo local (Windows) 
+    poder comparar o dedo vivo com o banco.
+    """
+    permission_classes = [AllowAny] 
+
+    def get(self, request):
+        # Busca apenas os usuários que já têm digital cadastrada
+        usuarios = CustomUser.objects.exclude(digital_template__isnull=True).exclude(digital_template__exact='')
+        dados = []
+        for u in usuarios:
+            dados.append({
+                "usuario_id": u.id,
+                "template": u.digital_template
+            })
+        return Response(dados)
+
+class CadastrarBiometriaView(APIView):
+    """
+    Agora o Django apenas recebe o texto (template) gerado pelo app local
+    e guarda no banco de dados. Sem cálculos pesados!
+    """
+    permission_classes = [IsAdminUser] 
+
+    def post(self, request, user_id):
+        template_b64 = request.data.get('template_b64')
+        if not template_b64:
+            return Response({"detail": "Template da digital não fornecido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            usuario = CustomUser.objects.get(id=user_id)
+            usuario.digital_template = template_b64
+            usuario.save()
+            return Response({"detail": f"Digital de {usuario.first_name or usuario.username} cadastrada com sucesso!"})
+        except CustomUser.DoesNotExist:
+            return Response({"detail": "Usuário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+class BaterPontoBiometriaView(APIView):
+    """
+    Como a validação (comparação) já foi feita localmente pelo Windows,
+    o React apenas avisa o Django: "O dedo lido pertence ao usuario_id 5!"
+    """
+    permission_classes = [AllowAny] 
+
+    def get_client_ip(self, request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for: return x_forwarded_for.split(',')[0]
+        return request.META.get('REMOTE_ADDR')
+
+    def post(self, request):
+        usuario_id = request.data.get('usuario_id')
+        tipo = request.data.get('tipo', 'entrada') 
+        lat_usuario = request.data.get('latitude')
+        lng_usuario = request.data.get('longitude')
+
+        if not usuario_id:
+            return Response({"detail": "ID do usuário não fornecido pela biometria."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            usuario = CustomUser.objects.get(id=usuario_id)
+        except CustomUser.DoesNotExist:
+            return Response({"detail": "Funcionário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 1. Lógica de GPS da Clínica (Mantida)
+        config = ConfiguracaoClinica.objects.first()
+        distancia = None
+        status_ponto = 'aprovado'
+        observacao = 'Biometria | PC (Sem GPS)' if not lat_usuario else 'Biometria'
+        
+        if config and config.latitude and config.longitude and lat_usuario and lng_usuario:
+            try:
+                lat_float = float(lat_usuario)
+                lng_float = float(lng_usuario)
+                distancia = calcular_distancia_haversine(config.latitude, config.longitude, lat_float, lng_float)
+                if distancia > config.raio_metros:
+                    status_ponto = 'rejeitado'
+                    observacao = f'Biometria | Fora do raio ({int(distancia)}m)'
+                    return Response({
+                        "detail": f"Fora do raio de acesso ({int(distancia)}m).",
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            except:
+                pass 
+
+        # 2. Salva o Registro de Ponto
+        registro = RegistroPonto.objects.create(
+            usuario=usuario,
+            tipo=tipo,
+            latitude=lat_usuario if lat_usuario else None,
+            longitude=lng_usuario if lng_usuario else None,
+            distancia_metros=distancia,
+            status=status_ponto,
+            observacao=observacao,
+            ip_address=self.get_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:255]
+        )
+
+        return Response({
+            "detail": "Ponto registrado com sucesso!",
+            "nome_funcionario": usuario.first_name or usuario.username,
+            "tipo": registro.get_tipo_display(),
+            "data_hora": registro.data_hora
+        }, status=status.HTTP_201_CREATED)
