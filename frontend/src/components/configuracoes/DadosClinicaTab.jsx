@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Box, Typography, TextField, Button, Grid, Divider, Alert, InputAdornment, CircularProgress,
-    Switch, FormControlLabel // <-- Adicione estes dois
+    FormGroup, FormControlLabel, Checkbox // <-- Adicionados aqui
 } from '@mui/material';
 import { Save, GpsFixed, LocationCity, Business } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
@@ -28,7 +28,10 @@ export default function DadosClinicaTab() {
         uf: '',
         raio_metros: 150,
         latitude: '',
-        longitude: ''
+        longitude: '',
+        recepcao_ve_equipe: false,
+        recepcao_ve_clinica: false,
+        recepcao_ve_financeiro: false
     });
 
     // 1. Busca os dados no backend ao abrir a tela
@@ -49,7 +52,10 @@ export default function DadosClinicaTab() {
                 cnpj: data.cnpj || '',
                 latitude: data.latitude || '',
                 longitude: data.longitude || '',
-                raio_metros: data.raio_metros || 150
+                raio_metros: data.raio_metros || 150,
+                recepcao_ve_equipe: data.recepcao_ve_equipe || false,
+                recepcao_ve_clinica: data.recepcao_ve_clinica || false,
+                recepcao_ve_financeiro: data.recepcao_ve_financeiro || false
             }));
         } catch (error) {
             showSnackbar('Erro ao carregar as configurações da clínica.', 'error');
@@ -148,25 +154,30 @@ export default function DadosClinicaTab() {
             <Alert severity="info" sx={{ mb: 3 }}>
                 <strong>Configuração do Ponto Eletrônico:</strong> Defina abaixo o raio de alcance em que seus funcionários têm permissão para bater o ponto via GPS.
             </Alert>
-            {/* 👇 ADICIONE ESTE NOVO BLOCO AQUI 👇 */}
-            <Alert severity="warning" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        Acesso Temporário (Recepção):
-                    </Typography>
+            {/* 👇 PAINEL GRANULAR AQUI 👇 */}
+            <Alert severity="warning" sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+                    Controle de Acesso da Recepção:
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1.5 }}>
+                    Selecione quais abas de configuração a recepção pode visualizar e editar temporariamente:
+                </Typography>
+                <FormGroup row>
                     <FormControlLabel 
-                        control={
-                            <Switch 
-                                checked={clinica.recepcao_ve_configuracoes || false} 
-                                onChange={(e) => setClinica({...clinica, recepcao_ve_configuracoes: e.target.checked})} 
-                                color="warning" 
-                            />
-                        } 
-                        label="Liberar visualização e edição das abas de Configuração, Equipe e Financeiro para a Recepção." 
+                        control={<Checkbox checked={clinica.recepcao_ve_equipe} onChange={(e) => setClinica({...clinica, recepcao_ve_equipe: e.target.checked})} color="warning" />} 
+                        label="Aba Equipe (Usuários e Ponto)" 
                     />
-                </Box>
+                    <FormControlLabel 
+                        control={<Checkbox checked={clinica.recepcao_ve_clinica} onChange={(e) => setClinica({...clinica, recepcao_ve_clinica: e.target.checked})} color="warning" />} 
+                        label="Aba Clínica (Dados, Procedimentos, etc)" 
+                    />
+                    <FormControlLabel 
+                        control={<Checkbox checked={clinica.recepcao_ve_financeiro} onChange={(e) => setClinica({...clinica, recepcao_ve_financeiro: e.target.checked})} color="warning" />} 
+                        label="Aba Financeiro (Categorias)" 
+                    />
+                </FormGroup>
             </Alert>
-            {/* 👆 FIM DO NOVO BLOCO 👆 */}
+            {/* 👆 FIM DO PAINEL GRANULAR 👆 */}
             
             <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} md={4}>

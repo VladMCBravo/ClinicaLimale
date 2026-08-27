@@ -90,8 +90,8 @@ class CanCreateAtestado(permissions.BasePermission):
 
 class IsAdminOrRecepcaoTemporario(permissions.BasePermission):
     """
-    Permite acesso se o usuário for Admin, OU se for Recepção e a chave 
-    'recepcao_ve_configuracoes' estiver ligada na configuração da clínica.
+    Permite acesso se o usuário for Admin, OU se for Recepção e 
+    pelo menos UMA das chaves de configuração estiver ligada.
     """
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -101,9 +101,8 @@ class IsAdminOrRecepcaoTemporario(permissions.BasePermission):
             return True
             
         if request.user.cargo == 'recepcao':
-            # Busca a configuração
             config = ConfiguracaoClinica.objects.first()
-            if config and config.recepcao_ve_configuracoes:
+            if config and (config.recepcao_ve_equipe or config.recepcao_ve_clinica or config.recepcao_ve_financeiro):
                 return True
                 
         return False
