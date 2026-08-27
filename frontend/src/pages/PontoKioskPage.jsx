@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, CircularProgress, Grid } from '@mui/material';
 import { AccessTime, Fingerprint, Input, FreeBreakfast, MeetingRoom } from '@mui/icons-material';
-import apiClient from '../api/axiosConfig'; // Mantido seu apiClient
+import apiClient from '../api/axiosConfig';
 
 export default function PontoKioskPage() {
     const [horaAtual, setHoraAtual] = useState(new Date());
@@ -31,52 +31,61 @@ export default function PontoKioskPage() {
         setLoading(true);
         setMensagem({ tipo: '', texto: '' });
         
-        // Avisa a interface que o Python foi acionado
-        setStatusLeitor('Luz acesa. Coloque o dedo no leitor...');
-
         try {
-            // 1. Chama o middleware local (Python) para ler a digital do USB
-            const respostaLocal = await fetch('http://localhost:8080/api/capturar-digital');
+            // 1. Baixa todos os templates de digitais do Django
+            setStatusLeitor('Preparando sistema biométrico...');
+            const responseTemplates = await apiClient.get('/usuarios/ponto/biometrias/');
+            const templatesCadastrados = responseTemplates.data;
+
+            if (templatesCadastrados.length === 0) {
+                throw new Error("Não há nenhuma digital cadastrada no sistema.");
+            }
+
+            // 2. Chama o middleware local (Windows) passando a lista para ele comparar
+            setStatusLeitor('Luz acesa. Coloque o dedo no leitor...');
+            const respostaLocal = await fetch('http://localhost:8080/api/identificar-digital', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ templates_cadastrados: templatesCadastrados })
+            });
+            
             const dadosLocal = await respostaLocal.json();
 
             if (dadosLocal.status !== 'sucesso') {
-                throw new Error("Erro ao acessar o leitor biométrico da máquina.");
+                throw new Error(dadosLocal.mensagem || "Digital não reconhecida. Tente novamente.");
             }
 
-            setStatusLeitor('Digital lida! Buscando funcionário no sistema...');
+            setStatusLeitor('Digital reconhecida! Registrando o ponto...');
 
-            // 2. Envia a digital capturada para o Django
-            // ATENÇÃO: Rota nova no backend que não pede CPF
-            const response = await apiClient.post('/usuarios/ponto/bater-biometria/', {
-                digital_raw_b64: dadosLocal.imagem_base64,
+            // 3. O leitor local achou o funcionário. Avisamos o Django qual foi o ID.
+            const responseDjango = await apiClient.post('/usuarios/ponto/bater-biometria/', {
+                usuario_id: dadosLocal.usuario_id,
                 tipo: tipo_batida,
                 latitude: localizacao ? localizacao.latitude : null,
                 longitude: localizacao ? localizacao.longitude : null
             });
 
             // Mostra o nome do funcionário retornado pelo Django
-            setMensagem({ tipo: 'success', texto: `${response.data.detail} - Funcionário: ${response.data.nome_funcionario}` });
+            setMensagem({ tipo: 'success', texto: `${responseDjango.data.detail} - Funcionário: ${responseDjango.data.nome_funcionario}` });
             setStatusLeitor('Ponto registrado com sucesso!');
 
         } catch (error) {
-            const erroMsg = error.response?.data?.detail || error.message || "Erro ao ler digital ou conectar com o servidor.";
+            const erroMsg = error.response?.data?.detail || error.message || "Erro de comunicação com o leitor biométrico.";
             setMensagem({ tipo: 'error', texto: erroMsg });
             setStatusLeitor('Falha na operação.');
         } finally {
             setLoading(false);
-            // Reseta a mensagem após 5 segundos
+            // Reseta a interface após 6 segundos
             setTimeout(() => {
                 setMensagem({ tipo: '', texto: '' });
                 setStatusLeitor('Selecione o tipo de batida abaixo para iniciar.');
-            }, 5000);
+            }, 6000);
         }
     };
 
     return (
-        // Substituímos o Box gigante pela classe tasy-workspace para herdar o scroll da clínica
         <div className="tasy-workspace" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#e9ecef', padding: '20px' }}>
             
-            {/* Painel Tasy Flat Design (sem a sombra arredondada do Paper) */}
             <div className="tasy-panel theme-blue" style={{ maxWidth: '550px', width: '100%' }}>
                 
                 <div className="tasy-panel-header">
@@ -97,7 +106,6 @@ export default function PontoKioskPage() {
                         {horaAtual.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </Typography>
 
-                    {/* Mensagem de Erro/Sucesso customizada para o Tasy */}
                     {mensagem.texto && (
                         <div style={{
                             padding: '12px',
@@ -113,7 +121,6 @@ export default function PontoKioskPage() {
                         </div>
                     )}
 
-                    {/* Status visual do leitor */}
                     <div className="tasy-section-header" style={{ marginBottom: '20px', backgroundColor: '#f8f9fa', color: '#1c7ed6' }}>
                         {statusLeitor}
                     </div>
