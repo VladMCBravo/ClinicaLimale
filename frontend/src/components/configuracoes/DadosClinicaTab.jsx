@@ -1,7 +1,8 @@
 // src/components/configuracoes/DadosClinicaTab.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-    Box, Typography, TextField, Button, Grid, Divider, Alert, InputAdornment, CircularProgress
+    Box, Typography, TextField, Button, Grid, Divider, Alert, InputAdornment, CircularProgress,
+    Switch, FormControlLabel // <-- Adicione estes dois
 } from '@mui/material';
 import { Save, GpsFixed, LocationCity, Business } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
@@ -147,6 +148,25 @@ export default function DadosClinicaTab() {
             <Alert severity="info" sx={{ mb: 3 }}>
                 <strong>Configuração do Ponto Eletrônico:</strong> Defina abaixo o raio de alcance em que seus funcionários têm permissão para bater o ponto via GPS.
             </Alert>
+            {/* 👇 ADICIONE ESTE NOVO BLOCO AQUI 👇 */}
+            <Alert severity="warning" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        Acesso Temporário (Recepção):
+                    </Typography>
+                    <FormControlLabel 
+                        control={
+                            <Switch 
+                                checked={clinica.recepcao_ve_configuracoes || false} 
+                                onChange={(e) => setClinica({...clinica, recepcao_ve_configuracoes: e.target.checked})} 
+                                color="warning" 
+                            />
+                        } 
+                        label="Liberar visualização e edição das abas de Configuração, Equipe e Financeiro para a Recepção." 
+                    />
+                </Box>
+            </Alert>
+            {/* 👆 FIM DO NOVO BLOCO 👆 */}
             
             <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} md={4}>

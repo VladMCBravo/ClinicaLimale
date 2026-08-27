@@ -3,6 +3,7 @@
 from rest_framework import permissions
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from pacientes.models import Paciente
+from .models import ConfiguracaoClinica
 
 # --- PERMISSÕES BÁSICAS COM DEBUG ---
 
@@ -84,4 +85,25 @@ class CanCreateAtestado(permissions.BasePermission):
             return True
         if request.method == 'POST':
             return request.data.get('tipo_atestado') == 'Comparecimento'
+        return False
+
+
+class IsAdminOrRecepcaoTemporario(permissions.BasePermission):
+    """
+    Permite acesso se o usuário for Admin, OU se for Recepção e a chave 
+    'recepcao_ve_configuracoes' estiver ligada na configuração da clínica.
+    """
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+            
+        if request.user.cargo == 'admin':
+            return True
+            
+        if request.user.cargo == 'recepcao':
+            # Busca a configuração
+            config = ConfiguracaoClinica.objects.first()
+            if config and config.recepcao_ve_configuracoes:
+                return True
+                
         return False
