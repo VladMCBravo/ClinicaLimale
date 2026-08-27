@@ -17,8 +17,7 @@ const initialState = {
     username: '', password: '', first_name: '', last_name: '',
     cargo: 'recepcao', is_active: true,
     genero: '', data_nascimento: '', telefone: '', cpf: '', email: '',
-    crm: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
-    pin_ponto: '',
+    crm: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', cep: ''
 };
 
 export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar }) {
@@ -190,7 +189,7 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                     <Grid item xs={12} sm={4}><TextField className="tasy-compact-input" name="username" label="Usuário (login)" value={formData.username} onChange={handleChange} required fullWidth /></Grid>
                                     <Grid item xs={12} sm={4}><TextField className="tasy-compact-input" name="password" label={usuarioParaEditar ? "Nova Senha (opcional)" : "Senha"} type="password" onChange={handleChange} required={!usuarioParaEditar} fullWidth /></Grid>
                                     
-                                    <Grid item xs={12} sm={4}>
+                                    <Grid item xs={12} sm={6}>
                                         <FormControl fullWidth required className="tasy-compact-input">
                                             <InputLabel>Cargo</InputLabel>
                                             <Select name="cargo" value={formData.cargo} label="Cargo" onChange={handleChange}>
@@ -200,12 +199,9 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                             </Select>
                                         </FormControl>
                                     </Grid>
-                                    <Grid item xs={12} sm={4}>
-                                        <TextField className="tasy-compact-input" name="pin_ponto" label="PIN Antigo (Backup)" type="password" value={formData.pin_ponto || ''} onChange={handleChange} fullWidth inputProps={{ maxLength: 6 }} placeholder="4 a 6 dígitos" />
-                                    </Grid>
 
-                                    {/* SEÇÃO DA BIOMETRIA (Apenas aparece se o usuário já existir no banco) */}
-                                    <Grid item xs={12} sm={4}>
+                                    {/* SEÇÃO DA BIOMETRIA Ocupando metade da tela ao lado do cargo */}
+                                    <Grid item xs={12} sm={6}>
                                         {usuarioParaEditar ? (
                                             <Box sx={{ border: '1px solid #1c7ed6', bgcolor: '#e7f5ff', p: 1, textAlign: 'center' }}>
                                                 <Button 
@@ -218,12 +214,12 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                                     onClick={handleCapturarDigital}
                                                     disabled={isCapturingDigital}
                                                 >
-                                                    {isCapturingDigital ? 'Capturando...' : 'Cadastrar Digital'}
+                                                    {isCapturingDigital ? 'Capturando...' : 'Cadastrar Digital Biométrica'}
                                                 </Button>
                                                 {statusDigital && <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5, fontWeight: 'bold' }}>{statusDigital}</Typography>}
                                             </Box>
                                         ) : (
-                                            <Typography variant="caption" color="text.secondary">
+                                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>
                                                 * Salve o usuário primeiro para habilitar o cadastro da digital biométrica.
                                             </Typography>
                                         )}
