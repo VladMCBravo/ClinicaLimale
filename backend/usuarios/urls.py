@@ -12,7 +12,11 @@ from .views import (
     MedicosComJornadaListView,
     BaterPontoView,
     ConfiguracaoClinicaView,
-    RegistroPontoAdminViewSet
+    RegistroPontoAdminViewSet,
+    # <-- NOVAS VIEWS BIOMÉTRICAS -->
+    BaterPontoBiometriaView,
+    CadastrarBiometriaView,
+    ListarBiometriasView,
 )
 
 # O Router é a forma padrão do Django Rest Framework de criar
@@ -34,6 +38,11 @@ urlpatterns = [
     
     # Rota de Ponto Eletrônico
     path('ponto/bater/', BaterPontoView.as_view(), name='bater-ponto'),
+    # <-- NOVAS ROTAS BIOMÉTRICAS -->
+    path('ponto/bater-biometria/', BaterPontoBiometriaView.as_view(), name='bater-ponto-biometria'),
+    path('ponto/cadastrar-biometria/<int:user_id>/', CadastrarBiometriaView.as_view(), name='cadastrar-biometria'),
+    path('ponto/biometrias/', ListarBiometriasView.as_view(), name='listar-biometrias'), # <-- NOVA AQUI
+    # <-- FIM DAS NOVAS ROTAS -->
 
     # Configurações da Clínica
     path('clinica/configuracao/', ConfiguracaoClinicaView.as_view(), name='clinica-configuracao'),

@@ -1,13 +1,13 @@
 // src/components/configuracoes/UsuariosTab.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-    Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
+    Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
     Button, IconButton, Switch, FormControl, InputLabel, Select, MenuItem 
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
-import apiClient from '../../api/axiosConfig'; // Ajuste o caminho
-import { useSnackbar } from '../../contexts/SnackbarContext'; // Ajuste o caminho
-import UsuarioModal from './UsuarioModal'; // Certifique-se que este arquivo existe nesta mesma pasta
+import apiClient from '../../api/axiosConfig'; 
+import { useSnackbar } from '../../contexts/SnackbarContext'; 
+import UsuarioModal from './UsuarioModal'; 
 
 export default function UsuariosTab() {
     const [users, setUsers] = useState([]);
@@ -18,16 +18,18 @@ export default function UsuariosTab() {
     const [filtroCargo, setFiltroCargo] = useState('');
 
     const fetchUsers = useCallback(async () => {
-    setIsLoading(true);
-    try {
-        // Agora usa o parâmetro que o backend já aceita
-        const response = await apiClient.get('/usuarios/usuarios/', {
-            params: { cargo: filtroCargo }
-        });
-        setUsers(response.data);
-    } catch (error) { /* ... */ }
-    finally { setIsLoading(false); }
-}, [filtroCargo, showSnackbar]);
+        setIsLoading(true);
+        try {
+            const response = await apiClient.get('/usuarios/usuarios/', {
+                params: { cargo: filtroCargo }
+            });
+            setUsers(response.data);
+        } catch (error) { 
+            showSnackbar('Erro ao carregar usuários.', 'error');
+        } finally { 
+            setIsLoading(false); 
+        }
+    }, [filtroCargo, showSnackbar]);
 
     useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -40,36 +42,43 @@ export default function UsuariosTab() {
     };
 
     return (
-    <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Filtrar por Cargo</InputLabel>
-                <Select value={filtroCargo} label="Filtrar por Cargo" onChange={(e) => setFiltroCargo(e.target.value)}>
-                    <MenuItem value="">Todos</MenuItem>
-                    <MenuItem value="admin">Administrador</MenuItem>
-                    <MenuItem value="medico">Médico</MenuItem>
-                    <MenuItem value="recepcao">Recepção</MenuItem>
-                </Select>
-            </FormControl>
-            <Button variant="contained" size="small" onClick={() => { setEditingUser(null); setIsModalOpen(true); }} sx={{bgcolor: '#1a233b'}}>
-                Novo Usuário
-            </Button>
-        </Box>
-        
-        <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 'calc(100vh - 400px)' }}>
-            <Table size="small" stickyHeader>
-                <TableHead sx={{ bgcolor: '#f5f5f5' }}>
-                    <TableRow>
-                        <TableCell>Nome</TableCell>
-                        <TableCell>Login</TableCell>
-                        <TableCell>Cargo</TableCell>
-                        <TableCell align="center">Status</TableCell>
-                        <TableCell align="right">Ações</TableCell>
-                    </TableRow>
-                </TableHead>
+        <Box className="tasy-workspace">
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                <FormControl size="small" sx={{ minWidth: 200 }} className="tasy-compact-input">
+                    <InputLabel>Filtrar por Cargo</InputLabel>
+                    <Select value={filtroCargo} label="Filtrar por Cargo" onChange={(e) => setFiltroCargo(e.target.value)}>
+                        <MenuItem value="">Todos</MenuItem>
+                        <MenuItem value="admin">Administrador</MenuItem>
+                        <MenuItem value="medico">Médico</MenuItem>
+                        <MenuItem value="recepcao">Recepção</MenuItem>
+                    </Select>
+                </FormControl>
+                <Button 
+                    variant="contained" 
+                    disableElevation 
+                    size="small" 
+                    onClick={() => { setEditingUser(null); setIsModalOpen(true); }} 
+                    sx={{bgcolor: '#1c7ed6', borderRadius: 0}}
+                >
+                    Novo Usuário
+                </Button>
+            </Box>
+            
+            {/* Uso do flat panel ao invés do Paper com sombra */}
+            <TableContainer className="tasy-flat-panel" sx={{ maxHeight: 'calc(100vh - 200px)' }}>
+                <Table size="small" stickyHeader>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 'bold' }}>Nome</TableCell>
+                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 'bold' }}>Login</TableCell>
+                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 'bold' }}>Cargo</TableCell>
+                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 'bold' }} align="center">Status</TableCell>
+                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 'bold' }} align="right">Ações</TableCell>
+                        </TableRow>
+                    </TableHead>
                     <TableBody>
                         {users.map((user) => (
-                            <TableRow key={user.id}>
+                            <TableRow key={user.id} hover>
                                 <TableCell>{user.first_name} {user.last_name}</TableCell>
                                 <TableCell>{user.username}</TableCell>
                                 <TableCell sx={{ textTransform: 'capitalize' }}>{user.cargo}</TableCell>
@@ -77,13 +86,16 @@ export default function UsuariosTab() {
                                     <Switch checked={user.is_active} onChange={() => handleToggleActive(user)} color="success" size="small" />
                                 </TableCell>
                                 <TableCell align="right">
-                                    <IconButton onClick={() => { setEditingUser(user); setIsModalOpen(true); }} size="small"><EditIcon fontSize="small" /></IconButton>
+                                    <IconButton onClick={() => { setEditingUser(user); setIsModalOpen(true); }} size="small" color="primary">
+                                        <EditIcon fontSize="small" />
+                                    </IconButton>
                                 </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
             </TableContainer>
+            
             <UsuarioModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={fetchUsers} usuarioParaEditar={editingUser} />
         </Box>
     );
