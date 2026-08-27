@@ -142,11 +142,15 @@ class UploadExameView(APIView):
         count_imgs = 0
         for f in files:
             ext = f.name.lower().split('.')[-1]
+            # Extrai apenas o nome original sem a extensão e sem os pontos
+            nome_base = os.path.splitext(f.name)[0] 
+            
             tipo = 'IMAGEM'
             if ext in ['mp4', 'avi', 'mov', 'mkv']: tipo = 'VIDEO'
             elif ext in ['pdf']: tipo = 'LAUDO'
             
-            if not ArquivoExame.objects.filter(exame=exame, arquivo__icontains=f.name).exists():
+            # Agora verificamos apenas pelo nome base do arquivo, ignorando a extensão e hashes
+            if not ArquivoExame.objects.filter(exame=exame, arquivo__icontains=nome_base).exists():
                 ArquivoExame.objects.create(exame=exame, arquivo=f, tipo=tipo)
                 count_imgs += 1
 

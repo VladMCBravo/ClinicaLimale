@@ -52,7 +52,7 @@ const ImagensNuvemModal = ({ open, onClose, paciente, onConfirmar }) => {
                 const blob = await response.blob();
                 return new Promise((resolve) => {
                     const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
+                    reader.onloadend = () => resolve("CLOUD:" + reader.result); // <-- TAG ADICIONADA AQUI
                     reader.readAsDataURL(blob);
                 });
             });

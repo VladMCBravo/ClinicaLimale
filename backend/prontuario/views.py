@@ -1052,25 +1052,35 @@ class LaudoListCreateView(generics.ListCreateAPIView):
         else:
             imagens_lista = imagens_do_json
             
-        # 4. Salva as imagens individualmente
+        # 4. Salva as imagens individualmente (CORRIGIDO: Bloqueia duplicatas da nuvem)
         if imagens_lista:
             for index, img_str in enumerate(imagens_lista):
                 try:
+                    # VERIFICAÇÃO DO BUMERANGUE
+                    is_cloud = False
+                    if img_str.startswith("CLOUD:"):
+                        is_cloud = True
+                        img_str = img_str.replace("CLOUD:", "", 1)
+                        
+                    if is_cloud:
+                        # Pula a criação no banco de dados para não gastar espaço no S3,
+                        # pois o arquivo já existe na pasta do exame da máquina de USG!
+                        continue
+
+                    # Se chegou aqui, é upload manual do PC do médico (Salva normal)
                     if ";base64," in img_str:
                         format, imgstr = img_str.split(';base64,') 
                         ext = format.split('/')[-1]
                     else:
                         imgstr = img_str
                         ext = 'jpg'
-
                     data = base64.b64decode(imgstr)
                     file_name = f"laudo_{laudo.id}_img_{index}.{ext}"
                     
                     ImagemLaudo.objects.create(
-                        laudo=laudo,
+                        laudo=laudo, 
                         arquivo=ContentFile(data, name=file_name)
                     )
-                    print(f"DEBUG: Imagem {index} salva no disco com sucesso.")
                 except Exception as e:
                     print(f"Erro ao salvar imagem {index}: {e}")
 
@@ -1729,9 +1739,17 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
 
                 imagens_raw = request.data.get('imagens_anexas', '[]')
                 try:
-                    imagens_lista = json.loads(imagens_raw) if isinstance(imagens_raw, str) else imagens_raw
+                    imagens_raw_parsed = json.loads(imagens_raw) if isinstance(imagens_raw, str) else imagens_raw
                 except:
-                    imagens_lista = []
+                    imagens_raw_parsed = []
+
+                # LIMPEZA DA FLAG PARA O PDF FUNCIONAR
+                imagens_lista = []
+                for img in imagens_raw_parsed:
+                    if isinstance(img, str) and img.startswith("CLOUD:"):
+                        imagens_lista.append(img.replace("CLOUD:", "", 1))
+                    else:
+                        imagens_lista.append(img)
 
                 idade_formatada = ""
                 if paciente.data_nascimento:
