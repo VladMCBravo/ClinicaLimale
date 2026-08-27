@@ -310,11 +310,12 @@ class ConfiguracaoClinica(models.Model):
     raio_metros = models.IntegerField(default=150, help_text="Raio de tolerância em metros para bater ponto")
     latitude = models.FloatField(blank=True, null=True)
     longitude = models.FloatField(blank=True, null=True)
-    # 👇 ADICIONE ESTE NOVO CAMPO AQUI 👇
-    recepcao_ve_configuracoes = models.BooleanField(
-        default=False, 
-        verbose_name="Permitir que a recepção acesse as configurações"
-    )
+
+    # Configurações de Permissões
+    recepcao_ve_equipe = models.BooleanField(default=False, verbose_name="Recepção vê Aba Equipe")
+    recepcao_ve_clinica = models.BooleanField(default=False, verbose_name="Recepção vê Aba Clínica")
+    recepcao_ve_financeiro = models.BooleanField(default=False, verbose_name="Recepção vê Aba Financeiro")
+    
 
     class Meta:
         verbose_name = "Configuração da Clínica"
