@@ -1,3 +1,4 @@
+// src/components/financeiro/ProcedimentosView.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
     Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableFooter,
@@ -104,28 +105,20 @@ export default function ProcedimentosView() {
         });
     };
 
-    const KpiCard = ({ title, value, color, icon }) => (
-        <Paper className="tasy-flat-panel" sx={{ p: 1, display: 'flex', alignItems: 'center', minWidth: 160, borderLeft: `4px solid ${color}` }}>
-            <Box sx={{ flexGrow: 1 }}>
-                <Typography sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#6c757d', textTransform: 'uppercase' }}>{title}</Typography>
-                <Typography sx={{ fontSize: '1.1rem', fontWeight: 900, color: '#343a40', lineHeight: 1 }}>{value}</Typography>
-            </Box>
-            <Box sx={{ color: color, opacity: 0.8, fontSize: '1.2rem', display: 'flex', alignItems: 'center' }}>{icon}</Box>
-        </Paper>
-    );
-
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 1, backgroundColor: '#f1f3f5', overflow: 'hidden' }}>
             
-            {/* CABEÇALHO TASY */}
-            <Paper className="tasy-flat-panel" sx={{ p: 1, mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-                <Stack direction="row" spacing={1.5}>
-                    <KpiCard title="Total Cadastrado" value={kpis.total} color="#1565c0" icon={<FormatListNumbered />} />
-                    <KpiCard title="Com Preço Particular" value={kpis.comValor} color="#2e7d32" icon={<MonetizationOn />} />
-                    <KpiCard title="Com Código TUSS" value={kpis.tuss} color="#ed6c02" icon={<LocalHospital />} />
-                </Stack>
+            {/* CABEÇALHO COMPACTO TASY */}
+            <Paper className="tasy-flat-panel" sx={{ p: 1, mb: 1, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                
+                {/* KPIs Transformados em Chips para poupar espaço vertical */}
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip size="small" icon={<FormatListNumbered />} label={`Cadastrados: ${kpis.total}`} sx={{ borderRadius: 1, fontWeight: 'bold' }} />
+                    <Chip size="small" icon={<MonetizationOn />} label={`Com Preço: ${kpis.comValor}`} sx={{ borderRadius: 1, fontWeight: 'bold' }} color="success" variant="outlined" />
+                    <Chip size="small" icon={<LocalHospital />} label={`Com TUSS: ${kpis.tuss}`} sx={{ borderRadius: 1, fontWeight: 'bold' }} color="warning" variant="outlined" />
+                </Box>
 
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                     <TextField 
                         size="small" className="tasy-compact-input" placeholder="Buscar exame ou código..." 
                         value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} 
@@ -138,7 +131,7 @@ export default function ProcedimentosView() {
                         disabled={isUploading}
                         sx={{ textTransform: 'none', borderRadius: 1, color: '#495057', borderColor: '#ced4da' }}
                     >
-                        {isUploading ? 'Processando...' : 'Importar TUSS'}
+                        {isUploading ? 'Processando...' : 'Importar'}
                         <input type="file" accept=".csv, .txt" hidden onChange={handleFileUpload} />
                     </Button>
                     <Button
@@ -151,7 +144,7 @@ export default function ProcedimentosView() {
                         variant="contained" color="primary" size="small" startIcon={<Add />} onClick={() => handleOpenModal(null)}
                         sx={{ textTransform: 'none', borderRadius: 1, fontWeight: 'bold' }}
                     >
-                        Novo Procedimento
+                        Novo
                     </Button>
                 </Box>
             </Paper>
@@ -161,15 +154,15 @@ export default function ProcedimentosView() {
                 <div className="tasy-section-header" style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
                     Catálogo de Procedimentos e Exames
                 </div>
-                <TableContainer sx={{ flexGrow: 1, bgcolor: '#ffffff' }}>
+                <TableContainer className="tasy-workspace" sx={{ flexGrow: 1, bgcolor: '#ffffff' }}>
                     <Table stickyHeader size="small">
                         <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 120 }}>Código TUSS</TableCell>
-                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 140 }}>Categoria</TableCell>
-                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057' }}>Descrição do Exame</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 150 }}>Valor Particular</TableCell>
-                                <TableCell align="center" sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 80 }}>Ação</TableCell>
+                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 120, borderBottom: '1px solid #dee2e6' }}>Código TUSS</TableCell>
+                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 140, borderBottom: '1px solid #dee2e6' }}>Categoria</TableCell>
+                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', borderBottom: '1px solid #dee2e6' }}>Descrição do Exame</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 150, borderBottom: '1px solid #dee2e6' }}>Valor Particular</TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', width: 80, borderBottom: '1px solid #dee2e6' }}>Ação</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -177,7 +170,7 @@ export default function ProcedimentosView() {
                                 <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6 }}><CircularProgress /></TableCell></TableRow>
                             ) : filteredList.length > 0 ? (
                                 filteredList.map((proc) => (
-                                    <TableRow key={proc.id} hover>
+                                    <TableRow key={proc.id} hover sx={{ '& td': { borderBottom: '1px solid #f1f3f5' } }}>
                                         <TableCell sx={{ fontFamily: 'monospace', color: '#6c757d', fontSize: '0.8rem', fontWeight: 'bold' }}>
                                             {proc.codigo_tuss || '-'}
                                         </TableCell>
@@ -208,7 +201,6 @@ export default function ProcedimentosView() {
                         </TableBody>
                     </Table>
                 </TableContainer>
-                {/* RODAPÉ */}
                 <Box sx={{ p: 1, borderTop: '1px solid #dee2e6', bgcolor: '#f8f9fa', textAlign: 'right' }}>
                     <Typography variant="caption" sx={{ color: '#6c757d', fontWeight: 'bold' }}>
                         EXIBINDO {filteredList.length} REGISTROS
@@ -216,7 +208,7 @@ export default function ProcedimentosView() {
                 </Box>
             </Paper>
 
-            {/* MODAIS */}
+            {/* MODAIS (mantidos intactos) */}
             <ProcedimentoModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={fetchProcedimentos} procedimento={procedimentoSelecionado} />
             <Dialog open={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} maxWidth="xs" fullWidth>
                 <DialogTitle sx={{ bgcolor: '#f8f9fa', p: 2, borderBottom: '1px solid #dee2e6' }}>
