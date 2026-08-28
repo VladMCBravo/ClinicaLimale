@@ -10,22 +10,21 @@ import {
 import { 
     Edit as EditIcon, 
     Delete as DeleteIcon, 
-    PictureAsPdf as PictureAsPdfIcon 
+    PictureAsPdf as PictureAsPdfIcon,
+    Add as AddIcon
 } from '@mui/icons-material';
 
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { configuracoesService } from '../services/configuracoesService';
 import { faturamentoService } from '../services/faturamentoService';
-import { gerarPdfEspecialidades } from '../utils/tabelaValoresPdfGenerator'; // Ajuste o caminho se necessário
+import { gerarPdfEspecialidades } from '../utils/tabelaValoresPdfGenerator'; 
 
 export default function EspecialidadesPage() {
-    // --- ESTADOS: Dados ---
     const [especialidades, setEspecialidades] = useState([]);
     const [planosDisponiveis, setPlanosDisponiveis] = useState([]);
     const [valoresConvenio, setValoresConvenio] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // --- ESTADOS: Interface e Formulários ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [itemParaEditar, setItemParaEditar] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,14 +32,12 @@ export default function EspecialidadesPage() {
     const [planoSelecionadoId, setPlanoSelecionadoId] = useState('');
     const [valorConvenio, setValorConvenio] = useState('');
 
-    // --- ESTADOS: PDF ---
     const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
     const [pdfOptions, setPdfOptions] = useState({ showValues: true });
     const [isGerandoPdf, setIsGerandoPdf] = useState(false);
 
     const { showSnackbar } = useSnackbar();
 
-    // --- EFEITOS E BUSCA DE DADOS ---
     const fetchDados = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -57,11 +54,8 @@ export default function EspecialidadesPage() {
         }
     }, [showSnackbar]);
 
-    useEffect(() => { 
-        fetchDados(); 
-    }, [fetchDados]);
+    useEffect(() => { fetchDados(); }, [fetchDados]);
 
-    // --- HANDLERS: Interface ---
     const handleOpenModal = (item = null) => {
         setItemParaEditar(item);
         if (item) {
@@ -82,7 +76,6 @@ export default function EspecialidadesPage() {
         setValorConvenio('');
     };
 
-    // --- HANDLERS: CRUD ---
     const handleSave = async () => {
         if (!formData.nome.trim()) return showSnackbar('O nome não pode estar vazio.', 'warning');
         setIsSubmitting(true);
@@ -97,48 +90,31 @@ export default function EspecialidadesPage() {
             showSnackbar('Especialidade salva com sucesso!', 'success');
             handleCloseModal();
             fetchDados();
-        } catch (error) { 
-            showSnackbar('Erro ao salvar.', 'error'); 
-        } finally { 
-            setIsSubmitting(false); 
-        }
+        } catch (error) { showSnackbar('Erro ao salvar.', 'error'); } 
+        finally { setIsSubmitting(false); }
     };
     
     const handleAddPrecoConvenio = async () => {
         if (!planoSelecionadoId || !valorConvenio) return showSnackbar('Selecione um plano e informe o valor.', 'warning');
         setIsSubmitting(true);
         try {
-            await configuracoesService.definirPrecoConvenioEspecialidade(itemParaEditar.id, { 
-                plano_convenio_id: planoSelecionadoId, 
-                valor: valorConvenio 
-            });
+            await configuracoesService.definirPrecoConvenioEspecialidade(itemParaEditar.id, { plano_convenio_id: planoSelecionadoId, valor: valorConvenio });
             showSnackbar('Preço de convênio adicionado!', 'success');
-            setPlanoSelecionadoId(''); 
-            setValorConvenio('');
-            fetchDados();
-            handleCloseModal();
-        } catch (error) { 
-            showSnackbar('Erro ao salvar preço.', 'error'); 
-        } finally { 
-            setIsSubmitting(false); 
-        }
+            setPlanoSelecionadoId(''); setValorConvenio('');
+            fetchDados(); handleCloseModal();
+        } catch (error) { showSnackbar('Erro ao salvar preço.', 'error'); } 
+        finally { setIsSubmitting(false); }
     };
 
     const handleDelete = async (id) => {
         if (window.confirm('Deseja deletar esta especialidade?')) {
-            try { 
-                await configuracoesService.deleteEspecialidade(id); 
-                fetchDados(); 
-            } catch { 
-                showSnackbar('Erro ao deletar.', 'error'); 
-            }
+            try { await configuracoesService.deleteEspecialidade(id); fetchDados(); } 
+            catch { showSnackbar('Erro ao deletar.', 'error'); }
         }
     };
 
-    /// --- HANDLERS: PDF ---
     const handleGerarPdf = () => {
         setIsGerandoPdf(true);
-        
         gerarPdfEspecialidades(especialidades, pdfOptions, (blob) => {
             try {
                 const url = URL.createObjectURL(blob);
@@ -146,63 +122,78 @@ export default function EspecialidadesPage() {
                 a.href = url;
                 a.download = 'Especialidades_Limale.pdf';
                 a.click();
-                
                 showSnackbar('PDF gerado com sucesso!', 'success');
-            } catch (error) {
-                showSnackbar('Erro ao processar o PDF.', 'error');
-            } finally {
-                setIsPdfModalOpen(false);
-                setIsGerandoPdf(false);
-            }
+            } catch (error) { showSnackbar('Erro ao processar o PDF.', 'error'); } 
+            finally { setIsPdfModalOpen(false); setIsGerandoPdf(false); }
         });
     };
     
-    if (isLoading) return <CircularProgress />;
-
     return (
-        <Paper sx={{ p: 2, margin: 'auto' }}>
-            {/* CABEÇALHO */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h5">Especialidades e Consultas</Typography>
+        // Alterado de margin: auto / p: 2 para ocupar a tela 100% igual aos procedimentos
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 1, backgroundColor: '#f1f3f5', overflow: 'hidden' }}>
+            
+            <Paper className="tasy-flat-panel" sx={{ p: 1, mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#495057', textTransform: 'uppercase' }}>
+                    Gestão de Especialidades
+                </Typography>
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button variant="outlined" color="error" startIcon={<PictureAsPdfIcon />} onClick={() => setIsPdfModalOpen(true)}>
-                        PDF
+                    <Button variant="outlined" color="error" size="small" startIcon={<PictureAsPdfIcon />} onClick={() => setIsPdfModalOpen(true)} sx={{ textTransform: 'none', borderRadius: 1 }}>
+                        Exportar PDF
                     </Button>
-                    <Button variant="contained" onClick={() => handleOpenModal()}>
+                    <Button variant="contained" color="primary" size="small" startIcon={<AddIcon />} onClick={() => handleOpenModal()} sx={{ textTransform: 'none', borderRadius: 1, fontWeight: 'bold' }}>
                         Nova Especialidade
                     </Button>
                 </Box>
-            </Box>
+            </Paper>
             
-            {/* TABELA PRINCIPAL */}
-            <TableContainer>
-                <Table size="small">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell sx={{fontWeight: 'bold'}}>Nome da Especialidade</TableCell>
-                            <TableCell sx={{fontWeight: 'bold'}}>Valor (Particular)</TableCell>
-                            <TableCell sx={{fontWeight: 'bold'}} align="right">Ações</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {especialidades.map((item) => (
-                            <TableRow key={item.id} hover>
-                                <TableCell>{item.nome}</TableCell>
-                                <TableCell>{item.valor_consulta ? `R$ ${parseFloat(item.valor_consulta).toFixed(2)}` : 'Não definido'}</TableCell>
-                                <TableCell align="right">
-                                    <IconButton onClick={() => handleOpenModal(item)}><EditIcon color="primary" /></IconButton>
-                                    <IconButton onClick={() => handleDelete(item.id)}><DeleteIcon color="error" /></IconButton>
-                                </TableCell>
+            <Paper className="tasy-flat-panel" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div className="tasy-section-header" style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
+                    Especialidades e Consultas
+                </div>
+                <TableContainer className="tasy-workspace" sx={{ flexGrow: 1, bgcolor: '#ffffff' }}>
+                    <Table stickyHeader size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', borderBottom: '1px solid #dee2e6' }}>Nome da Especialidade</TableCell>
+                                <TableCell sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', borderBottom: '1px solid #dee2e6', width: 180 }}>Valor (Particular)</TableCell>
+                                <TableCell align="center" sx={{ fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', borderBottom: '1px solid #dee2e6', width: 100 }}>Ações</TableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                            {isLoading ? (
+                                <TableRow><TableCell colSpan={3} align="center" sx={{ py: 6 }}><CircularProgress /></TableCell></TableRow>
+                            ) : especialidades.length > 0 ? (
+                                especialidades.map((item) => (
+                                    <TableRow key={item.id} hover sx={{ '& td': { borderBottom: '1px solid #f1f3f5' } }}>
+                                        <TableCell sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#343a40' }}>{item.nome}</TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold', color: item.valor_consulta ? '#2e7d32' : '#adb5bd', fontSize: '0.85rem' }}>
+                                            {item.valor_consulta ? `R$ ${parseFloat(item.valor_consulta).toFixed(2)}` : 'Não definido'}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <IconButton onClick={() => handleOpenModal(item)} size="small" sx={{ color: '#1565c0' }}><EditIcon fontSize="small" /></IconButton>
+                                            <IconButton onClick={() => handleDelete(item.id)} size="small" color="error"><DeleteIcon fontSize="small" /></IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow><TableCell colSpan={3} align="center" sx={{ py: 6, color: '#868e96' }}>Nenhuma especialidade cadastrada.</TableCell></TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+                <Box sx={{ p: 1, borderTop: '1px solid #dee2e6', bgcolor: '#f8f9fa', textAlign: 'right' }}>
+                    <Typography variant="caption" sx={{ color: '#6c757d', fontWeight: 'bold' }}>
+                        EXIBINDO {especialidades.length} REGISTROS
+                    </Typography>
+                </Box>
+            </Paper>
 
-            {/* MODAL DE EDIÇÃO/CRIAR ESPECIALIDADE */}
+            {/* MODAL DE EDIÇÃO/CRIAR ESPECIALIDADE (mantido intacto estruturalmente, apenas ajustes estéticos de DialogTitle) */}
             <Dialog open={isModalOpen} onClose={handleCloseModal} maxWidth="sm" fullWidth>
-                <DialogTitle>{itemParaEditar ? 'Gerenciar Especialidade' : 'Nova Especialidade'}</DialogTitle>
-                <DialogContent dividers>
+                <DialogTitle sx={{ bgcolor: '#f8f9fa', borderBottom: '1px solid #dee2e6', p: 2 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">{itemParaEditar ? 'Gerenciar Especialidade' : 'Nova Especialidade'}</Typography>
+                </DialogTitle>
+                <DialogContent sx={{ mt: 2 }}>
                     <Typography variant="overline" color="text.secondary">Dados Gerais</Typography>
                     <Box sx={{ display: 'flex', gap: 2, mb: 3, mt: 1 }}>
                         <TextField autoFocus label="Nome da Especialidade" fullWidth size="small" value={formData.nome} onChange={(e) => setFormData({...formData, nome: e.target.value})} />
@@ -221,10 +212,10 @@ export default function EspecialidadesPage() {
                                     </Select>
                                 </FormControl>
                                 <TextField label="Valor (R$)" type="number" value={valorConvenio} onChange={(e) => setValorConvenio(e.target.value)} size="small" sx={{ flex: 1 }} />
-                                <Button onClick={handleAddPrecoConvenio} variant="contained" color="primary" disabled={isSubmitting}>Add</Button>
+                                <Button onClick={handleAddPrecoConvenio} variant="contained" color="primary" disabled={isSubmitting} size="small" sx={{ height: 40 }}>Add</Button>
                             </Box>
                             
-                            <List dense sx={{ border: '1px solid #eee', borderRadius: 1, maxHeight: 150, overflow: 'auto' }}>
+                            <List dense sx={{ border: '1px solid #dee2e6', borderRadius: 1, maxHeight: 150, overflow: 'auto', bgcolor: '#f8f9fa' }}>
                                 {valoresConvenio.map(item => (
                                     <ListItem key={item.id} divider>
                                         <ListItemText primary={`${item.convenio_nome} - ${item.plano_nome}`} secondary={<Typography variant="body2" color="success.main" fontWeight="bold">R$ {item.valor}</Typography>} />
@@ -235,18 +226,19 @@ export default function EspecialidadesPage() {
                         </>
                     )}
                 </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
+                <DialogActions sx={{ p: 2, borderTop: '1px solid #dee2e6' }}>
                     <Button onClick={handleCloseModal}>Cancelar</Button>
-                    <Button onClick={handleSave} variant="contained" disabled={isSubmitting}>
+                    <Button onClick={handleSave} variant="contained" disabled={isSubmitting} sx={{ fontWeight: 'bold' }}>
                         {isSubmitting ? <CircularProgress size={24} /> : 'Salvar Especialidade'}
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* MODAL DE PDF */}
             <Dialog open={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>Exportar Especialidades</DialogTitle>
-                <DialogContent dividers>
+                <DialogTitle sx={{ bgcolor: '#f8f9fa', p: 2, borderBottom: '1px solid #dee2e6' }}>
+                    <Typography variant="subtitle1" fontWeight="bold">Exportar Especialidades</Typography>
+                </DialogTitle>
+                <DialogContent sx={{ mt: 2 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                         Selecione quais informações devem constar no documento:
                     </Typography>
@@ -257,13 +249,13 @@ export default function EspecialidadesPage() {
                         />
                     </Stack>
                 </DialogContent>
-                <DialogActions sx={{ p: 2 }}>
+                <DialogActions sx={{ p: 2, borderTop: '1px solid #dee2e6' }}>
                     <Button onClick={() => setIsPdfModalOpen(false)} disabled={isGerandoPdf}>Cancelar</Button>
                     <Button onClick={handleGerarPdf} variant="contained" color="error" startIcon={isGerandoPdf ? <CircularProgress size={20} color="inherit" /> : <PictureAsPdfIcon />} disabled={isGerandoPdf}>
                         {isGerandoPdf ? 'Processando...' : 'Gerar Documento'}
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Paper>
+        </Box>
     );
 }
