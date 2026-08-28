@@ -47,14 +47,10 @@ export default function ProcedimentosView() {
     const [pdfOptions, setPdfOptions] = useState({ showValues: true, showTuss: true });
     const [isGerandoPdf, setIsGerandoPdf] = useState(false);
 
-    // Estados para Ordenação
     const [order, setOrder] = useState('asc');
     const [orderBy, setOrderBy] = useState('descricao');
-
-    // Estado para as categorias minimizadas
     const [collapsedCats, setCollapsedCats] = useState({});
 
-    // ESTADOS PARA O MODAL DE EDIÇÃO EM MASSA (CATEGORIA)
     const [catModalOpen, setCatModalOpen] = useState(false);
     const [catEditing, setCatEditing] = useState(null);
     const [catConfigAgenda, setCatConfigAgenda] = useState({ duracao_padrao: 15, equipamento_obrigatorio: '', dias_funcionamento: [] });
@@ -65,9 +61,17 @@ export default function ProcedimentosView() {
 
     const fetchProcedimentos = useCallback(async () => {
         setIsLoading(true);
+        const startTime = performance.now();
+        console.log('[DEBUG-PERFORMANCE] ⏳ Iniciando busca de Procedimentos na API...');
+
         try {
             const response = await faturamentoService.getProcedimentos();
+            const endTime = performance.now();
+            console.log(`[DEBUG-PERFORMANCE] ✅ API respondeu com ${response.data.length} itens em ${(endTime - startTime).toFixed(2)}ms.`);
+            
+            const renderStart = performance.now();
             setProcedimentos(response.data);
+            console.log(`[DEBUG-PERFORMANCE] 🎨 Tempo processamento React: ${(performance.now() - renderStart).toFixed(2)}ms.`);
         } catch (error) { 
             showSnackbar('Erro ao carregar procedimentos.', 'error'); 
         } finally { 
@@ -134,16 +138,13 @@ export default function ProcedimentosView() {
         setCollapsedCats(prev => ({ ...prev, [cat]: !prev[cat] }));
     };
 
-    // FUNÇÕES DO MODAL INDIVIDUAL
     const handleOpenModal = (procedimento = null) => {
         setProcedimentoSelecionado(procedimento);
         setIsModalOpen(true);
     };
 
-    // FUNÇÕES DO MODAL EM MASSA (CATEGORIA)
     const handleOpenCatModal = (cat) => {
         setCatEditing(cat);
-        // Usa o primeiro item da categoria como molde para preencher o formulário inicial
         const firstProc = groupedAndSortedList[cat][0];
         if (firstProc && firstProc.configuracao_clinica) {
             setCatConfigAgenda({
@@ -173,7 +174,6 @@ export default function ProcedimentosView() {
         setIsSubmittingCat(true);
         try {
             const procsDaCat = groupedAndSortedList[catEditing];
-            // Atualiza todos os procedimentos da categoria de forma assíncrona paralela
             await Promise.all(procsDaCat.map(proc => {
                 return faturamentoService.updateProcedimento(proc.id, {
                     codigo_tuss: proc.codigo_tuss,
@@ -285,59 +285,68 @@ export default function ProcedimentosView() {
                             {isLoading ? (
                                 <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6 }}><CircularProgress /></TableCell></TableRow>
                             ) : Object.keys(groupedAndSortedList).length > 0 ? (
-                                Object.keys(groupedAndSortedList).sort().map((cat) => (
-                                    <React.Fragment key={cat}>
-                                        {/* LINHA DE CABEÇALHO DO GRUPO (COLORIDA E COM BOTÃO DE MASSA) */}
-                                        <TableRow sx={{ bgcolor: `${CAT_COLORS[cat]}15` }}>
-                                            <TableCell colSpan={5} sx={{ py: 0.5, borderBottom: `1px solid ${CAT_COLORS[cat]}40` }}>
-                                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                        <IconButton size="small" onClick={() => toggleCategory(cat)} sx={{ color: CAT_COLORS[cat] }}>
-                                                            {collapsedCats[cat] ? <KeyboardArrowDown fontSize="small" /> : <KeyboardArrowUp fontSize="small" />}
-                                                        </IconButton>
-                                                        <Typography variant="body2" fontWeight="bold" sx={{ color: CAT_COLORS[cat] }}>
-                                                            {CAT_LABELS[cat] || cat}
-                                                        </Typography>
-                                                        <Chip label={groupedAndSortedList[cat].length} size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: `${CAT_COLORS[cat]}30`, color: CAT_COLORS[cat], fontWeight: 'bold' }} />
-                                                    </Box>
-                                                    <Button 
-                                                        size="small" variant="outlined" startIcon={<AccessTime />} onClick={() => handleOpenCatModal(cat)}
-                                                        sx={{ color: CAT_COLORS[cat], borderColor: `${CAT_COLORS[cat]}80`, textTransform: 'none', height: 26, fontSize: '0.7rem', bgcolor: 'white', '&:hover': { bgcolor: `${CAT_COLORS[cat]}10` } }}
-                                                    >
-                                                        Agenda da Categoria
-                                                    </Button>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
+                                Object.keys(groupedAndSortedList).sort().map((cat) => {
+                                    
+                                    const procsCat = groupedAndSortedList[cat];
+                                    const comValorCat = procsCat.filter(p => Number(p.valor_particular) > 0).length;
+                                    const comTussCat = procsCat.filter(p => p.codigo_tuss).length;
 
-                                        {!collapsedCats[cat] && groupedAndSortedList[cat].map((proc) => (
-                                            <TableRow key={proc.id} hover sx={{ '& td': { borderBottom: '1px solid #f1f3f5' } }}>
-                                                <TableCell sx={{ fontFamily: 'monospace', color: '#6c757d', fontSize: '0.8rem', fontWeight: 'bold', pl: 3 }}>
-                                                    {proc.codigo_tuss || '-'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Chip 
-                                                        label={CAT_LABELS[proc.categoria] || proc.categoria} size="small" 
-                                                        sx={{ fontSize: '0.65rem', height: 20, fontWeight: 'bold', bgcolor: `${CAT_COLORS[proc.categoria]}15`, color: CAT_COLORS[proc.categoria], border: `1px solid ${CAT_COLORS[proc.categoria]}50` }}
-                                                    />
-                                                </TableCell>
-                                                <TableCell sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#343a40' }}>
-                                                    {proc.descricao}
-                                                </TableCell>
-                                                <TableCell align="right" sx={{ fontWeight: 'bold', color: proc.valor_particular ? '#2e7d32' : '#adb5bd', fontSize: '0.85rem' }}>
-                                                    {proc.valor_particular ? formatMoney(proc.valor_particular) : '-'}
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    <Tooltip title="Editar Regras e Preços">
-                                                        <IconButton onClick={() => handleOpenModal(proc)} size="small" sx={{ color: '#1565c0' }}>
-                                                            <Edit fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
+                                    return (
+                                        <React.Fragment key={cat}>
+                                            <TableRow sx={{ bgcolor: `${CAT_COLORS[cat]}15` }}>
+                                                <TableCell colSpan={5} sx={{ py: 0.5, borderBottom: `1px solid ${CAT_COLORS[cat]}40` }}>
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            <IconButton size="small" onClick={() => toggleCategory(cat)} sx={{ color: CAT_COLORS[cat] }}>
+                                                                {collapsedCats[cat] ? <KeyboardArrowDown fontSize="small" /> : <KeyboardArrowUp fontSize="small" />}
+                                                            </IconButton>
+                                                            <Typography variant="body2" fontWeight="bold" sx={{ color: CAT_COLORS[cat], textTransform: 'uppercase' }}>
+                                                                {CAT_LABELS[cat] || cat}
+                                                            </Typography>
+                                                            
+                                                            <Chip label={procsCat.length} size="small" sx={{ height: 18, fontSize: '0.65rem', bgcolor: `${CAT_COLORS[cat]}30`, color: CAT_COLORS[cat], fontWeight: 'bold' }} />
+                                                            <Chip label={`Preço: ${comValorCat}`} size="small" color="success" variant="outlined" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 'bold', ml: 1, p: 0 }} />
+                                                            <Chip label={`TUSS: ${comTussCat}`} size="small" color="warning" variant="outlined" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 'bold', p: 0 }} />
+                                                        </Box>
+                                                        <Button 
+                                                            size="small" variant="outlined" startIcon={<AccessTime />} onClick={() => handleOpenCatModal(cat)}
+                                                            sx={{ color: CAT_COLORS[cat], borderColor: `${CAT_COLORS[cat]}80`, textTransform: 'none', height: 26, fontSize: '0.75rem', bgcolor: 'white', '&:hover': { bgcolor: `${CAT_COLORS[cat]}10` } }}
+                                                        >
+                                                            Agenda da Categoria
+                                                        </Button>
+                                                    </Box>
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
-                                    </React.Fragment>
-                                ))
+
+                                            {!collapsedCats[cat] && procsCat.map((proc) => (
+                                                <TableRow key={proc.id} hover sx={{ '& td': { borderBottom: '1px solid #f1f3f5' } }}>
+                                                    <TableCell sx={{ fontFamily: 'monospace', color: '#6c757d', fontSize: '0.8rem', fontWeight: 'bold', pl: 3 }}>
+                                                        {proc.codigo_tuss || '-'}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Chip 
+                                                            label={CAT_LABELS[proc.categoria] || proc.categoria} size="small" 
+                                                            sx={{ fontSize: '0.65rem', height: 20, fontWeight: 'bold', bgcolor: `${CAT_COLORS[proc.categoria]}15`, color: CAT_COLORS[proc.categoria], border: `1px solid ${CAT_COLORS[proc.categoria]}50` }}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#343a40' }}>
+                                                        {proc.descricao}
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: 'bold', color: proc.valor_particular ? '#2e7d32' : '#adb5bd', fontSize: '0.85rem' }}>
+                                                        {proc.valor_particular ? formatMoney(proc.valor_particular) : '-'}
+                                                    </TableCell>
+                                                    <TableCell align="center">
+                                                        <Tooltip title="Editar Regras e Preços">
+                                                            <IconButton onClick={() => handleOpenModal(proc)} size="small" sx={{ color: '#1565c0' }}>
+                                                                <Edit fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </React.Fragment>
+                                    );
+                                })
                             ) : (
                                 <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6, color: '#868e96' }}>Nenhum procedimento encontrado.</TableCell></TableRow>
                             )}
@@ -353,38 +362,28 @@ export default function ProcedimentosView() {
 
             <ProcedimentoModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={fetchProcedimentos} procedimento={procedimentoSelecionado} />
             
-            {/* NOVO MODAL: CONFIGURAÇÃO DE AGENDA EM MASSA */}
             <Dialog open={catModalOpen} onClose={() => setCatModalOpen(false)} maxWidth="sm" fullWidth disableEscapeKeyDown={isSubmittingCat}>
                 <DialogTitle sx={{ bgcolor: `${CAT_COLORS[catEditing]}15`, p: 2, borderBottom: `1px solid ${CAT_COLORS[catEditing]}40` }}>
                     <Typography variant="subtitle1" fontWeight="bold" sx={{ color: CAT_COLORS[catEditing] }}>
                         Configurar Agenda: {CAT_LABELS[catEditing] || catEditing}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                        Atenção: Salvar esta regra aplicará os mesmos dias e horários para <b>todos</b> os exames desta categoria.
+                        Atenção: Salvar esta regra aplicará os mesmos dias e horários para <b>todos</b> os exames desta categoria de uma só vez.
                     </Typography>
                 </DialogTitle>
                 <DialogContent sx={{ mt: 2, bgcolor: '#f1f3f5' }}>
                     <Paper className="tasy-flat-panel" sx={{ p: 2, mb: 2 }}>
                         <div className="tasy-section-header" style={{ margin: '-16px -16px 16px -16px' }}>Requisitos Operacionais</div>
                         <Box display="flex" gap={2}>
-                            <TextField 
-                                label="Duração Padrão (minutos)" type="number" value={catConfigAgenda.duracao_padrao} onChange={(e) => setCatConfigAgenda({...catConfigAgenda, duracao_padrao: e.target.value})} 
-                                size="small" className="tasy-compact-input" sx={{ width: 200 }} 
-                            />
-                            <TextField 
-                                label="Equipamento Exigido" value={catConfigAgenda.equipamento_obrigatorio} onChange={(e) => setCatConfigAgenda({...catConfigAgenda, equipamento_obrigatorio: e.target.value.toUpperCase()})} 
-                                size="small" className="tasy-compact-input" sx={{ flexGrow: 1 }} placeholder="Tag da Sala (Ex: SAMSUNG_V7)"
-                            />
+                            <TextField label="Duração Padrão (minutos)" type="number" value={catConfigAgenda.duracao_padrao} onChange={(e) => setCatConfigAgenda({...catConfigAgenda, duracao_padrao: e.target.value})} size="small" className="tasy-compact-input" sx={{ width: 200 }} />
+                            <TextField label="Equipamento Exigido" value={catConfigAgenda.equipamento_obrigatorio} onChange={(e) => setCatConfigAgenda({...catConfigAgenda, equipamento_obrigatorio: e.target.value.toUpperCase()})} size="small" className="tasy-compact-input" sx={{ flexGrow: 1 }} placeholder="Tag da Sala (Ex: SAMSUNG_V7)" />
                         </Box>
                     </Paper>
 
                     <Paper className="tasy-flat-panel" sx={{ p: 2 }}>
                         <div className="tasy-section-header" style={{ margin: '-16px -16px 16px -16px' }}>Dias e Horários Autorizados</div>
                         <Box sx={{ display: 'flex', gap: 1, mb: 2, p: 1.5, bgcolor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 1, alignItems: 'center' }}>
-                            <TextField 
-                                select label="Dia da Semana" value={catNovoDia.dia_semana} onChange={(e) => setCatNovoDia({...catNovoDia, dia_semana: e.target.value})} 
-                                size="small" className="tasy-compact-input" sx={{ flexGrow: 1 }}
-                            >
+                            <TextField select label="Dia da Semana" value={catNovoDia.dia_semana} onChange={(e) => setCatNovoDia({...catNovoDia, dia_semana: e.target.value})} size="small" className="tasy-compact-input" sx={{ flexGrow: 1 }}>
                                 {DIAS_SEMANA.map(dia => <MenuItem key={dia.value} value={dia.value}>{dia.label}</MenuItem>)}
                             </TextField>
                             <TextField label="Início" type="time" size="small" className="tasy-compact-input" value={catNovoDia.hora_inicio} onChange={(e) => setCatNovoDia({...catNovoDia, hora_inicio: e.target.value})} InputLabelProps={{ shrink: true }} sx={{ width: 100 }} />
@@ -411,17 +410,12 @@ export default function ProcedimentosView() {
                 </DialogContent>
                 <DialogActions sx={{ p: 2, borderTop: '1px solid #dee2e6' }}>
                     <Button onClick={() => setCatModalOpen(false)} disabled={isSubmittingCat} sx={{ color: '#495057' }}>Cancelar</Button>
-                    <Button 
-                        variant="contained" color="primary" onClick={handleSaveCatConfig} disabled={isSubmittingCat}
-                        startIcon={isSubmittingCat ? <CircularProgress size={16} color="inherit"/> : <AccessTime />}
-                        sx={{ fontWeight: 'bold' }}
-                    >
+                    <Button variant="contained" color="primary" onClick={handleSaveCatConfig} disabled={isSubmittingCat} startIcon={isSubmittingCat ? <CircularProgress size={16} color="inherit"/> : <AccessTime />} sx={{ fontWeight: 'bold' }}>
                         {isSubmittingCat ? 'Aplicando...' : 'Aplicar em Todos'}
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            {/* MODAL DE PDF MANTIDO INTACTO */}
             <Dialog open={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} maxWidth="xs" fullWidth>
                 <DialogTitle sx={{ bgcolor: '#f8f9fa', p: 2, borderBottom: '1px solid #dee2e6' }}>
                     <Typography variant="subtitle1" fontWeight="bold">Exportar Tabela</Typography>
