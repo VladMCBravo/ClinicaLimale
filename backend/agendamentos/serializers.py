@@ -73,8 +73,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             'modalidade', 'tipo_visita', 'tipo_agendamento', 'medico', 'medico_nome', 'medico_nome_com_prefixo', 'medico_crm',
             'especialidade', 'especialidade_nome', 'procedimento', 'procedimento_descricao',
             'data_criacao', 'data_atualizacao', 'expira_em', 'id_sala_telemedicina',
-            'sala', 'sala_nome', 'valor_faturamento', 'is_encaixe'
-
+            'sala', 'sala_nome', 'valor_faturamento', 'is_encaixe',
             # --- NOVOS CAMPOS INCLUÍDOS NA RESPOSTA ---
             'hora_checkin', 'responsavel_checkin', 'responsavel_checkin_nome',
             'hora_inicio_atendimento', 'responsavel_atendimento', 'responsavel_atendimento_nome',
@@ -124,7 +123,7 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             'paciente', 'data_hora_inicio', 'data_hora_fim', 'status',
             'plano_utilizado', 'tipo_atendimento', 'observacoes', 'modalidade',
             'tipo_visita', 'expira_em', 'tipo_agendamento', 'medico',
-            'especialidade', 'procedimento', 'sala', 'is_encaixe'
+            'especialidade', 'procedimento', 'sala', 'is_encaixe',
             # --- NOVOS CAMPOS PARA RECEBER AÇÕES DO FRONTEND (CHECKBOXES) ---
             'pendencia_laudo', 'pendencia_declaracao', 'pendencia_reclamacao',
             'pendencia_intercorrencia', 'pendencia_administrativa', 'detalhes_pendencia'
