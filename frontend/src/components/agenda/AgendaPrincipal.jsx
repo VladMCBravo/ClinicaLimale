@@ -60,13 +60,7 @@ const StyledCalendarWrapper = styled('div')({
         fontSize: '0.75rem'
     },
 
-    // Encaixe: contorno tracejado âmbar, visível independente da cor da sala
-    '.fc-event.evento-encaixe': {
-        boxShadow: 'inset 0 0 0 2px #ffab00',
-        outline: '1px dashed #ffab00',
-        outlineOffset: '1px'
-    },
-
+   
     // Fora do expediente do médico (modo "Médicos"): cinza neutro em vez do
     // vermelho padrão do FullCalendar para "background events"
     '.fc-bg-event': {
@@ -297,6 +291,9 @@ export default function AgendaPrincipal({
                 const eventosFormatados = Array.from(agrupadosMap.values()).map(ag => {
                     const isInativo = ag.status === 'Cancelado' || ag.status === 'Não Compareceu';
                     const colunaId = viewMode === 'salas' ? `sala_${ag.sala}` : `medico_${ag.medico}`;
+                    
+                    // 👉 AQUI A MÁGICA: Pegamos a cor do semáforo antes de montar o card
+                    const semaforo = calcularStatusSemaforo(ag, new Date());
 
                     return {
                         id: ag.id,
@@ -307,19 +304,18 @@ export default function AgendaPrincipal({
                             ...ag,
                             tipo_procedimento: ag.tipo_procedimento, 
                             quantidade_exames: ag.quantidade_exames,
-                            // --- NOVO: PASSA A LISTA COMPLETA PARA O MODAL LER ---
                             lista_procedimentos_ids: ag.lista_procedimentos_ids, 
                             paciente_id: ag.paciente, 
                             medico_nome: ag.medico_nome,
                             medico_crm: ag.medico_crm
                         },
                         resourceId: colunaId,
-                        backgroundColor: isInativo ? 'rgba(200, 200, 200, 0.4)' : getColorForSala(ag.sala),
-                        borderColor: isInativo ? 'rgba(150, 150, 150, 0.5)' : getColorForSala(ag.sala),
-                        textColor: isInativo ? '#666' : '#fff',
+                        // 👉 Usamos a cor do semáforo no fundo, borda e texto
+                        backgroundColor: semaforo.cor.bg,
+                        borderColor: semaforo.cor.border,
+                        textColor: semaforo.cor.text,
                         classNames: [
-                            ...(isInativo ? ['evento-inativo'] : []),
-                            ...(ag.is_encaixe && !isInativo ? ['evento-encaixe'] : [])
+                            ...(isInativo ? ['evento-inativo'] : [])
                         ]
                     };
                 });
