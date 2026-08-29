@@ -130,6 +130,38 @@ class Agendamento(models.Model):
         help_text="A qual ciclo de cuidado este agendamento pertence?"
     )
 
+    # =========================================================
+    # RASTREADORES DE TEMPO E RESPONSÁVEIS (NOVO)
+    # =========================================================
+    hora_checkin = models.DateTimeField(null=True, blank=True, verbose_name="Hora do Check-in")
+    responsavel_checkin = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='checkins_realizados', verbose_name="Responsável pelo Check-in"
+    )
+    
+    hora_inicio_atendimento = models.DateTimeField(null=True, blank=True, verbose_name="Hora de Início do Atendimento")
+    responsavel_atendimento = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='atendimentos_iniciados', verbose_name="Responsável pelo Atendimento"
+    )
+    
+    hora_finalizacao = models.DateTimeField(null=True, blank=True, verbose_name="Hora de Finalização")
+    responsavel_finalizacao = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='atendimentos_finalizados', verbose_name="Responsável pela Finalização"
+    )
+
+    # =========================================================
+    # PENDÊNCIAS - GATILHOS PARA O CARD PRETO (NOVO)
+    # (A pendência financeira já é lida diretamente do model Pagamento)
+    # =========================================================
+    pendencia_laudo = models.BooleanField(default=False, verbose_name="Pendente: Laudo")
+    pendencia_declaracao = models.BooleanField(default=False, verbose_name="Pendente: Declaração/Atestado")
+    pendencia_reclamacao = models.BooleanField(default=False, verbose_name="Pendente: Reclamação")
+    pendencia_intercorrencia = models.BooleanField(default=False, verbose_name="Pendente: Intercorrência")
+    pendencia_administrativa = models.BooleanField(default=False, verbose_name="Pendente: Administrativa")
+    detalhes_pendencia = models.TextField(blank=True, null=True, verbose_name="Detalhes da Pendência (Outros)")
+
     def save(self, *args, **kwargs):
         # LÓGICA AUTOMÁTICA DE DURAÇÃO
         is_new = self.pk is None

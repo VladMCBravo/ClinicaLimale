@@ -24,6 +24,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import resourceTimeGridPlugin from '@fullcalendar/resource-timegrid';
 
 import { agendamentoService } from '../../services/agendamentoService';
+import { calcularStatusSemaforo } from '../../utils/semaforoAgendamento';
 import { formatarDataTZ, formatarHoraTZ } from '../../utils/format'; // MUDANÇA: IMPORT DAS FUNÇÕES COM FUSO
 
 
@@ -645,9 +646,10 @@ useEffect(() => {
                         if (dados.status === 'Não Compareceu') emojis += " 👻"; // Sugestão para não compareceu
                         if (dados.status === 'Realizado') emojis += " 🏁";
 
-                        // MUDANÇA 4: Ajuste da borda lateral e cores internas
-                        const tipo = (dados.tipo_procedimento || '').toLowerCase();
-                        let borderLeftColor = 'transparent';
+                        // MUDANÇA 4: Usando o novo Semáforo para definir a cor
+                        const semaforoInfo = calcularStatusSemaforo(dados, new Date());
+                        const borderLeftColor = semaforoInfo.cor.indicator;
+                        const bgColor = semaforoInfo.cor.bg;
                         
                         // Se estiver inativo, a borda lateral fica cinza claro. Senão, usa as cores normais.
                         if (isInativo) {

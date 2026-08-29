@@ -60,6 +60,10 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     valor_faturamento = serializers.SerializerMethodField()
     sala_nome = serializers.CharField(source='sala.nome', read_only=True)
 
+    responsavel_checkin_nome = serializers.CharField(source='responsavel_checkin.get_full_name', read_only=True, default=None)
+    responsavel_atendimento_nome = serializers.CharField(source='responsavel_atendimento.get_full_name', read_only=True, default=None)
+    responsavel_finalizacao_nome = serializers.CharField(source='responsavel_finalizacao.get_full_name', read_only=True, default=None)
+
     class Meta:
         model = Agendamento
         fields = [
@@ -70,6 +74,13 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             'especialidade', 'especialidade_nome', 'procedimento', 'procedimento_descricao',
             'data_criacao', 'data_atualizacao', 'expira_em', 'id_sala_telemedicina',
             'sala', 'sala_nome', 'valor_faturamento', 'is_encaixe'
+
+            # --- NOVOS CAMPOS INCLUÍDOS NA RESPOSTA ---
+            'hora_checkin', 'responsavel_checkin', 'responsavel_checkin_nome',
+            'hora_inicio_atendimento', 'responsavel_atendimento', 'responsavel_atendimento_nome',
+            'hora_finalizacao', 'responsavel_finalizacao', 'responsavel_finalizacao_nome',
+            'pendencia_laudo', 'pendencia_declaracao', 'pendencia_reclamacao', 
+            'pendencia_intercorrencia', 'pendencia_administrativa', 'detalhes_pendencia'
         ]
 
     def get_primeira_consulta(self, obj):
@@ -114,6 +125,9 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
             'plano_utilizado', 'tipo_atendimento', 'observacoes', 'modalidade',
             'tipo_visita', 'expira_em', 'tipo_agendamento', 'medico',
             'especialidade', 'procedimento', 'sala', 'is_encaixe'
+            # --- NOVOS CAMPOS PARA RECEBER AÇÕES DO FRONTEND (CHECKBOXES) ---
+            'pendencia_laudo', 'pendencia_declaracao', 'pendencia_reclamacao',
+            'pendencia_intercorrencia', 'pendencia_administrativa', 'detalhes_pendencia'
         ]
                   
     def validate(self, data):
