@@ -1,6 +1,6 @@
 // src/components/agenda/EventoAgendaMenu.jsx
 import React, { useState } from 'react';
-import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Select, FormControl, Snackbar, Alert } from '@mui/material';
+import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Select, FormControl, Snackbar, Alert, Checkbox, FormControlLabel, FormGroup, Typography } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useNavigate } from 'react-router-dom';
 import { FaEdit, FaFileMedical, FaStethoscope, FaWhatsapp, FaUserEdit } from 'react-icons/fa';
@@ -71,6 +71,16 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
             alert(`O servidor recusou a atualização rápida.\nMotivo: ${erroBackend.replace(/[\[\]"{}]/g, '')}`);
         } finally {
             setIsUpdatingStatus(false);
+        }
+    };
+
+    // --- NOVO HANDLER PARA CHECKBOX DE PENDÊNCIAS ---
+    const handlePendenciaChange = async (campo, valor) => {
+        try {
+            await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, { [campo]: valor });
+            if (onStatusUpdated) onStatusUpdated(); // Força a tela a recalcular a cor na hora
+        } catch (error) {
+            alert("Erro ao salvar pendência.");
         }
     };
 
@@ -277,6 +287,41 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                         </Select>
                     </FormControl>
                 </Box>
+
+                {/* SEÇÃO DE PENDÊNCIAS (APARECE QUANDO REALIZADO OU QUANDO TEM DÍVIDA) */}
+                {selectedEvent?.extendedProps && (selectedEvent.extendedProps.status === 'Realizado' || selectedEvent.extendedProps.pagamento_status === 'Pendente') && (
+                    <Box sx={{ p: 1.5, bgcolor: '#f1f5f9', borderBottom: '1px solid #e0e0e0' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155', display: 'block', mb: 1 }}>
+                            Liberação do Paciente (Card Preto):
+                        </Typography>
+                        
+                        <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: -0.5 } }}>
+                            {/* O Financeiro é "Read Only" aqui, pois a quitação deve ser feita pela tela do caixa */}
+                            <FormControlLabel
+                                control={<Checkbox size="small" checked={selectedEvent.extendedProps.pagamento_status !== 'Pendente'} disabled sx={{ color: '#cbd5e1', '&.Mui-checked': { color: '#22c55e' } }} />}
+                                label={<Typography variant="caption" color={selectedEvent.extendedProps.pagamento_status === 'Pendente' ? 'error' : '#64748b'}>Pagamento Quitado (Financeiro)</Typography>}
+                            />
+                            
+                            {/* Checkboxes Administrativos MANUAIS */}
+                            <FormControlLabel
+                                control={<Checkbox size="small" 
+                                    checked={!selectedEvent.extendedProps.pendencia_laudo} 
+                                    onChange={(e) => handlePendenciaChange('pendencia_laudo', !e.target.checked)} 
+                                    sx={{ '&.Mui-checked': { color: '#22c55e' } }} 
+                                />}
+                                label={<Typography variant="caption" color="#475569">Laudo Entregue</Typography>}
+                            />
+                            <FormControlLabel
+                                control={<Checkbox size="small" 
+                                    checked={!selectedEvent.extendedProps.pendencia_declaracao} 
+                                    onChange={(e) => handlePendenciaChange('pendencia_declaracao', !e.target.checked)} 
+                                    sx={{ '&.Mui-checked': { color: '#22c55e' } }} 
+                                />}
+                                label={<Typography variant="caption" color="#475569">Declaração / Atestado Emitido</Typography>}
+                            />
+                        </FormGroup>
+                    </Box>
+                )}
 
                 <Box sx={{ py: 0.5 }}>
                     <MenuItem onClick={handleActionConfirmarWhatsapp} disabled={!selectedEvent?.extendedProps?.paciente_telefone}>
