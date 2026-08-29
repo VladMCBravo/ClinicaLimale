@@ -19,6 +19,8 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
     const [documentoDados, setDocumentoDados] = useState(null);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [alertaAuthOpen, setAlertaAuthOpen] = useState(false);
+    // --- NOVO: Forçador de atualização visual para os checkboxes não travarem ---
+    const [renderTrigger, setRenderTrigger] = useState(0);
 
     // --- FUNÇÃO DE ALTERAÇÃO DE STATUS BLINDADA E INTEGRADA AO FINANCEIRO ---
     const handleStatusChange = async (event) => {
@@ -74,13 +76,28 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         }
     };
 
-    // --- NOVO HANDLER PARA CHECKBOX DE PENDÊNCIAS ---
+    // --- CORREÇÃO DO HANDLER DE PENDÊNCIAS ---
     const handlePendenciaChange = async (campo, valor) => {
+        // 1. Atualiza o objeto da agenda instantaneamente (UI Otimista)
+        if (selectedEvent && typeof selectedEvent.setExtendedProp === 'function') {
+            selectedEvent.setExtendedProp(campo, valor);
+        }
+        
+        // 2. Força o Menu a redesenhar o checkbox na tela
+        setRenderTrigger(prev => prev + 1);
+
         try {
+            // 3. Salva a pendência no banco de dados
             await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, { [campo]: valor });
-            if (onStatusUpdated) onStatusUpdated(); // Força a tela a recalcular a cor na hora
+            // 4. Recarrega a barra lateral para o Semáforo recalcular a cor
+            if (onStatusUpdated) onStatusUpdated(); 
         } catch (error) {
-            alert("Erro ao salvar pendência.");
+            alert("Erro ao salvar pendência no sistema.");
+            // Se a internet cair, reverte o checkbox para o estado original
+            if (selectedEvent && typeof selectedEvent.setExtendedProp === 'function') {
+                selectedEvent.setExtendedProp(campo, !valor);
+                setRenderTrigger(prev => prev + 1);
+            }
         }
     };
 
@@ -296,36 +313,27 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                     </FormControl>
                 </Box>
 
-                {/* SEÇÃO DE PENDÊNCIAS (APARECE QUANDO REALIZADO OU QUANDO TEM DÍVIDA) */}
-                {selectedEvent?.extendedProps && (selectedEvent.extendedProps.status === 'Realizado' || selectedEvent.extendedProps.pagamento_status === 'Pendente') && (
+                {/* --- SEÇÃO DE PENDÊNCIAS (AGORA SEMPRE VISÍVEL) --- */}
+                {selectedEvent?.extendedProps && (
                     <Box sx={{ p: 1.5, bgcolor: '#f1f5f9', borderBottom: '1px solid #e0e0e0' }}>
                         <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155', display: 'block', mb: 1 }}>
-                            Liberação do Paciente (Card Preto):
+                            Controle de Pendências (Card Preto):
                         </Typography>
                         
                         <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: -0.5 } }}>
-                            {/* O Financeiro é "Read Only" aqui, pois a quitação deve ser feita pela tela do caixa */}
                             <FormControlLabel
-                                control={<Checkbox size="small" checked={selectedEvent.extendedProps.pagamento_status !== 'Pendente'} disabled sx={{ color: '#cbd5e1', '&.Mui-checked': { color: '#22c55e' } }} />}
-                                label={<Typography variant="caption" color={selectedEvent.extendedProps.pagamento_status === 'Pendente' ? 'error' : '#64748b'}>Pagamento Quitado (Financeiro)</Typography>}
+                                control={<Checkbox size="small" checked={selectedEvent.extendedProps.pagamento_status === 'Pendente'} disabled sx={{ color: '#cbd5e1', '&.Mui-checked': { color: '#ef4444' } }} />}
+                                label={<Typography variant="caption" color={selectedEvent.extendedProps.pagamento_status === 'Pendente' ? 'error' : '#64748b'}>Pagamento Pendente (Baixa no Financeiro)</Typography>}
                             />
                             
-                            {/* Checkboxes Administrativos MANUAIS */}
+                            {/* A lógica agora é direta: Checado = Tem Pendência */}
                             <FormControlLabel
-                                control={<Checkbox size="small" 
-                                    checked={!selectedEvent.extendedProps.pendencia_laudo} 
-                                    onChange={(e) => handlePendenciaChange('pendencia_laudo', !e.target.checked)} 
-                                    sx={{ '&.Mui-checked': { color: '#22c55e' } }} 
-                                />}
-                                label={<Typography variant="caption" color="#475569">Laudo Entregue</Typography>}
+                                control={<Checkbox size="small" checked={Boolean(selectedEvent.extendedProps.pendencia_laudo)} onChange={(e) => handlePendenciaChange('pendencia_laudo', e.target.checked)} sx={{ '&.Mui-checked': { color: '#eab308' } }} />}
+                                label={<Typography variant="caption" color="#475569">Aguardando Laudo</Typography>}
                             />
                             <FormControlLabel
-                                control={<Checkbox size="small" 
-                                    checked={!selectedEvent.extendedProps.pendencia_declaracao} 
-                                    onChange={(e) => handlePendenciaChange('pendencia_declaracao', !e.target.checked)} 
-                                    sx={{ '&.Mui-checked': { color: '#22c55e' } }} 
-                                />}
-                                label={<Typography variant="caption" color="#475569">Declaração / Atestado Emitido</Typography>}
+                                control={<Checkbox size="small" checked={Boolean(selectedEvent.extendedProps.pendencia_declaracao)} onChange={(e) => handlePendenciaChange('pendencia_declaracao', e.target.checked)} sx={{ '&.Mui-checked': { color: '#eab308' } }} />}
+                                label={<Typography variant="caption" color="#475569">Aguardando Declaração / Atestado</Typography>}
                             />
                         </FormGroup>
                     </Box>
