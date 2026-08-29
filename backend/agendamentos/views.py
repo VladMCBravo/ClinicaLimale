@@ -340,49 +340,55 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         instance = self.get_object()
-        
-        # Guarda o status atual para comparar se houve mudança real
         status_antigo = instance.status
         novo_status = serializer.validated_data.get('status', instance.status)
         
-        # =====================================================================
-        # 1. RASTREADORES DE TEMPO AUTOMÁTICOS
-        # =====================================================================
         save_kwargs = {}
         agora = timezone.now()
         
         if novo_status != status_antigo:
-            # Se a recepção fez check-in e ainda não tinha horário salvo
             if novo_status == 'Aguardando' and not instance.hora_checkin:
                 save_kwargs['hora_checkin'] = agora
                 save_kwargs['responsavel_checkin'] = self.request.user
-                
-            # Se o médico chamou o paciente
             elif novo_status == 'Em Atendimento' and not instance.hora_inicio_atendimento:
                 save_kwargs['hora_inicio_atendimento'] = agora
                 save_kwargs['responsavel_atendimento'] = self.request.user
-                
-            # Se o atendimento encerrou
             elif novo_status == 'Realizado' and not instance.hora_finalizacao:
                 save_kwargs['hora_finalizacao'] = agora
                 save_kwargs['responsavel_finalizacao'] = self.request.user
 
-        # Salva o agendamento injetando os carimbos de tempo (se houver)
         agendamento = serializer.save(**save_kwargs)
         
-        # =====================================================================
-        # 2. LÓGICA FINANCEIRA ORIGINAL (MANTIDA INTACTA POR SEGURANÇA)
-        # =====================================================================
-        print(f"[DEBUG-FIN] Agendamento {agendamento.id} atualizado para status: {agendamento.status}")
-
         from faturamento.models import Pagamento
         pagamento = Pagamento.objects.filter(agendamento=agendamento).first()
 
         if not pagamento:
-            print(f"[DEBUG-FIN] Nenhum pagamento encontrado para o Agendamento {agendamento.id}")
             return
-        
-        # --- ISENÇÃO NA EDIÇÃO ---
+            
+        # =========================================================================
+        # MÁGICA NOVA: BAIXA EXPRESSA PELO CHECKBOX DA AGENDA
+        # =========================================================================
+        marcar_como_pago = self.request.data.get('marcar_como_pago')
+        if marcar_como_pago is not None:
+            if str(marcar_como_pago).lower() in ['true', '1', 't']:
+                if pagamento.status != 'Pago':
+                    pagamento.status = 'Pago'
+                    pagamento.forma_pagamento = 'Outro' # Fallback da baixa expressa
+                    pagamento.data_pagamento = timezone.now().date()
+                    pagamento.baixado_por = self.request.user
+                    pagamento.data_hora_baixa = timezone.now()
+                    pagamento.save()
+            else:
+                if pagamento.status == 'Pago':
+                    pagamento.status = 'Pendente'
+                    pagamento.forma_pagamento = None
+                    pagamento.data_pagamento = None
+                    pagamento.baixado_por = None
+                    pagamento.data_hora_baixa = None
+                    pagamento.save()
+            return # Sai da função para não conflitar com a isenção abaixo
+
+        # --- LÓGICA DE ISENÇÃO E RECALCULO ORIGINAL MANTIDA INTACTA ---
         isento = self.request.data.get('isento_cobranca')
         if str(isento).lower() in ['true', '1', 't'] and pagamento.status == 'Pendente':
             motivo = self.request.data.get('motivo_isencao', 'Retorno/Conclusão')
@@ -393,9 +399,8 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
             pagamento.forma_pagamento = 'Outros'
             pagamento.data_pagamento = timezone.now().date()
             pagamento.save()
-            return # Sai da função para não aplicar as regras de status abaixo
+            return 
 
-        # --- A CORREÇÃO: RECALCULA O VALOR DA DÍVIDA NA EDIÇÃO ---
         if pagamento.status == 'Pendente':
             novo_valor = 0.00
             desc_base = agendamento.procedimento.descricao if agendamento.procedimento else "Consulta"
@@ -424,7 +429,7 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
 
             pagamento.valor = novo_valor
             pagamento.save()
-            print(f"[DEBUG-FIN] SUCESSO: Pagamento {pagamento.id} revertido para PENDENTE.")
+            
     def perform_destroy(self, instance):
         """
         Lógica personalizada de exclusão.
