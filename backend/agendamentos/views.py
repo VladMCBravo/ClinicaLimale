@@ -213,11 +213,54 @@ class AgendamentoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return AgendamentoSerializer
 
     # =========================================================================
-    # 1. A MÁGICA DO BACKEND: SINCRONIZAÇÃO DE GRUPO DE EXAMES
+    # 1. A MÁGICA DO BACKEND: SINCRONIZAÇÃO E ROTA EXPRESSA DO CHECKLIST
     # =========================================================================
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        
+        # ---> ROTA EXPRESSA (Foge do Erro 400) <---
+        # Se a requisição contiver APENAS os comandos do checklist, resolve direto.
+        chaves_req = set(request.data.keys())
+        chaves_permitidas = {'marcar_como_pago', 'pendencia_laudo', 'pendencia_declaracao'}
+        
+        if chaves_req and chaves_req.issubset(chaves_permitidas):
+            campos_atualizar = []
+            if 'pendencia_laudo' in request.data:
+                instance.pendencia_laudo = request.data['pendencia_laudo']
+                campos_atualizar.append('pendencia_laudo')
+            if 'pendencia_declaracao' in request.data:
+                instance.pendencia_declaracao = request.data['pendencia_declaracao']
+                campos_atualizar.append('pendencia_declaracao')
+                
+            if campos_atualizar:
+                instance.save(update_fields=campos_atualizar)
+                
+            # Dá a baixa ou estorna o financeiro se a recepção clicou na caixinha
+            if 'marcar_como_pago' in request.data:
+                from faturamento.models import Pagamento
+                pagamento = Pagamento.objects.filter(agendamento=instance).first()
+                if pagamento:
+                    marcar = request.data['marcar_como_pago']
+                    if str(marcar).lower() in ['true', '1', 't']:
+                        if pagamento.status != 'Pago':
+                            pagamento.status = 'Pago'
+                            pagamento.forma_pagamento = 'Outro'
+                            pagamento.data_pagamento = timezone.now().date()
+                            pagamento.baixado_por = request.user
+                            pagamento.data_hora_baixa = timezone.now()
+                            pagamento.save()
+                    else:
+                        if pagamento.status == 'Pago':
+                            pagamento.status = 'Pendente'
+                            pagamento.forma_pagamento = None
+                            pagamento.data_pagamento = None
+                            pagamento.baixado_por = None
+                            pagamento.data_hora_baixa = None
+                            pagamento.save()
+                            
+            return Response({"detail": "Checklist atualizado com sucesso!"}, status=status.HTTP_200_OK)
+        # ---> FIM DA ROTA EXPRESSA <---
         
         procedimentos_ids = request.data.get('procedimentos_ids')
         
