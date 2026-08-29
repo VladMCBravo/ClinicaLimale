@@ -1,5 +1,5 @@
 // src/components/agenda/EventoAgendaMenu.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Select, FormControl, Snackbar, Alert, Checkbox, FormControlLabel, FormGroup, Typography } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +19,18 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
     const [documentoDados, setDocumentoDados] = useState(null);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [alertaAuthOpen, setAlertaAuthOpen] = useState(false);
+    const [localChecks, setLocalChecks] = useState({ pago: false, laudo: false, declaracao: false });
+
+    // Quando o menu abre ou muda de paciente, ele copia os dados originais para a memória rápida
+    useEffect(() => {
+        if (selectedEvent?.extendedProps) {
+            setLocalChecks({
+                pago: selectedEvent.extendedProps.status_pagamento === 'Pago',
+                laudo: Boolean(selectedEvent.extendedProps.pendencia_laudo),
+                declaracao: Boolean(selectedEvent.extendedProps.pendencia_declaracao)
+            });
+        }
+    }, [selectedEvent]);
    
     // --- FUNÇÃO DE ALTERAÇÃO DE STATUS BLINDADA E INTEGRADA AO FINANCEIRO ---
     const handleStatusChange = async (event) => {
@@ -74,18 +86,23 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         }
     };
 
-    // --- NOVO: HANDLER BLINDADO (Sem Erros de FullCalendar) ---
-    const handlePendenciaChange = async (campo, valor_booleano) => {
+    // --- HANDLER ULTRA RÁPIDO (UI Otimista) ---
+    const handlePendenciaChange = async (campo, valor_booleano, key_local) => {
+        // 1. Muda a tela NA MESMA HORA (Sem atraso!)
+        setLocalChecks(prev => ({ ...prev, [key_local]: valor_booleano }));
+
         try {
-            // Manda a requisição expressa para o Backend
+            // 2. Manda para o Backend de forma silenciosa
             await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, { 
                 [campo]: valor_booleano 
             });
-            // O Backend salvou! Agora é só recarregar a tela para a cor atualizar sozinha
+            // 3. Atualiza as cores de fundo da agenda
             if (onStatusUpdated) onStatusUpdated(); 
         } catch (error) {
             console.error("Erro ao salvar checkbox:", error);
-            alert("Erro ao salvar o checklist. O servidor não respondeu.");
+            // Se a internet cair, a caixinha volta ao normal e avisa o erro
+            setLocalChecks(prev => ({ ...prev, [key_local]: !valor_booleano }));
+            alert("Erro ao salvar o checklist. Verifique sua conexão.");
         }
     };
 
@@ -303,31 +320,28 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                         </Typography>
                         
                         <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: -0.5 } }}>
-                            {/* CAIXA 1: FINANCEIRO (Livre para clique) */}
                             <FormControlLabel
                                 control={<Checkbox size="small" 
-                                    checked={selectedEvent.extendedProps.status_pagamento === 'Pago'} 
-                                    onChange={(e) => handlePendenciaChange('marcar_como_pago', e.target.checked)} 
+                                    checked={localChecks.pago} 
+                                    onChange={(e) => handlePendenciaChange('marcar_como_pago', e.target.checked, 'pago')} 
                                     sx={{ '&.Mui-checked': { color: '#22c55e' } }} 
                                 />}
-                                label={<Typography variant="caption" color={selectedEvent.extendedProps.status_pagamento === 'Pendente' ? 'error' : '#475569'}>O agendamento foi pago?</Typography>}
+                                label={<Typography variant="caption" color={!localChecks.pago ? 'error' : '#475569'}>O agendamento foi pago?</Typography>}
                             />
                             
-                            {/* CAIXA 2: LAUDO */}
                             <FormControlLabel
                                 control={<Checkbox size="small" 
-                                    checked={Boolean(selectedEvent.extendedProps.pendencia_laudo)} 
-                                    onChange={(e) => handlePendenciaChange('pendencia_laudo', e.target.checked)} 
+                                    checked={localChecks.laudo} 
+                                    onChange={(e) => handlePendenciaChange('pendencia_laudo', e.target.checked, 'laudo')} 
                                     sx={{ '&.Mui-checked': { color: '#22c55e' } }} 
                                 />}
                                 label={<Typography variant="caption" color="#475569">Laudo conferido / liberado?</Typography>}
                             />
                             
-                            {/* CAIXA 3: DECLARAÇÃO */}
                             <FormControlLabel
                                 control={<Checkbox size="small" 
-                                    checked={Boolean(selectedEvent.extendedProps.pendencia_declaracao)} 
-                                    onChange={(e) => handlePendenciaChange('pendencia_declaracao', e.target.checked)} 
+                                    checked={localChecks.declaracao} 
+                                    onChange={(e) => handlePendenciaChange('pendencia_declaracao', e.target.checked, 'declaracao')} 
                                     sx={{ '&.Mui-checked': { color: '#22c55e' } }} 
                                 />}
                                 label={<Typography variant="caption" color="#475569">Declaração / Atestado entregue?</Typography>}
