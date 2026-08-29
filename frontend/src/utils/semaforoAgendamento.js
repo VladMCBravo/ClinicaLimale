@@ -17,7 +17,8 @@ export function calcularStatusSemaforo(ag, now = new Date()) {
 
     // 1. REGRA DO REALIZADO (Verde ou Preto)
     if (ag.status === 'Realizado') {
-        const devendoDinheiro = ag.pagamento_status === 'Pendente';
+        // 🛠️ CORREÇÃO: status_pagamento
+        const devendoDinheiro = ag.status_pagamento === 'Pendente';
         
         // LÓGICA INVERTIDA (CHECKLIST OBRIGATÓRIO):
         // Os campos do banco nascem como 'False'. 

@@ -91,7 +91,7 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                 if (agrupadosMap.has(chave)) {
                     const existente = agrupadosMap.get(chave);
                     existente.procedimento_descricao += ` + ${procAtual}`;
-                    if (ag.pagamento_status === 'Pendente') existente.pagamento_status = 'Pendente';
+                    if (ag.status_pagamento === 'Pendente') existente.status_pagamento = 'Pendente';
                     if (ag.procedimento) existente.lista_procedimentos_ids.push(ag.procedimento);
                     existente.is_encaixe = existente.is_encaixe || ag.is_encaixe;
                 } else {
@@ -155,7 +155,7 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
             if (agrupadosMap.has(chave)) {
                 const existente = agrupadosMap.get(chave);
                 existente.procedimento_descricao += ` + ${procAtual}`;
-                if (ag.pagamento_status === 'Pendente') existente.pagamento_status = 'Pendente';
+                if (ag.status_pagamento === 'Pendente') existente.status_pagamento = 'Pendente';
                 if (ag.procedimento) existente.lista_procedimentos_ids.push(ag.procedimento);
                 existente.is_encaixe = existente.is_encaixe || ag.is_encaixe;
             } else {
@@ -220,7 +220,7 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                         {pacientes.length > 0 ? pacientes.map(ag => {
                             const isCancelado = ag.status === 'Cancelado' || ag.status === 'Não Compareceu';
                             const statusInfo = statusMap[ag.status] || { icon: <HelpOutlineIcon />, color: '#9e9e9e', title: ag.status };
-                            const isDevendo = ag.pagamento_status === 'Pendente';
+                            const isDevendo = ag.status_pagamento === 'Pendente';
                             const isEncaixe = ag.is_encaixe && !isCancelado;
                             
                             // ==========================================

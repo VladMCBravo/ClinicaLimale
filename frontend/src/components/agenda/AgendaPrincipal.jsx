@@ -348,7 +348,12 @@ useEffect(() => {
     // 1. Ao clicar no evento (abre o menu)
     const handleCalendarEventClick = (clickInfo) => {
         clickInfo.jsEvent.preventDefault(); 
-        setAnchorEl(clickInfo.el);
+        
+        // 🛠️ MÁGICA CONTRA O PULO: Ancorar nas coordenadas do mouse, não na DIV
+        setAnchorEl({
+            top: clickInfo.jsEvent.clientY,
+            left: clickInfo.jsEvent.clientX
+        });
         setSelectedEvent(clickInfo.event);
     };
 
@@ -638,7 +643,8 @@ useEffect(() => {
                         
                         let emojis = "";
                         if (dados.is_encaixe && !isInativo) emojis += " ⚡";
-                        if (dados.pagamento_status === 'Pendente' && !isInativo) emojis += " 🔴";
+                        // 🛠️ CORREÇÃO DA VARIÁVEL: status_pagamento
+                        if (dados.status_pagamento === 'Pendente' && !isInativo) emojis += " 🔴";
                         if (dados.primeira_consulta && !isInativo) emojis += " ⭐";
                         else if (dados.tipo_visita === 'Retorno' && !isInativo) emojis += " 🔄";
                         if (dados.status === 'Confirmado') emojis += " ✅";

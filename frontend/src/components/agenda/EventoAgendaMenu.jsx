@@ -279,18 +279,12 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
     return (
         <>
             <Menu
-                anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={onClose}
-                PaperProps={{ 
-                  elevation: 4, 
-                  sx: { 
-                    minWidth: 260, 
-                    borderRadius: 2.5, 
-                    overflow: 'hidden',
-                    border: '1px solid #e0e0e0'
-                  } 
-                }}
+                // 🛠️ MÁGICA CONTRA O PULO: Configuração de ancoragem fixa
+                anchorReference="anchorPosition"
+                anchorPosition={anchorEl ? { top: anchorEl.top, left: anchorEl.left } : undefined}
+                PaperProps={{ elevation: 4, sx: { minWidth: 260, borderRadius: 2.5, overflow: 'hidden', border: '1px solid #e0e0e0' } }}
             >
                 {/* CABEÇALHO ESCURO */}
                 <Box sx={{ p: 2, bgcolor: '#1C2E4A', color: '#fff' }}>
@@ -343,8 +337,8 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                         
                         <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: -0.5 } }}>
                             <FormControlLabel
-                                control={<Checkbox size="small" checked={selectedEvent.extendedProps.pagamento_status !== 'Pendente'} disabled sx={{ color: '#cbd5e1', '&.Mui-checked': { color: '#22c55e' } }} />}
-                                label={<Typography variant="caption" color={selectedEvent.extendedProps.pagamento_status === 'Pendente' ? 'error' : '#64748b'}>O agendamento foi pago?</Typography>}
+                                control={<Checkbox size="small" checked={selectedEvent.extendedProps.status_pagamento !== 'Pendente'} disabled sx={{ color: '#cbd5e1', '&.Mui-checked': { color: '#22c55e' } }} />}
+                                label={<Typography variant="caption" color={selectedEvent.extendedProps.status_pagamento === 'Pendente' ? 'error' : '#64748b'}>O agendamento foi pago?</Typography>}
                             />
                             
                             <FormControlLabel
