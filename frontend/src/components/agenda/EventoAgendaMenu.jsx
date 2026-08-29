@@ -278,9 +278,17 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                             displayEmpty
                             sx={{ bgcolor: '#fff', fontSize: '0.85rem', fontWeight: 600, borderRadius: 1 }}
                         >
+                            {/* Fase 1: Antes de chegar */}
                             <MenuItem value="Agendado">🗓️ Agendado</MenuItem>
                             <MenuItem value="Confirmado">✅ Confirmado</MenuItem>
-                            <MenuItem value="Aguardando Pagamento">⏳ Aguardando Pgto.</MenuItem>
+                            <Divider />
+                            
+                            {/* Fase 2: Dentro da Clínica (Disparam o cronômetro) */}
+                            <MenuItem value="Aguardando">🪑 Aguardando (Check-in)</MenuItem>
+                            <MenuItem value="Em Atendimento">🩺 Em Atendimento</MenuItem>
+                            <Divider />
+
+                            {/* Fase 3: Conclusão */}
                             <MenuItem value="Realizado">🏁 Realizado</MenuItem>
                             <MenuItem value="Não Compareceu">👻 Não Compareceu</MenuItem>
                             <MenuItem value="Cancelado">❌ Cancelado</MenuItem>

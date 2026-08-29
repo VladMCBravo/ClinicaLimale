@@ -25,14 +25,17 @@ import MeetingRoomOutlinedIcon from '@mui/icons-material/MeetingRoomOutlined';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import { gerarPdfAgendaDia } from '../../utils/agendaPdfGenerator';
 import apiClient from '../../api/axiosConfig';
+import AirlineSeatReclineNormalIcon from '@mui/icons-material/AirlineSeatReclineNormal';
+import StethoscopeIcon from '@mui/icons-material/MedicalServices';
 
 const statusMap = {
     'Agendado': { icon: <AccessTimeIcon />, color: '#1976d2', title: 'Agendado' },
-    'Aguardando Pagamento': { icon: <HourglassEmptyIcon />, color: '#ed6c02', title: 'Aguardando Pagamento' },
     'Confirmado': { icon: <CheckCircleIcon />, color: '#2e7d32', title: 'Confirmado (WhatsApp/Tel)' },
-    'Cancelado': { icon: <CancelIcon />, color: '#d32f2f', title: 'Cancelado' },
+    'Aguardando': { icon: <AirlineSeatReclineNormalIcon />, color: '#eab308', title: 'Check-in Realizado' },
+    'Em Atendimento': { icon: <StethoscopeIcon />, color: '#0ea5e9', title: 'Paciente em Atendimento' },
     'Realizado': { icon: <DoneIcon />, color: '#757575', title: 'Realizado/Atendido' },
-    'Não Compareceu': { icon: <PersonOffIcon />, color: '#9e9e9e', title: 'Não Compareceu' }
+    'Não Compareceu': { icon: <PersonOffIcon />, color: '#9e9e9e', title: 'Não Compareceu' },
+    'Cancelado': { icon: <CancelIcon />, color: '#d32f2f', title: 'Cancelado' }
 };
 
 function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }) {

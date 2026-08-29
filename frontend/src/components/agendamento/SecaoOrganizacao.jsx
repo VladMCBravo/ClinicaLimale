@@ -64,10 +64,11 @@ export default function SecaoOrganizacao({
                     >
                         <MenuItem value="Agendado">Agendado</MenuItem>
                         <MenuItem value="Confirmado">Confirmado</MenuItem>
+                        <MenuItem value="Aguardando">Aguardando (Check-in)</MenuItem>
+                        <MenuItem value="Em Atendimento">Em Atendimento</MenuItem>
                         <MenuItem value="Realizado">Realizado</MenuItem>
                         <MenuItem value="Não Compareceu">Faltou / Não Compareceu</MenuItem>
                         <MenuItem value="Cancelado">Cancelado</MenuItem>
-                        <MenuItem value="Desistência">Desistência</MenuItem>
                     </Select>
                 </FormControl>
             </Box>
