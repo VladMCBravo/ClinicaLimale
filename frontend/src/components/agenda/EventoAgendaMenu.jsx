@@ -1,6 +1,6 @@
 // src/components/agenda/EventoAgendaMenu.jsx
 import React, { useState } from 'react';
-import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Select, FormControl, Snackbar, Alert, Checkbox, FormControlLabel, FormGroup } from '@mui/material';
+import { Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Select, FormControl, Snackbar, Alert, Checkbox, FormControlLabel, FormGroup, Typography } from '@mui/material';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import { useNavigate } from 'react-router-dom';
 import { FaEdit, FaFileMedical, FaStethoscope, FaWhatsapp, FaUserEdit } from 'react-icons/fa';

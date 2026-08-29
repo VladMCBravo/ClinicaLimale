@@ -647,20 +647,13 @@ useEffect(() => {
                         if (dados.status === 'Realizado') emojis += " 🏁";
 
                         // MUDANÇA 4: Usando o novo Semáforo para definir a cor
+                        // AS DUAS LINHAS REPETIDAS FORAM APAGADAS DAQUI
+
+                        // Chama a inteligência do semáforo passando o momento atual
                         const semaforoInfo = calcularStatusSemaforo(dados, new Date());
-                        const borderLeftColor = semaforoInfo.cor.indicator;
-                        const bgColor = semaforoInfo.cor.bg;
-                        
-                        // Se estiver inativo, a borda lateral fica cinza claro. Senão, usa as cores normais.
-                        if (isInativo) {
-                             borderLeftColor = '#ccc';
-                        } else if (tipo.includes('obstétrico') || tipo.includes('fetal') || tipo.includes('transvaginal')) {
-                            borderLeftColor = '#e91e63';
-                        } else if (tipo.includes('cardio') || tipo.includes('ecocardiograma')) {
-                            borderLeftColor = '#ff9800';
-                        } else if (tipo.includes('consulta')) {
-                            borderLeftColor = '#2196f3';
-                        }
+
+                        // Aplica as cores! Se estiver inativo a borda fica cinza, senão usa a cor do semáforo.
+                        const borderLeftColor = isInativo ? '#ccc' : semaforoInfo.cor.indicator;
 
                         const tooltipTitulo = (
                             <Box sx={{ fontSize: '0.75rem', lineHeight: 1.6 }}>
