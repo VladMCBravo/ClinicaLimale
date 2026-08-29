@@ -74,19 +74,18 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         }
     };
 
-    // --- NOVO: HANDLER BLINDADO E RÁPIDO ---
+    // --- NOVO: HANDLER BLINDADO (Sem Erros de FullCalendar) ---
     const handlePendenciaChange = async (campo, valor_booleano) => {
         try {
-            // Envia APENAS o campo exato que mudou via PATCH. Acaba o erro 400.
+            // Manda a requisição expressa para o Backend
             await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, { 
                 [campo]: valor_booleano 
             });
-            
-            // Avisa o painel para recarregar a agenda e recalcular a cor
+            // O Backend salvou! Agora é só recarregar a tela para a cor atualizar sozinha
             if (onStatusUpdated) onStatusUpdated(); 
         } catch (error) {
             console.error("Erro ao salvar checkbox:", error);
-            alert("Erro ao salvar o checklist. Verifique sua conexão.");
+            alert("Erro ao salvar o checklist. O servidor não respondeu.");
         }
     };
 
@@ -304,7 +303,7 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                         </Typography>
                         
                         <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: -0.5 } }}>
-                            {/* Financeiro: Agora é clicável! Se marcar, o backend dá a baixa. */}
+                            {/* CAIXA 1: FINANCEIRO (Livre para clique) */}
                             <FormControlLabel
                                 control={<Checkbox size="small" 
                                     checked={selectedEvent.extendedProps.status_pagamento === 'Pago'} 
@@ -314,16 +313,17 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                                 label={<Typography variant="caption" color={selectedEvent.extendedProps.status_pagamento === 'Pendente' ? 'error' : '#475569'}>O agendamento foi pago?</Typography>}
                             />
                             
-                            {/* Todos nascem desmarcados. A recepção marca quando estiver OK. */}
+                            {/* CAIXA 2: LAUDO */}
                             <FormControlLabel
                                 control={<Checkbox size="small" 
                                     checked={Boolean(selectedEvent.extendedProps.pendencia_laudo)} 
                                     onChange={(e) => handlePendenciaChange('pendencia_laudo', e.target.checked)} 
                                     sx={{ '&.Mui-checked': { color: '#22c55e' } }} 
                                 />}
-                                label={<Typography variant="caption" color="#475569">Laudo entregue?</Typography>}
+                                label={<Typography variant="caption" color="#475569">Laudo conferido / liberado?</Typography>}
                             />
                             
+                            {/* CAIXA 3: DECLARAÇÃO */}
                             <FormControlLabel
                                 control={<Checkbox size="small" 
                                     checked={Boolean(selectedEvent.extendedProps.pendencia_declaracao)} 
