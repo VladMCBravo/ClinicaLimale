@@ -1,6 +1,5 @@
 // src/utils/semaforoAgendamento.js
 
-// Paleta Elegante e Suave (Tailwind/Material)
 export const PALETA_SEMAFORO = {
     cinza: { bg: '#F8FAFC', border: '#cbd5e1', text: '#475569', indicator: '#94a3b8' },
     laranja: { bg: '#FFEDD5', border: '#fdba74', text: '#c2410c', indicator: '#f97316' },
@@ -19,19 +18,24 @@ export function calcularStatusSemaforo(ag, now = new Date()) {
     // 1. REGRA DO REALIZADO (Verde ou Preto)
     if (ag.status === 'Realizado') {
         const devendoDinheiro = ag.pagamento_status === 'Pendente';
-        const temPendenciaManual = ag.pendencia_laudo || ag.pendencia_declaracao || 
-                                   ag.pendencia_reclamacao || ag.pendencia_intercorrencia || 
-                                   ag.pendencia_administrativa;
         
-        if (devendoDinheiro || temPendenciaManual) {
-            return { cor: PALETA_SEMAFORO.preto, label: 'Pendências Restantes', isAtivo: true };
+        // LÓGICA INVERTIDA (CHECKLIST OBRIGATÓRIO):
+        // Os campos do banco nascem como 'False'. 
+        // Aqui, interpretamos False como "Falta dar o check".
+        const faltaCheckLaudo = !ag.pendencia_laudo; 
+        const faltaCheckDeclaracao = !ag.pendencia_declaracao;
+        
+        // Se estiver devendo OU se faltar algum dos dois checks manuais da recepção, fica PRETO.
+        if (devendoDinheiro || faltaCheckLaudo || faltaCheckDeclaracao) {
+            return { cor: PALETA_SEMAFORO.preto, label: 'Liberação Pendente', isAtivo: true };
         }
+        
+        // Só fica VERDE se o financeiro estiver OK e os dois checks estiverem marcados.
         return { cor: PALETA_SEMAFORO.verde, label: 'Liberado / Sem Pendências', isAtivo: true };
     }
 
     // 2. REGRA DO ATENDIMENTO (Azul com Cronômetro)
     if (ag.status === 'Em Atendimento') {
-        // Se a recepção não tinha atualizado, usa a hora do início do agendamento como fallback
         const inicio = new Date(ag.hora_inicio_atendimento || ag.data_hora_inicio);
         const minutos = Math.max(0, Math.floor((now - inicio) / 60000));
         return { cor: PALETA_SEMAFORO.azul, label: 'Em atendimento', timer: `${minutos} min`, isAtivo: true };
@@ -44,20 +48,16 @@ export function calcularStatusSemaforo(ag, now = new Date()) {
         return { cor: PALETA_SEMAFORO.amarelo, label: 'Aguardando', timer: `${minutos} min`, isAtivo: true };
     }
 
-    // 4. REGRA DO AGENDADO (Cinza, Laranja ou Vermelho baseados na hora exata)
+    // 4. REGRA DO AGENDADO (Cinza, Laranja ou Vermelho)
     if (ag.status === 'Agendado' || ag.status === 'Confirmado') {
         const inicioConsulta = new Date(ag.data_hora_inicio);
         const diffMinutos = (inicioConsulta - now) / 60000;
 
-        if (diffMinutos <= 0) {
-            return { cor: PALETA_SEMAFORO.vermelho, label: 'Atrasado (Sem Check-in)', isAtivo: true };
-        }
-        if (diffMinutos <= 5) {
-            return { cor: PALETA_SEMAFORO.laranja, label: 'Check-in Próximo', isAtivo: true };
-        }
+        if (diffMinutos <= 0) return { cor: PALETA_SEMAFORO.vermelho, label: 'Atrasado (Sem Check-in)', isAtivo: true };
+        if (diffMinutos <= 5) return { cor: PALETA_SEMAFORO.laranja, label: 'Check-in Próximo', isAtivo: true };
+        
         return { cor: PALETA_SEMAFORO.cinza, label: ag.status, isAtivo: true };
     }
 
-    // Fallback de segurança
     return { cor: PALETA_SEMAFORO.cinza, label: ag.status, isAtivo: true };
 }

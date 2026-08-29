@@ -76,28 +76,49 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
         }
     };
 
-    // --- CORREÇÃO DO HANDLER DE PENDÊNCIAS ---
-    const handlePendenciaChange = async (campo, valor) => {
-        // 1. Atualiza o objeto da agenda instantaneamente (UI Otimista)
+    // --- NOVO: HANDLER BLINDADO DOS CHECKBOXES DE PENDÊNCIA ---
+    const handlePendenciaChange = async (campo, valor_booleano) => {
+        // 1. UI Otimista: Marca a caixinha na tela instantaneamente
         if (selectedEvent && typeof selectedEvent.setExtendedProp === 'function') {
-            selectedEvent.setExtendedProp(campo, valor);
+            selectedEvent.setExtendedProp(campo, valor_booleano);
         }
-        
-        // 2. Força o Menu a redesenhar o checkbox na tela
         setRenderTrigger(prev => prev + 1);
 
         try {
-            // 3. Salva a pendência no banco de dados
-            await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, { [campo]: valor });
-            // 4. Recarrega a barra lateral para o Semáforo recalcular a cor
-            if (onStatusUpdated) onStatusUpdated(); 
+            // 2. Busca os dados limpos do backend para não dar erro 400
+            const res = await apiClient.get(`/agendamentos/${selectedEvent.id}/`);
+            const ag = res.data;
+
+            const extrairId = (c) => (c && typeof c === 'object' && 'id' in c) ? c.id : c;
+            
+            // 3. Monta o pacote 100% validado
+            const payloadSeguro = {
+                status: ag.status,
+                paciente: extrairId(ag.paciente),
+                data_hora_inicio: ag.data_hora_inicio,
+                data_hora_fim: ag.data_hora_fim,
+                medico: extrairId(ag.medico),
+                sala: extrairId(ag.sala),
+                procedimento: extrairId(ag.procedimento),
+                tipo_atendimento: ag.tipo_atendimento || 'Particular',
+                plano_utilizado: ag.plano_utilizado_id || null,
+                is_encaixe: ag.is_encaixe,
+                
+                // Salva a alteração feita no checkbox e mantém o resto como estava
+                pendencia_laudo: campo === 'pendencia_laudo' ? valor_booleano : ag.pendencia_laudo,
+                pendencia_declaracao: campo === 'pendencia_declaracao' ? valor_booleano : ag.pendencia_declaracao
+            };
+
+            await apiClient.patch(`/agendamentos/${selectedEvent.id}/`, payloadSeguro);
+            if (onStatusUpdated) onStatusUpdated(); // Recarrega a agenda
         } catch (error) {
-            alert("Erro ao salvar pendência no sistema.");
-            // Se a internet cair, reverte o checkbox para o estado original
+            console.error("Erro ao salvar checkbox:", error);
+            alert("Erro ao salvar checklist. O servidor recusou a requisição.");
+            // Reverte a caixinha se a internet cair
             if (selectedEvent && typeof selectedEvent.setExtendedProp === 'function') {
-                selectedEvent.setExtendedProp(campo, !valor);
-                setRenderTrigger(prev => prev + 1);
+                selectedEvent.setExtendedProp(campo, !valor_booleano);
             }
+            setRenderTrigger(prev => prev + 1);
         }
     };
 
@@ -313,27 +334,27 @@ export default function EventoAgendaMenu({ anchorEl, selectedEvent, onClose, onE
                     </FormControl>
                 </Box>
 
-                {/* --- SEÇÃO DE PENDÊNCIAS (AGORA SEMPRE VISÍVEL) --- */}
+                {/* --- SEÇÃO DE CHECKLIST (SEMPRE VISÍVEL) --- */}
                 {selectedEvent?.extendedProps && (
                     <Box sx={{ p: 1.5, bgcolor: '#f1f5f9', borderBottom: '1px solid #e0e0e0' }}>
                         <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155', display: 'block', mb: 1 }}>
-                            Controle de Pendências (Card Preto):
+                            Checklist de Liberação do Paciente:
                         </Typography>
                         
                         <FormGroup sx={{ '& .MuiFormControlLabel-root': { mb: -0.5 } }}>
                             <FormControlLabel
-                                control={<Checkbox size="small" checked={selectedEvent.extendedProps.pagamento_status === 'Pendente'} disabled sx={{ color: '#cbd5e1', '&.Mui-checked': { color: '#ef4444' } }} />}
-                                label={<Typography variant="caption" color={selectedEvent.extendedProps.pagamento_status === 'Pendente' ? 'error' : '#64748b'}>Pagamento Pendente (Baixa no Financeiro)</Typography>}
+                                control={<Checkbox size="small" checked={selectedEvent.extendedProps.pagamento_status !== 'Pendente'} disabled sx={{ color: '#cbd5e1', '&.Mui-checked': { color: '#22c55e' } }} />}
+                                label={<Typography variant="caption" color={selectedEvent.extendedProps.pagamento_status === 'Pendente' ? 'error' : '#64748b'}>O agendamento foi pago?</Typography>}
                             />
                             
-                            {/* A lógica agora é direta: Checado = Tem Pendência */}
                             <FormControlLabel
-                                control={<Checkbox size="small" checked={Boolean(selectedEvent.extendedProps.pendencia_laudo)} onChange={(e) => handlePendenciaChange('pendencia_laudo', e.target.checked)} sx={{ '&.Mui-checked': { color: '#eab308' } }} />}
-                                label={<Typography variant="caption" color="#475569">Aguardando Laudo</Typography>}
+                                control={<Checkbox size="small" checked={Boolean(selectedEvent.extendedProps.pendencia_laudo)} onChange={(e) => handlePendenciaChange('pendencia_laudo', e.target.checked)} sx={{ '&.Mui-checked': { color: '#22c55e' } }} />}
+                                label={<Typography variant="caption" color="#475569">Laudo conferido / liberado?</Typography>}
                             />
+                            
                             <FormControlLabel
-                                control={<Checkbox size="small" checked={Boolean(selectedEvent.extendedProps.pendencia_declaracao)} onChange={(e) => handlePendenciaChange('pendencia_declaracao', e.target.checked)} sx={{ '&.Mui-checked': { color: '#eab308' } }} />}
-                                label={<Typography variant="caption" color="#475569">Aguardando Declaração / Atestado</Typography>}
+                                control={<Checkbox size="small" checked={Boolean(selectedEvent.extendedProps.pendencia_declaracao)} onChange={(e) => handlePendenciaChange('pendencia_declaracao', e.target.checked)} sx={{ '&.Mui-checked': { color: '#22c55e' } }} />}
+                                label={<Typography variant="caption" color="#475569">Declaração / Atestado entregue?</Typography>}
                             />
                         </FormGroup>
                     </Box>
