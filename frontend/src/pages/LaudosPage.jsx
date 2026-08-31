@@ -551,7 +551,13 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
     } catch (e) {
         console.error("Erro no envio:", e);
         setIsPolling(false);
-        alert("Erro ao enviar o laudo para processamento.");
+        
+        // Tenta capturar a mensagem exata enviada pelo backend (ex: "Senha incorreta...")
+        const mensagemErro = e.response?.data?.detail 
+            || (Array.isArray(e.response?.data) ? e.response.data[0] : null) 
+            || "Erro ao enviar o laudo para processamento.";
+            
+        alert(`⚠️ Atenção: ${mensagemErro}`);
     }
   };
 
