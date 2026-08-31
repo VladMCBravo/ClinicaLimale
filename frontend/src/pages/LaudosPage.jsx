@@ -456,6 +456,12 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         // Removemos o gerarPDFLaudo(). O Backend fará o trabalho pesado.
         // ===============================================================
 
+        console.log("\n=== 🛑 [DEBUG FRONTEND] ENVIANDO PARA ASSINATURA ===");
+        console.log("Médico Selecionado:", medicoNome);
+        console.log("CRM Selecionado:", medicoCrm);
+        console.log("Senha fornecida?", !!senhaAutorizacao); // Mostra true/false por segurança
+        console.log("========================================================\n");
+
         // 3. Prepara o envio APENAS com os textos e imagens
         const formData = new FormData();
         formData.append('paciente', paciente.id);
