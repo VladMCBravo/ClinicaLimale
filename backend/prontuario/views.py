@@ -1528,12 +1528,34 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
     def perform_create(self, serializer):
         import json
         import base64
-        import re # <-- Importação necessária para regex
+        import re 
         from datetime import date
         from django.core.files.base import ContentFile
+        from rest_framework.exceptions import ValidationError, AuthenticationFailed # <-- IMPORTANTE
+        from usuarios.models import CustomUser # <-- IMPORTANTE
         
         paciente_id = self.request.data.get('paciente')
         paciente = get_object_or_404(Paciente, id=paciente_id)
+
+        # =========================================================================
+        # NOVIDADE: AUTORIZAÇÃO DA ASSINATURA PELO MÉDICO
+        # =========================================================================
+        crm_enviado = self.request.data.get('crm_medico')
+        senha_enviada = self.request.data.get('senha_medico')
+
+        if not crm_enviado or not senha_enviada:
+            raise ValidationError({"detail": "O CRM e a Senha do médico são obrigatórios para a assinatura do laudo."})
+
+        # Busca o médico pelo CRM
+        medico_assinante = CustomUser.objects.filter(crm=crm_enviado).first()
+
+        if not medico_assinante:
+            raise ValidationError({"detail": f"Médico com CRM {crm_enviado} não encontrado no sistema."})
+
+        # O check_password do Django valida a senha crua contra o hash salvo no banco
+        if not medico_assinante.check_password(senha_enviada):
+            raise AuthenticationFailed("Senha incorreta. A assinatura do laudo não foi autorizada.")
+        # =========================================================================
 
         # >>> ADICIONE ESTE LOG AQUI <<<
         print("\n=== DEBUG BACKEND 1: RECEBIMENTO DO POST ===")
@@ -1585,9 +1607,9 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             print(f"DEBUG: Dados do paciente {paciente.nome_completo} atualizados via Laudo Async.")
         # =========================================================================
         
-        # 2. Salva o Laudo Básico como PROCESSANDO
+        # 2. Salva o Laudo Básico como PROCESSANDO (usando o medico_assinante!)
         laudo = serializer.save(
-            medico=self.request.user, 
+            medico=medico_assinante, # <--- A MÁGICA ACONTECE AQUI. Removemos o self.request.user
             paciente=paciente,
             tipo_exame=self.request.data.get('titulo', 'EXAME')[:50],
             dados_estruturados=dados_dict,

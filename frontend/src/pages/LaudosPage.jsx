@@ -416,7 +416,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
 };
 
   // --- 4. FUNÇÃO MASTER: SALVAR E FINALIZAR ---
-  const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais, dataExameSelecionada) => {
+  const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais, dataExameSelecionada, senhaAutorizacao) => {
     // 🛑 1. TRAVA DEFINITIVA ANTI-CLIQUE DUPLO
     if (isPolling) return;
     
@@ -461,6 +461,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         formData.append('texto_laudo', textoCorrigido);
         formData.append('medico_responsavel', medicoNome);
         formData.append('crm_medico', medicoCrm);
+        formData.append('senha_medico', senhaAutorizacao); // <-- NOVA LINHA
         formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
         formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas));
         

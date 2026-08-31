@@ -24,11 +24,21 @@ def client():
 
 @pytest.fixture
 def medico_titular(db):
-    return User.objects.create_user(username='dr_titular', password='123', cargo='medico')
+    return User.objects.create_user(
+        username='dr_titular', 
+        password='123', 
+        cargo='medico', 
+        crm='123456' # <-- ADICIONE O CRM AQUI
+    )
 
 @pytest.fixture
 def medico_intruso(db):
-    return User.objects.create_user(username='dr_intruso', password='123', cargo='medico')
+    return User.objects.create_user(
+        username='dr_intruso', 
+        password='123', 
+        cargo='medico', 
+        crm='654321' # <-- ADICIONE O CRM AQUI
+    )
 
 @pytest.fixture
 def paciente_padrao(db):
@@ -274,7 +284,9 @@ class TestLaudoAsyncView:
             'paciente': paciente_padrao.id,
             'titulo': 'USG Obstétrico',
             'texto_laudo': 'Feto bem desenvolvido.',
-            'dados_estruturados': json.dumps({'sexo': 'Feminino'})
+            'dados_estruturados': json.dumps({'sexo': 'Feminino'}),
+            'crm_medico': '123456', # <-- NOVO
+            'senha_medico': '123'   # <-- NOVO
         }
         
         response = client.post(url, payload, format='multipart')
@@ -297,6 +309,8 @@ class TestLaudoAsyncView:
         payload = {
             'paciente': paciente_padrao.id,
             'titulo': 'USG Geral',
+            'crm_medico': '123456', # <-- NOVO
+            'senha_medico': '123'   # <-- NOVO
         }
         
         response = client.post(url, payload, format='multipart')
@@ -330,7 +344,9 @@ class TestAtualizacaoAutomaticaPaciente:
         payload = {
             'paciente': paciente_incompleto.id,
             'titulo': 'USG',
-            'dados_estruturados': json.dumps({'sexo': 'Feminino', 'idade': '30 anos'})
+            'dados_estruturados': json.dumps({'sexo': 'Feminino', 'idade': '30 anos'}),
+            'crm_medico': '123456', # <-- NOVO
+            'senha_medico': '123'   # <-- NOVO
         }
         
         client.post(url, payload, format='multipart')
