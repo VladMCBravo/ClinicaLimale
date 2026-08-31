@@ -1559,8 +1559,30 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
         # 3. VALIDAÇÃO DA SENHA DO MÉDICO ENCONTRADO
         if not medico_assinante.check_password(senha_enviada):
             raise ValidationError({"detail": "Senha incorreta. A assinatura do laudo não foi autorizada."})
-        # =========================================================================
+        
+        # 👇 LOG 1: Vendo quem o sistema validou
+        print(f"\n[DEBUG 1] 🟢 MÉDICO VALIDADO COM SUCESSO! Assinante: {medico_assinante.get_full_name()} (CRM: {medico_assinante.crm})")
 
+        # 4. Salva o Laudo Básico pelo Serializer (Deixando ele salvar os dados gerais)
+        laudo = serializer.save(
+            paciente=paciente,
+            tipo_exame=self.request.data.get('titulo', 'EXAME')[:50],
+            dados_estruturados=dados_dict,
+            status='PROCESSANDO'
+        )
+        
+        # 👇 LOG 2: Vendo o que o Serializer fez por debaixo dos panos
+        print(f"[DEBUG 2] 🟡 ANTES DO OVERRIDE: O DRF tentou salvar o laudo no nome de: {laudo.medico.username}")
+
+        # =========================================================================
+        # 💥 A MÁGICA: OVERRIDE ABSOLUTO DE AUTORIA 
+        # Forçamos a troca do dono do laudo IGNORANDO o que o Serializer fez.
+        # =========================================================================
+        laudo.medico = medico_assinante
+        laudo.save(update_fields=['medico'])
+
+        # 👇 LOG 3: Vendo o resultado final que vai para o PDF
+        print(f"[DEBUG 3] 🟢 DEPOIS DO OVERRIDE: O laudo {laudo.id} pertence DE FATO a: {laudo.medico.get_full_name()}\n")
         # >>> ADICIONE ESTE LOG AQUI <<<
         print("\n=== DEBUG BACKEND 1: RECEBIMENTO DO POST ===")
         print(f"ID do Paciente recebido: {paciente_id}")

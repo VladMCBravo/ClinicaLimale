@@ -225,11 +225,15 @@ const getInitialState = (key, fallback) => {
             if (Array.isArray(res.data)) listaRaw = res.data;
             else if (res.data && Array.isArray(res.data.results)) listaRaw = res.data.results;
             
-            const listaOrdenada = listaRaw.sort((a, b) => {
+            // 💥 FILTRO BLINDADO FRONTEND: Arranca qualquer médico inativo (is_active === false)
+            const listaAtivos = listaRaw.filter(medico => medico.is_active !== false && medico.is_active !== 0);
+            
+            const listaOrdenada = listaAtivos.sort((a, b) => {
                 const nomeA = a.first_name || a.username || "";
                 const nomeB = b.first_name || b.username || "";
                 return nomeA.localeCompare(nomeB);
             });
+            console.log("🛑 [DEBUG] Médicos ATIVOS carregados no Select:", listaOrdenada.length);
             setTodosMedicos(listaOrdenada);
             setMedicosFiltrados(listaOrdenada); 
         } catch (e) { 
