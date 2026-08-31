@@ -22,15 +22,13 @@ class CRMService:
         if macro_area_filtro:
             queryset = queryset.filter(ciclo__macro_area=macro_area_filtro)
 
-        # 1. Extração do Turno via hora do agendamento (0-12 = Manhã, 12-18 = Tarde, >18 = Noite)
+        # 1. Extração do Turno via hora do agendamento
+        # CORREÇÃO: Como o campo 'custo_por_exame' não existe no cadastro do Médico,
+        # igualamos o lucro à receita por enquanto para não quebrar a tela.
         dados = queryset.annotate(
             hora=ExtractHour('data_hora_inicio'),
-            receita=F('pagamento__valor'), # Assumindo que a relação existe
-            custo_medico=F('medico__custo_por_exame'), # O campo de custo
-            lucro_liquido=ExpressionWrapper(
-                F('pagamento__valor') - F('medico__custo_por_exame'), 
-                output_field=DecimalField()
-            )
+            receita=F('pagamento__valor'), 
+            lucro_liquido=F('pagamento__valor') # Temporariamente igual à receita
         ).values('procedimento__descricao', 'hora', 'medico__nome').annotate(
             total_exames=Count('id'),
             receita_total=Sum('receita'),

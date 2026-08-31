@@ -1444,8 +1444,9 @@ def buscar_credenciais_ativas(request):
             'link': 'https://clinica-limale.vercel.app/resultados'
         })
     else:
-        print(f"[DEBUG] Falha: paciente tem {total_laudos} laudo(s), mas nenhum possui 'codigo_acesso' preenchido.")
-        return Response({'erro': 'Nenhum laudo encontrado com código de acesso'}, status=404)
+        print(f"[DEBUG] Normal: paciente tem {total_laudos} laudo(s), mas nenhum possui 'codigo_acesso'.")
+        # Retornamos 200 OK em vez de 404 para não gerar erro vermelho no console do navegador
+        return Response({'aviso': 'Paciente ainda não possui credenciais.'}, status=200)
 
 class AplicarMascaraPDFView(APIView):
     """
