@@ -1528,46 +1528,41 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
     def perform_create(self, serializer):
         import json
         import base64
-        import re 
+        import re
         from datetime import date
         from django.core.files.base import ContentFile
-        from rest_framework.exceptions import ValidationError, AuthenticationFailed # <-- IMPORTANTE
-        from usuarios.models import CustomUser # <-- IMPORTANTE
+        from rest_framework.exceptions import ValidationError, AuthenticationFailed
+        from usuarios.models import CustomUser
+        from prontuario.models import ImagemLaudo
         
         paciente_id = self.request.data.get('paciente')
         paciente = get_object_or_404(Paciente, id=paciente_id)
-
+        
         # =========================================================================
-        # NOVIDADE: AUTORIZAÇÃO DA ASSINATURA PELO MÉDICO (BLINDADA)
+        # 1. AUTORIZAÇÃO DA ASSINATURA PELO MÉDICO (BLINDADA)
         # =========================================================================
         crm_enviado = self.request.data.get('crm_medico')
         senha_enviada = self.request.data.get('senha_medico')
-
-        # 1. TRAVA DE SEGURANÇA: Bloqueia CRM vazio (Impede o sistema de pegar o Admin)
+        
         if not crm_enviado or str(crm_enviado).strip() in ['', 'null', 'undefined']:
             raise ValidationError({"detail": "O CRM do médico está vazio. Selecione o médico na lista sugerida antes de finalizar o laudo."})
-
+        
         if not senha_enviada:
             raise ValidationError({"detail": "A senha do médico é obrigatória para assinar o laudo."})
-
-        # 2. BUSCA RIGOROSA: Tem que ter o CRM exato E o cargo de 'medico'
+            
         medico_assinante = CustomUser.objects.filter(crm=crm_enviado, cargo='medico').first()
-
+        
         if not medico_assinante:
             raise ValidationError({"detail": f"Nenhum médico encontrado com o CRM '{crm_enviado}' no sistema."})
-
-        # 3. VALIDAÇÃO DA SENHA DO MÉDICO ENCONTRADO
+            
         if not medico_assinante.check_password(senha_enviada):
             raise ValidationError({"detail": "Senha incorreta. A assinatura do laudo não foi autorizada."})
-        # =========================================================================
+            
+        print(f"\n[DEBUG 1] 🟢 MÉDICO VALIDADO COM SUCESSO! Assinante: {medico_assinante.get_full_name()} (CRM: {medico_assinante.crm})")
 
-        # >>> ADICIONE ESTE LOG AQUI <<<
-        print("\n=== DEBUG BACKEND 1: RECEBIMENTO DO POST ===")
-        print(f"ID do Paciente recebido: {paciente_id}")
-        print(f"Nome do Paciente no Banco: {paciente.nome_completo}")
-        print("===========================================\n")
-        
-        # 1. Tratar dados estruturados
+        # =========================================================================
+        # 2. TRATAR DADOS ESTRUTURADOS E ATUALIZAR PACIENTE
+        # =========================================================================
         dados_raw = self.request.data.get('dados_estruturados', '{}')
         if isinstance(dados_raw, str):
             try:
@@ -1579,11 +1574,7 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             
         imagens_do_json = dados_dict.pop('imagens', [])
 
-        # =========================================================================
-        # NOVIDADE: ATUALIZAÇÃO AUTOMÁTICA DO CADASTRO DO PACIENTE
-        # =========================================================================
         paciente_atualizado = False
-
         sexo_laudo = dados_dict.get('sexo')
         if sexo_laudo and not paciente.genero:
             clean_sexo = str(sexo_laudo).strip().lower()
@@ -1594,7 +1585,7 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             elif clean_sexo in ['outro', 'o']:
                 paciente.genero = 'Outro'
             else:
-                paciente.genero = sexo_laudo # Mantém a string enviada
+                paciente.genero = sexo_laudo
             paciente_atualizado = True
 
         idade_laudo = dados_dict.get('idade')
@@ -1608,19 +1599,28 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
 
         if paciente_atualizado:
             paciente.save()
-            print(f"DEBUG: Dados do paciente {paciente.nome_completo} atualizados via Laudo Async.")
+
         # =========================================================================
-        
-        # 2. Salva o Laudo Básico como PROCESSANDO (usando o medico_assinante!)
+        # 3. SALVAR O LAUDO E APLICAR O OVERRIDE DE AUTORIA
+        # =========================================================================
         laudo = serializer.save(
-            medico=medico_assinante, # <--- A MÁGICA ACONTECE AQUI. Removemos o self.request.user
             paciente=paciente,
             tipo_exame=self.request.data.get('titulo', 'EXAME')[:50],
             dados_estruturados=dados_dict,
             status='PROCESSANDO'
         )
+        
+        print(f"[DEBUG 2] 🟡 ANTES DO OVERRIDE: O DRF tentou salvar o laudo no nome de: {laudo.medico.username}")
+        
+        # A MÁGICA: Substitui o dono que o DRF escolheu pelo médico da senha validada
+        laudo.medico = medico_assinante
+        laudo.save(update_fields=['medico'])
+        
+        print(f"[DEBUG 3] 🟢 DEPOIS DO OVERRIDE: O laudo {laudo.id} pertence DE FATO a: {laudo.medico.get_full_name()}\n")
 
-        # 3. Tratar imagens anexadas (Otimizadas pelo React)
+        # =========================================================================
+        # 4. SALVAR IMAGENS ANEXAS (COM VERIFICAÇÃO DO BUMERANGUE RESTAURADA)
+        # =========================================================================
         imagens_raw = self.request.data.get('imagens_anexas')
         imagens_lista = []
         if imagens_raw:
@@ -1634,10 +1634,21 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
         else:
             imagens_lista = imagens_do_json
             
-        # 4. Salva as imagens individualmente (CORRIGIDO: Revertido bulk_create por segurança de nuvem)
         if imagens_lista:
             for index, img_str in enumerate(imagens_lista):
                 try:
+                    # VERIFICAÇÃO DO BUMERANGUE (Intacta do original)
+                    is_cloud = False
+                    if img_str.startswith("CLOUD:"):
+                        is_cloud = True
+                        img_str = img_str.replace("CLOUD:", "", 1)
+                        
+                    if is_cloud:
+                        # Pula a criação no banco de dados para não gastar espaço no S3,
+                        # pois o arquivo já existe na pasta do exame da máquina de USG!
+                        continue
+
+                    # Se chegou aqui, é upload manual do PC do médico (Salva normal)
                     if ";base64," in img_str:
                         format, imgstr = img_str.split(';base64,') 
                         ext = format.split('/')[-1]
@@ -1647,9 +1658,6 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
                     data = base64.b64decode(imgstr)
                     file_name = f"laudo_{laudo.id}_img_{index}.{ext}"
                     
-                    # O bulk_create NÃO sobe o arquivo para a nuvem (Supabase/S3).
-                    # Como as imagens agora são super leves (otimizadas a 500px no React), 
-                    # salvar com .create() é muito rápido e garante que a foto apareça no portal.
                     ImagemLaudo.objects.create(
                         laudo=laudo, 
                         arquivo=ContentFile(data, name=file_name)

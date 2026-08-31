@@ -225,11 +225,15 @@ const getInitialState = (key, fallback) => {
             if (Array.isArray(res.data)) listaRaw = res.data;
             else if (res.data && Array.isArray(res.data.results)) listaRaw = res.data.results;
             
-            const listaOrdenada = listaRaw.sort((a, b) => {
+            // 💥 FILTRO BLINDADO FRONTEND: Arranca qualquer médico inativo (is_active === false)
+            const listaAtivos = listaRaw.filter(medico => medico.is_active !== false && medico.is_active !== 0);
+            
+            const listaOrdenada = listaAtivos.sort((a, b) => {
                 const nomeA = a.first_name || a.username || "";
                 const nomeB = b.first_name || b.username || "";
                 return nomeA.localeCompare(nomeB);
             });
+            console.log("🛑 [DEBUG] Médicos ATIVOS carregados no Select:", listaOrdenada.length);
             setTodosMedicos(listaOrdenada);
             setMedicosFiltrados(listaOrdenada); 
         } catch (e) { 
@@ -451,6 +455,12 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         // 🚀 TRANSIÇÃO: O FRONTEND NÃO GERA MAIS O PDF!
         // Removemos o gerarPDFLaudo(). O Backend fará o trabalho pesado.
         // ===============================================================
+
+        console.log("\n=== 🛑 [DEBUG FRONTEND] ENVIANDO PARA ASSINATURA ===");
+        console.log("Médico Selecionado:", medicoNome);
+        console.log("CRM Selecionado:", medicoCrm);
+        console.log("Senha fornecida?", !!senhaAutorizacao); // Mostra true/false por segurança
+        console.log("========================================================\n");
 
         // 3. Prepara o envio APENAS com os textos e imagens
         const formData = new FormData();
