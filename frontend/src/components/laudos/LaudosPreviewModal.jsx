@@ -23,6 +23,7 @@ const LaudosPreviewModal = ({
     const [tabIndex, setTabIndex] = useState(0); // 0 = Texto, 1 = Fotos
     const [dataExameModal, setDataExameModal] = useState(new Date().toISOString().split('T')[0]);
     const imagensBaseRef = useRef(0);
+    const [senhaMedico, setSenhaMedico] = useState(''); // <-- NOVO ESTADO
 
     useEffect(() => {
         if (open) {
@@ -284,6 +285,19 @@ const LaudosPreviewModal = ({
                         }}
                     />
                 </Box>
+                {/* NOVO: Bloco Senha do Médico */}
+                <Box style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Typography variant="caption" style={{ fontWeight: 'bold', color: '#b71c1c' }}>
+                        Senha do Médico:
+                    </Typography>
+                    <input 
+                        type="password"
+                        placeholder="Digite a senha..."
+                        value={senhaMedico}
+                        onChange={(e) => setSenhaMedico(e.target.value)}
+                        style={{ padding: '6px 10px', borderRadius: '4px', border: '1px solid #b71c1c', fontSize: '13px', outline: 'none' }}
+                    />
+                </Box>
 
                 {/* --- LADO DIREITO DA BARRA INFERIOR: BOTÕES --- */}
                 <Box>
@@ -292,7 +306,10 @@ const LaudosPreviewModal = ({
                     </Button>
                 
                 <Button 
-                    onClick={() => onFinalizar(textoEditado, imagens, dataExameModal)} 
+                    onClick={() => {
+                        if (!senhaMedico) return alert("A senha do médico é obrigatória para assinar o laudo.");
+                        onFinalizar(textoEditado, imagens, dataExameModal, senhaMedico); // <-- SENHA INCLUÍDA
+                    }} 
                     variant="contained" 
                     size="large"
                     style={{ 
