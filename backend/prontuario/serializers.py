@@ -89,14 +89,33 @@ class EvolucaoSerializer(serializers.ModelSerializer):
         # A MÁGICA 1: Adicionamos 'especialidade' aqui para o Django não barrar textos
         read_only_fields = ['id', 'medico_nome', 'data_atendimento', 'especialidade_nome', 'especialidade']
 
-    # A MÁGICA 2: Limpar strings vazias vindas do React
+    # A MÁGICA 2: Blindagem de inputs numéricos vindos do React
     def to_internal_value(self, data):
+        import re # Importa a biblioteca de expressões regulares
+        
         _mutable_data = data.copy() if hasattr(data, 'copy') else dict(data)
         
-        for field in ['peso', 'altura', 'frequencia_cardiaca', 'agendamento']:
+        # 1. Trata o que ele DEIXOU VAZIO (o que impedia o salvamento)
+        for field in ['peso', 'altura', 'frequencia_cardiaca', 'agendamento', 'cid']:
             if _mutable_data.get(field) == "":
                 _mutable_data[field] = None
+        
+        # 2. Trata o que ele DIGITOU em peso e altura (vírgulas e letras)
+        for field in ['peso', 'altura']:
+            valor = _mutable_data.get(field)
+            
+            if isinstance(valor, str) and valor:
+                # Remove letras, espaços (ex: "kg", "cm") deixando só números, vírgula e ponto
+                valor_limpo = re.sub(r'[^\d,\.]', '', valor)
                 
+                # Troca a vírgula brasileira pelo ponto americano (ex: 10,5 vira 10.5)
+                valor_limpo = valor_limpo.replace(',', '.')
+                
+                if valor_limpo == "":
+                    _mutable_data[field] = None
+                else:
+                    _mutable_data[field] = valor_limpo
+                    
         return super().to_internal_value(_mutable_data)
 # -----------------------------------------------
 

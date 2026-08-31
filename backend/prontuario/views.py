@@ -154,6 +154,25 @@ class EvolucaoDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
             raise PermissionDenied("Acesso Negado: Apenas o médico autor pode alterar esta evolução.")
         serializer.save()
 
+    # 👇 ADICIONAR ESTE BLOCO PARA DEBUG 👇
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        
+        if not serializer.is_valid():
+            print("\n🚨 ERRO 400 (EDITANDO EVOLUÇÃO) - O DJANGO BARROU! MOTIVO:")
+            print(serializer.errors)
+            print("\n")
+            
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
+
     # 👇 ADICIONE ESTA TRAVA PARA A EXCLUSÃO (DELETE) 👇
     def perform_destroy(self, instance):
         # Verificamos se o médico logado é o mesmo que escreveu a evolução
