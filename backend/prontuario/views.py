@@ -1554,7 +1554,7 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
 
         # O check_password do Django valida a senha crua contra o hash salvo no banco
         if not medico_assinante.check_password(senha_enviada):
-            raise AuthenticationFailed("Senha incorreta. A assinatura do laudo não foi autorizada.")
+            raise ValidationError({"detail": "Senha incorreta. A assinatura do laudo não foi autorizada."})
         # =========================================================================
 
         # >>> ADICIONE ESTE LOG AQUI <<<
