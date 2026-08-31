@@ -1538,21 +1538,25 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
         paciente = get_object_or_404(Paciente, id=paciente_id)
 
         # =========================================================================
-        # NOVIDADE: AUTORIZAÇÃO DA ASSINATURA PELO MÉDICO
+        # NOVIDADE: AUTORIZAÇÃO DA ASSINATURA PELO MÉDICO (BLINDADA)
         # =========================================================================
         crm_enviado = self.request.data.get('crm_medico')
         senha_enviada = self.request.data.get('senha_medico')
 
-        if not crm_enviado or not senha_enviada:
-            raise ValidationError({"detail": "O CRM e a Senha do médico são obrigatórios para a assinatura do laudo."})
+        # 1. TRAVA DE SEGURANÇA: Bloqueia CRM vazio (Impede o sistema de pegar o Admin)
+        if not crm_enviado or str(crm_enviado).strip() in ['', 'null', 'undefined']:
+            raise ValidationError({"detail": "O CRM do médico está vazio. Selecione o médico na lista sugerida antes de finalizar o laudo."})
 
-        # Busca o médico pelo CRM
-        medico_assinante = CustomUser.objects.filter(crm=crm_enviado).first()
+        if not senha_enviada:
+            raise ValidationError({"detail": "A senha do médico é obrigatória para assinar o laudo."})
+
+        # 2. BUSCA RIGOROSA: Tem que ter o CRM exato E o cargo de 'medico'
+        medico_assinante = CustomUser.objects.filter(crm=crm_enviado, cargo='medico').first()
 
         if not medico_assinante:
-            raise ValidationError({"detail": f"Médico com CRM {crm_enviado} não encontrado no sistema."})
+            raise ValidationError({"detail": f"Nenhum médico encontrado com o CRM '{crm_enviado}' no sistema."})
 
-        # O check_password do Django valida a senha crua contra o hash salvo no banco
+        # 3. VALIDAÇÃO DA SENHA DO MÉDICO ENCONTRADO
         if not medico_assinante.check_password(senha_enviada):
             raise ValidationError({"detail": "Senha incorreta. A assinatura do laudo não foi autorizada."})
         # =========================================================================
