@@ -711,10 +711,14 @@ class TemplateRelatorioListView(generics.ListAPIView):
     
     def get_queryset(self):
         queryset = TemplateRelatorio.objects.all()
-        # Filtra pela especialidade (ex: 'cardiologia')
         especialidade = self.request.query_params.get('especialidade')
+        
         if especialidade:
-            queryset = queryset.filter(models.Q(especialidade=especialidade) | models.Q(especialidade='geral'))
+            # O sufixo __iexact ignora diferenças entre maiúsculas e minúsculas
+            queryset = queryset.filter(
+                models.Q(especialidade__iexact=especialidade) | 
+                models.Q(especialidade__iexact='geral')
+            )
         return queryset.order_by('titulo')
 
 

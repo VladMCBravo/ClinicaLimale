@@ -37,7 +37,7 @@ export default function ProntuarioCompleto({ agendamento, modalHistoricoId, onCl
   const [consultaAtualId, setConsultaAtualId] = useState(null);
 
   const pacienteId = agendamento?.paciente;
-  const especialidade = agendamento?.especialidade_nome || 'ClinicaGeral';
+  const especialidade = agendamento?.especialidade || 'ClinicaGeral';
   const isExame = agendamento?.tipo === 'EXAME' || ['Radiologia', 'Ultrassonografia'].includes(especialidade);
 
   // CORREÇÃO CRÍTICA AQUI: Apenas pacienteId!
