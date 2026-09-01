@@ -1,3 +1,4 @@
+<!-- templates/pdfs/relatorio_template.html -->
 {% extends "pdfs/base_pdf.html" %}
 
 {% block title %}Relatório Médico{% endblock %}
@@ -51,7 +52,10 @@
 <!-- 3. CORPO DO DOCUMENTO -->
 <div class="titulo-exame">{{ relatorio.titulo|upper }}</div>
 
-<div class="content-text" style="white-space: pre-wrap; margin-top: 20px;">{{ relatorio.conteudo_final }}</div>
+<!-- AQUI ESTÁ A MUDANÇA: Tiramos o white-space: pre-wrap e adicionamos o filtro |safe -->
+<div class="content-text" style="margin-top: 20px;">
+    {{ relatorio.conteudo_final|safe }}
+</div>
 
 {% if relatorio.cid and relatorio.paciente_autorizou_cid %}
 <div class="obs-text" style="border: 1px solid #ddd; padding: 10px; margin-top: 30px;">
