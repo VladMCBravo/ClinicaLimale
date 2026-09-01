@@ -1,16 +1,20 @@
 // src/components/prontuario/RelatoriosTab.jsx
-// VERSÃO CORRIGIDA: Layout Vertical Adaptado para a Barra Lateral Direita
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Box, Typography, FormControl, InputLabel, Select,
     MenuItem, Button, TextField, CircularProgress, List, ListItem,
     ListItemText, Divider, IconButton, Tooltip,
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
-    Autocomplete, FormControlLabel, Checkbox // <--- ADICIONE ESTES TRÊS
+    Autocomplete, FormControlLabel, Checkbox
 } from '@mui/material';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit'; // <-- NOVO ÍCONE
+
+// IMPORTAÇÕES DO REACT QUILL (EDITOR RICO)
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import apiClient from '../../api/axiosConfig';
 
@@ -36,6 +40,10 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const [editorContent, setEditorContent] = useState('');
     const [cidSelecionado, setCidSelecionado] = useState(null);
     const [autorizouCid, setAutorizouCid] = useState(false);
+    
+    // NOVO ESTADO PARA CONTROLAR O MODAL DO EDITOR
+    const [isEditorModalOpen, setIsEditorModalOpen] = useState(false);
+
     const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [isLoadingPreview, setIsLoadingPreview] = useState(false);
@@ -46,8 +54,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const fetchTemplates = useCallback(async () => {
         setIsLoadingTemplates(true);
         try {
-            // Sem especialidade (ex: paciente aberto via "Meus Pacientes", sem agendamento
-            // ativo), busca todos os modelos em vez de mandar "especialidade=undefined".
             const url = especialidade
                 ? `/prontuario/templates/?especialidade=${especialidade}`
                 : `/prontuario/templates/`;
@@ -73,10 +79,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     }, [pacienteId, showSnackbar]);
 
     useEffect(() => {
-        // 'especialidade' NÃO é obrigatória aqui: paciente aberto via "Meus Pacientes"
-        // (sem agendamento ativo) chega com especialidade undefined, mas o médico ainda
-        // precisa ver os modelos 'geral' (Comparecimento, Afastamento, etc.) e o
-        // histórico de relatórios já salvos.
         if (pacienteId) {
             fetchTemplates();
             fetchSavedReports();
@@ -84,8 +86,8 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         setSelectedTemplateId('');
         setTitulo('');
         setEditorContent('');
-        setCidSelecionado(null); // <-- LIMPA O CID AO TROCAR DE PACIENTE
-        setAutorizouCid(false);  // <-- LIMPA O CHECKBOX
+        setCidSelecionado(null);
+        setAutorizouCid(false);
     }, [pacienteId, especialidade, fetchTemplates, fetchSavedReports]);
 
     const handleGerarPreview = async () => {
@@ -104,9 +106,18 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                 payload
             );
             
-            setEditorContent(res.data.conteudo_preenchido);
+            // O backend deve retornar texto ou HTML (se já for HTML, o Quill lê perfeitamente)
+            // Se vier texto com \n, podemos converter para <br> para o Quill entender inicialmentetemplateNome
+            let conteudoPreenchido = res.data.conteudo_preenchido || '';
+            // Substitui quebras de linha normais por tags <br> para o editor visual
+            conteudoPreenchido = conteudoPreenchido.replace(/(?:\r\n|\r|\n)/g, '<br>');
+            
+            setEditorContent(conteudoPreenchido);
             const templateNome = templates.find(t => t.id === selectedTemplateId)?.titulo || 'Relatório';
             setTitulo(templateNome);
+            
+            // Abre o modal automaticamente ao gerar a prévia para o médico já editar
+            setIsEditorModalOpen(true);
         } catch (err) {
             showSnackbar('Erro ao gerar prévia do relatório.', 'error');
         } finally {
@@ -115,7 +126,10 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     };
 
     const handleSalvarRelatorio = async () => {
-        if (!titulo || !editorContent) {
+        // Verifica se está vazio (o Quill vazio fica como '<p><br></p>')
+        const isContentEmpty = !editorContent || editorContent === '<p><br></p>';
+        
+        if (!titulo || isContentEmpty) {
             showSnackbar('O título e o conteúdo do relatório não podem estar vazios.', 'warning');
             return;
         }
@@ -123,17 +137,13 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         try {
             const safeTemplateId = parseInt(selectedTemplateId, 10);
 
-            // Monta o payload SIMPLIFICADO (inspirado na PrescricoesTab)
-            // Não enviamos mais o ID da consulta para evitar o conflito de Pk.
             const payload = {
                 titulo: titulo,
-                conteudo_final: editorContent,
-                // Adiciona o CID se houver
+                conteudo_final: editorContent, // Agora enviamos HTML
                 cid: cidSelecionado ? cidSelecionado.codigo : null,
                 paciente_autorizou_cid: autorizouCid
             };
 
-            // Adiciona o template apenas se for um ID válido
             if (!isNaN(safeTemplateId) && safeTemplateId > 0) {
                 payload.template_origem = safeTemplateId;
             }
@@ -149,18 +159,7 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             setSelectedTemplateId('');
             fetchSavedReports(); 
         } catch (err) {
-            const errorData = err.response?.data;
-            console.error("Detalhes do Erro DRF (400 Bad Request):", errorData);
-            
-            let errorMessage = 'Erro ao salvar o relatório.';
-            if (errorData && typeof errorData === 'object') {
-                const firstKey = Object.keys(errorData)[0];
-                if (firstKey) {
-                    errorMessage = `Erro (${firstKey}): ${errorData[firstKey]}`;
-                }
-            }
-            
-            showSnackbar(errorMessage, 'error');
+            showSnackbar('Erro ao salvar o relatório.', 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -169,7 +168,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
     const handleGerarPdf = async (relatorioId) => {
         if (pdfLoadingId) return; 
         setPdfLoadingId(relatorioId); 
-        
         try {
             const response = await apiClient.get(
                 `/pdf/relatorio/${relatorioId}/`,
@@ -179,7 +177,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             window.open(fileURL, '_blank');
             setTimeout(() => URL.revokeObjectURL(fileURL), 100); 
         } catch (error) {
-            console.error("Erro ao gerar PDF do relatório:", error);
             showSnackbar('Erro ao gerar PDF do relatório.', 'error');
         } finally {
             setPdfLoadingId(null); 
@@ -200,8 +197,18 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
         }
     };
 
+    // Configurações dos botões da barra de ferramentas do Quill
+    const quillModules = {
+        toolbar: [
+            [{ 'header': [1, 2, 3, false] }], // Títulos
+            ['bold', 'italic', 'underline'], // Formatação básica
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }], // Listas
+            [{ 'align': [] }], // Alinhamento
+            ['clean'] // Limpar formatação
+        ],
+    };
+
     return (
-        // 1. Aplicação da classe "tasy-compact-input" e layout totalmente vertical
         <Box className="tasy-compact-input" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
             {/* --- SEÇÃO 1: GERAR NOVO RELATÓRIO --- */}
@@ -234,7 +241,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                     {isLoadingPreview ? <CircularProgress size={20} color="inherit" /> : 'Gerar Prévia'}
                 </Button>
 
-                {/* Feedback visual discreto */}
                 <Typography variant="caption" color={consultaAtualId ? "success.main" : "warning.main"} sx={{ mt: -1, lineHeight: 1.2 }}>
                     {consultaAtualId 
                         ? '✓ Consulta atual incluída na prévia.' 
@@ -249,7 +255,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                     fullWidth
                 />
 
-                {/* --- MÓDULO DE DIAGNÓSTICO E CID --- */}
                 <Box sx={{ border: '1px solid #e0e0e0', p: 1.5, borderRadius: 1, bgcolor: '#fafafa' }}>
                     <Autocomplete
                         options={listaCIDs}
@@ -270,28 +275,43 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                                 size="small"
                                 checked={autorizouCid} 
                                 onChange={(e) => setAutorizouCid(e.target.checked)}
-                                disabled={!cidSelecionado} // Só habilita se tiver CID
+                                disabled={!cidSelecionado} 
                             />
                         }
-                        label="O paciente autoriza a impressão do CID neste documento (Res. CFM nº 1.658/2002)."
+                        label="Paciente autoriza impressão do CID (Res. CFM nº 1.658/2002)."
                     />
                 </Box>
                 
-                <TextField
-                    label="Conteúdo do Relatório"
-                    value={editorContent}
-                    onChange={(e) => setEditorContent(e.target.value)}
-                    multiline
-                    rows={8} // 2. Reduzido de 15 para 8 para caber melhor na barra lateral
-                    fullWidth
-                    disabled={isLoadingPreview}
-                />
+                {/* --- CAIXA QUE SUBSTITUI O ANTIGO TEXTFIELD --- */}
+                <Box sx={{ 
+                    border: '1px dashed #bdbdbd', 
+                    borderRadius: 1, 
+                    p: 2, 
+                    textAlign: 'center', 
+                    bgcolor: editorContent ? '#f0f7ff' : '#fafafa' 
+                }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                        {editorContent && editorContent !== '<p><br></p>' 
+                            ? 'O texto está preenchido. Clique abaixo para visualizar ou editar.' 
+                            : 'Nenhum texto. Clique abaixo para redigir o relatório.'}
+                    </Typography>
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<EditIcon />}
+                        onClick={() => setIsEditorModalOpen(true)}
+                        fullWidth
+                        sx={{ bgcolor: 'white' }}
+                    >
+                        Redigir / Editar Texto
+                    </Button>
+                </Box>
 
                 <Button
                     variant="contained"
                     color="success"
                     onClick={handleSalvarRelatorio}
-                    disabled={isSubmitting || !editorContent || !titulo}
+                    disabled={isSubmitting || !titulo || (!editorContent || editorContent === '<p><br></p>')}
                     size="small"
                     disableElevation
                 >
@@ -302,7 +322,6 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
             {/* --- SEÇÃO 2: RELATÓRIOS SALVOS --- */}
             <Box>
                 <Typography className="tasy-section-header">Relatórios Salvos</Typography>
-                
                 {isLoadingHistory ? <CircularProgress size={24} sx={{ m: 2, display: 'block' }} /> :
                     savedReports.length === 0 ? <Typography variant="body2" color="text.secondary">Nenhum relatório salvo.</Typography> : (
                     <List dense disablePadding>
@@ -342,7 +361,49 @@ export default function RelatoriosTab({ pacienteId, consultaAtualId, especialida
                 )}
             </Box>
 
-            {/* DIÁLOGO DE CONFIRMAÇÃO */}
+            {/* --- MODAL DO EDITOR REACT QUILL --- */}
+            <Dialog 
+                open={isEditorModalOpen} 
+                onClose={() => setIsEditorModalOpen(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                    sx: { height: '80vh', display: 'flex', flexDirection: 'column' } // Ocupa 80% da altura da tela
+                }}
+            >
+                <DialogTitle sx={{ borderBottom: '1px solid #e0e0e0', bgcolor: '#f5f5f5' }}>
+                    Editor de Relatório Médico
+                </DialogTitle>
+                <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                    {/* CSS customizado para garantir que o Quill ocupe 100% da área do modal */}
+                    <Box sx={{ 
+                        flexGrow: 1, 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        '& .quill': { display: 'flex', flexDirection: 'column', flexGrow: 1, height: '100%' },
+                        '& .ql-container': { flexGrow: 1, overflowY: 'auto', fontSize: '1rem', fontFamily: 'inherit' },
+                        '& .ql-toolbar': { bgcolor: 'white', position: 'sticky', top: 0, zIndex: 1 }
+                    }}>
+                        <ReactQuill
+                            theme="snow"
+                            value={editorContent}
+                            onChange={setEditorContent}
+                            modules={quillModules}
+                            placeholder="Redija o relatório aqui..."
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions sx={{ borderTop: '1px solid #e0e0e0', p: 2 }}>
+                    <Button onClick={() => setIsEditorModalOpen(false)} color="inherit">
+                        Fechar
+                    </Button>
+                    <Button onClick={() => setIsEditorModalOpen(false)} variant="contained" color="primary">
+                        Concluir Edição
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* DIÁLOGO DE CONFIRMAÇÃO DE ARQUIVAMENTO */}
             <Dialog open={!!confirmDeleteId} onClose={() => setConfirmDeleteId(null)}>
                 <DialogTitle>Arquivar Relatório?</DialogTitle>
                 <DialogContent>
