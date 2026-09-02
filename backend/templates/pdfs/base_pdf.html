@@ -42,28 +42,32 @@
         .info-grid { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt; }
         .info-grid td { padding: 5px 0; vertical-align: top; border-bottom: 1px solid #f9f9f9;}
 
-        /* --- RESET PARA O REACT QUILL (Evita quebra de página excessiva) --- */
+        /* --- RESET PARA O REACT QUILL (Espaçamento Natural) --- */
+        .content-text { 
+            font-size: 11pt; /* Tamanho confortável para leitura */
+            text-align: justify; 
+            line-height: 1.2; 
+        }
+
         .content-text p {
-            margin: 0 0 4px 0; /* Define uma margem inferior bem pequena, como no Word */
-            padding: 0;
-            line-height: 1.15;
+            margin: 0 0 4px 0 !important; /* Pula só um espacinho mínimo entre as linhas */
+            padding: 0 !important;
         }
 
         .content-text ul, .content-text ol {
-            margin: 4px 0 4px 0;
-            padding-left: 20px;
+            margin: 5px 0 5px 0 !important;
+            padding-left: 20px !important;
         }
 
         .content-text li {
-            margin: 0 0 2px 0;
-            padding: 0;
+            margin: 0 0 3px 0 !important;
         }
 
         .content-text h1, .content-text h2, .content-text h3 {
-            margin: 10px 0 5px 0;
-            padding: 0;
-            font-size: 13pt;
-            page-break-after: avoid; /* Evita que o título fique isolado no fim da página */
+            margin: 15px 0 5px 0 !important;
+            padding: 0 !important;
+            font-size: 12pt !important;
+            page-break-after: avoid; 
         }
     </style>
 </head>
