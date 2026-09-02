@@ -206,7 +206,7 @@ class AnamneseSerializer(serializers.ModelSerializer):
         cardiologica_data = validated_data.pop('cardiologica', None)
         pediatrica_data = validated_data.pop('pediatrica', None)
         neonatologia_data = validated_data.pop('neonatologia', None)
-        clinica_geral_data = validated_data.pop('clinica_geral', None) # <-- ADD POP
+        clinica_geral_data = validated_data.pop('clinica_geral', None)
 
         # Atualiza a Anamnese principal
         instance = super().update(instance, validated_data)
@@ -218,16 +218,26 @@ class AnamneseSerializer(serializers.ModelSerializer):
             'cardiologica': (AnamneseCardiologia, cardiologica_data),
             'pediatrica': (AnamnesePediatria, pediatrica_data),
             'neonatologia': (AnamneseNeonatologia, neonatologia_data),
-            'clinica_geral': (AnamneseClinicaGeral, clinica_geral_data), # <-- ADD TO MAP
+            'clinica_geral': (AnamneseClinicaGeral, clinica_geral_data),
         }
 
         for field_name, (ModelClass, data) in specialty_data_map.items():
             if data is not None:
                 obj, created = ModelClass.objects.get_or_create(anamnese=instance)
+                
+                # MUDANÇA AQUI: Rastreamos exatamente quais campos vieram no JSON
+                update_fields = []
                 for attr, value in data.items():
                     setattr(obj, attr, value)
-                obj.save()
-            elif hasattr(instance, field_name): # Se data é None, remove se existir
+                    update_fields.append(attr)
+                
+                if update_fields:
+                    # 🚀 MÁGICA: Salva APENAS as colunas alteradas!
+                    # Evita que o patch do DNPM apague a anamnese e vice-versa.
+                    obj.save(update_fields=update_fields)
+                elif created:
+                    obj.save()
+            elif hasattr(instance, field_name): 
                 getattr(instance, field_name).delete()
 
         return instance

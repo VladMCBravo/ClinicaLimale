@@ -99,15 +99,15 @@ export default function ProntuarioWorkspace() {
     };
 
     // --- AÇÕES DO USUÁRIO ---
-    const selecionarPaciente = async (itemLista) => {
+    const selecionarPaciente = (itemLista) => { // Remova o async
         const pacId = abaEsquerda === 0 ? itemLista.paciente_id : itemLista.id;
         const agendamento = abaEsquerda === 0 ? itemLista : null;
         
         setAgendamentoAtivo(agendamento);
         setFerramentaDireita(null);
 
-        // Chama a função nova aqui!
-        await carregarBanner(pacId);
+        // Chama sem travar a thread visual
+        carregarBanner(pacId); 
 
         if (agendamento) {
             setConteudoCentral({ tipo: 'NOVO_ATENDIMENTO', especialidade: agendamento.especialidade });

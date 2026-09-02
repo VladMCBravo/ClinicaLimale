@@ -27,8 +27,20 @@ class UploadExameView(APIView):
     Vincula automaticamente ao Paciente com Tríplice Trava de Segurança.
     """
     parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [AllowAny]  # <--- ADICIONE ISTO para desativar o JWT aqui
     
     def post(self, request, *args, **kwargs):
+        # --- NOVA TRAVA DE SEGURANÇA DO ROBÔ ---
+        token_enviado = request.headers.get('X-Api-Key')
+        chave_secreta = os.getenv('ROBO_WORKLIST_TOKEN')
+
+        if not chave_secreta or token_enviado != chave_secreta:
+            return Response(
+                {"erro": "Chave de segurança inválida. Acesso negado ao Robô."}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        # ---------------------------------------
+
         nome_pasta = request.data.get('nome_pasta_original')
         nome_paciente_enviado = request.data.get('nome_paciente', '').strip() 
         data_str = request.data.get('data_exame') 
@@ -193,7 +205,8 @@ class AcessarResultadosView(APIView):
 
         # 3. SE AINDA NÃO ACHOU, BARRA O ACESSO
         if not paciente_encontrado:
-            return Response({'erro': 'Credenciais inválidas ou exame não encontrado.'}, status=status.HTTP_403_FORBIDDEN)
+            # Trocado de HTTP_403_FORBIDDEN para HTTP_401_UNAUTHORIZED
+            return Response({'erro': 'Credenciais inválidas ou exame não encontrado.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         # 4. MONTA A LINHA DO TEMPO COMPLETA DO PACIENTE (AGRUPAMENTO INTELIGENTE)
         historico = []

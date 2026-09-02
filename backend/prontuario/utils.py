@@ -178,7 +178,14 @@ def gerar_pdf_laudo_backend(context):
     texto_bruto = laudo.texto_laudo if laudo else ''
     
     dados_estruturados = laudo.dados_estruturados if laudo and isinstance(laudo.dados_estruturados, dict) else {}
-    medico_solicitante = dados_estruturados.get('medicoSolicitante', 'NÃO INFORMADO').upper()
+    
+    # MUDANÇA AQUI: Proteção contra null
+    medico_solicitante = dados_estruturados.get('medicoSolicitante')
+    if medico_solicitante:
+        medico_solicitante = str(medico_solicitante).upper()
+    else:
+        medico_solicitante = 'NÃO INFORMADO'
+        
     titulo_do_laudo = laudo.titulo_exame if laudo else 'RELATÓRIO MÉDICO'
     data_formatada = data_exame.strftime("%d/%m/%Y") if data_exame else ""
 
