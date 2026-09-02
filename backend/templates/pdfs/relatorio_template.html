@@ -54,7 +54,7 @@
 
 <!-- AQUI ESTÁ A MUDANÇA: Tiramos o white-space: pre-wrap e adicionamos o filtro |safe -->
 <div class="content-text" style="margin-top: 20px;">
-    {{ relatorio.conteudo_final|safe }}
+    {{ relatorio.conteudo_final|linebreaksbr|safe }}
 </div>
 
 {% if relatorio.cid and relatorio.paciente_autorizou_cid %}
