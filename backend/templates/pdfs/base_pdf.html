@@ -41,6 +41,30 @@
         .obs-text { font-size: 10pt; color: #666; text-align: justify; line-height: 1.1; margin-top: 10px; }
         .info-grid { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12pt; }
         .info-grid td { padding: 5px 0; vertical-align: top; border-bottom: 1px solid #f9f9f9;}
+
+        /* --- RESET PARA O REACT QUILL (Evita quebra de página excessiva) --- */
+        .content-text p {
+            margin: 0 0 4px 0; /* Define uma margem inferior bem pequena, como no Word */
+            padding: 0;
+            line-height: 1.15;
+        }
+
+        .content-text ul, .content-text ol {
+            margin: 4px 0 4px 0;
+            padding-left: 20px;
+        }
+
+        .content-text li {
+            margin: 0 0 2px 0;
+            padding: 0;
+        }
+
+        .content-text h1, .content-text h2, .content-text h3 {
+            margin: 10px 0 5px 0;
+            padding: 0;
+            font-size: 13pt;
+            page-break-after: avoid; /* Evita que o título fique isolado no fim da página */
+        }
     </style>
 </head>
 <body>
