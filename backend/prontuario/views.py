@@ -711,14 +711,20 @@ class TemplateRelatorioListView(generics.ListAPIView):
     
     def get_queryset(self):
         queryset = TemplateRelatorio.objects.all()
-        especialidade = self.request.query_params.get('especialidade')
+        especialidade_query = self.request.query_params.get('especialidade')
         
-        if especialidade:
-            # O sufixo __iexact ignora diferenças entre maiúsculas e minúsculas
+        if especialidade_query:
+            # 1. Pega apenas a primeira palavra do nome da especialidade
+            # Ex: "Cardiologia Adulto + ECG" vira "Cardiologia"
+            palavra_chave = especialidade_query.split()[0]
+            
+            # 2. Usa __icontains para encontrar se a palavra_chave faz parte 
+            # do que está salvo no banco de dados (ignorando maiúsculas/minúsculas)
             queryset = queryset.filter(
-                models.Q(especialidade__iexact=especialidade) | 
+                models.Q(especialidade__icontains=palavra_chave) | 
                 models.Q(especialidade__iexact='geral')
             )
+            
         return queryset.order_by('titulo')
 
 
