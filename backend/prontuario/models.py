@@ -638,6 +638,7 @@ class Laudo(models.Model):
     STATUS_CHOICES = [
         ('RASCUNHO', 'Rascunho'),
         ('PROCESSANDO', 'Processando'),
+        ('REVISAO_SUGERIDA', 'Revisão Sugerida'),  # <-- NOVO STATUS
         ('FINALIZADO', 'Finalizado'),
         ('ERRO', 'Erro'), # Já estava mapeado implicitamente no Celery, é bom documentar
         ('CANCELADO_POR_RETIFICACAO', 'Cancelado (Retificado)'), # <-- NOVA OPÇÃO
@@ -673,6 +674,7 @@ class Laudo(models.Model):
     # --- CAMPOS DE DADOS ---
     titulo_exame = models.CharField(max_length=255) # O Front chama de 'titulo', o Serializer mapeia.
     tipo_exame = models.CharField(max_length=255, default='OBSTETRICO') 
+    feedback_auditoria = models.JSONField(default=list, blank=True, null=True)
     
     # Assinatura (Snapshot do momento)
     medico_responsavel = models.CharField(max_length=255, blank=True, null=True)
