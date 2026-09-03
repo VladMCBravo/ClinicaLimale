@@ -1207,13 +1207,15 @@ class LaudoListCreateView(generics.ListCreateAPIView):
                     ).exclude(id__in=exames_usados_ids).order_by('-data_exame', '-criado_em').first()
                 
                 if not exame:
-                    # 💡 NOVIDADE 3: Cria o Vazio (Âncora) APENAS se realmente não tiver nada
+                    # 💡 NOVIDADE 3: Geração do exame vazio com UUID (Específico da AsyncView)
+                    import uuid
                     nome_unico_pasta = f"{paciente.nome_completo} - L{laudo.id}"
                     exame = Exame.objects.create(
                         paciente=paciente, 
-                        data_exame=data_retroativa, 
+                        data_exame=data_retroativa,
                         nome_paciente_pasta=nome_unico_pasta, 
-                        status='DISPONIVEL'
+                        status='PENDENTE', # <--- 🚀 CORRIGIDO AQUI (antes era 'DISPONIVEL')
+                        codigo_acesso=f"EX-{uuid.uuid4().hex[:8].upper()}" 
                     )
 
             # Salva o vínculo final

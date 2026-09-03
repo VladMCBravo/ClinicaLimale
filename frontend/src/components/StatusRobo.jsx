@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     FaRobot, FaCheckCircle, FaExclamationTriangle, FaTimesCircle, 
-    FaWifi, FaTools, FaBolt, FaGlobe, FaTasks
+    FaWifi, FaTools, FaBolt, FaGlobe, FaTasks, FaSpinner
 } from 'react-icons/fa';
 import { 
     Badge, Popover, Box, Typography, List, ListItem, ListItemText, 
@@ -44,28 +44,36 @@ export default function StatusRobo() {
 }, []);
 
     const getStatusConfig = (item) => {
-    if (item.status === 'ERRO') {
-        const partes = item.nome_pasta.split('| ERRO:');
-        const erroLimpo = partes.length > 1 ? partes[1].trim() : item.nome_pasta;
-        return {
-            color: '#d32f2f',
-            icon: FaTimesCircle,
-            tooltip: `Falha na importação: ${erroLimpo}`,
-        };
-    } else if (item.paciente === 'Desconhecido' || item.status === 'PENDENTE') {
-        return {
-            color: '#ed6c02',
-            icon: FaExclamationTriangle,
-            tooltip: 'Paciente não identificado. Vincule no painel.',
-        };
-    } else {
-        return {
-            color: '#4CAF50',
-            icon: FaCheckCircle,
-            tooltip: 'Importado com sucesso.',
-        };
-    }
-};
+        if (item.status === 'ERRO') {
+            const partes = item.nome_pasta.split('| ERRO:');
+            const erroLimpo = partes.length > 1 ? partes[1].trim() : item.nome_pasta;
+            return {
+                color: '#d32f2f',
+                icon: FaTimesCircle,
+                tooltip: `Falha na importação: ${erroLimpo}`,
+            };
+        } else if (item.status === 'PENDENTE' && item.paciente !== 'Desconhecido') {
+            // 🚀 NOVA REGRA: A pasta existe, mas o laudo está na malha fina do Claude ou assinando
+            return {
+                color: '#0288d1', // Azul de processamento
+                icon: FaSpinner,
+                tooltip: 'Auditoria em andamento / Aguardando assinatura do laudo...',
+                isSpinning: true // Flag para fazer o ícone girar
+            };
+        } else if (item.paciente === 'Desconhecido' || item.status === 'PENDENTE') {
+            return {
+                color: '#ed6c02',
+                icon: FaExclamationTriangle,
+                tooltip: 'Paciente não identificado. Vincule no painel.',
+            };
+        } else {
+            return {
+                color: '#4CAF50',
+                icon: FaCheckCircle,
+                tooltip: 'Finalizado e importado com sucesso.',
+            };
+        }
+    };
 
     const formatarDataBR = (dataString) => {
     if (!dataString) return '';
@@ -216,7 +224,11 @@ export default function StatusRobo() {
                                         />
                                         <Tooltip title={config.tooltip} placement="left" arrow>
                                             <div style={{ cursor: 'help', display: 'flex', alignItems: 'center', padding: '6px' }}>
-                                                <Icone color={config.color} size={18} />
+                                                <Icone 
+                                                    color={config.color} 
+                                                    size={18} 
+                                                    className={config.isSpinning ? "spin" : ""} 
+                                                />
                                             </div>
                                         </Tooltip>
                                     </ListItem>
