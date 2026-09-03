@@ -1,10 +1,9 @@
 # prontuario/services_auditoria.py
 
 import json
+import os
 from anthropic import Anthropic
 from django.conf import settings
-
-client = Anthropic(api_key=getattr(settings, 'ANTHROPIC_API_KEY', ''))
 
 PROMPT_SISTEMA_AUDITOR = """
 Você é um auditor de qualidade e integridade de laudos médicos de diagnóstico por imagem.
@@ -39,20 +38,28 @@ def auditar_coerencia_laudo(dados_estruturados: dict, texto_laudo: str, tipo_exa
     Executa a conferência lógica via Claude 3.5 Sonnet.
     Retorna o dicionário com 'aprovado' e lista de 'discrepancias'.
     """
-    if not settings.ANTHROPIC_API_KEY:
+    # CORREÇÃO: Tenta pegar direto do SO (Render) ou, em último caso, do settings local
+    api_key = os.environ.get('ANTHROPIC_API_KEY') or getattr(settings, 'ANTHROPIC_API_KEY', '')
+    
+    # Se a chave não existir, aprova silenciosamente para não travar a clínica
+    if not api_key:
+        print("[AUDITORIA IA] Aviso: Chave da API não encontrada no Render. Pulando auditoria.")
         return {"aprovado": True, "discrepancias": []}
 
-    prompt_usuario = f"""
-    TIPO DE EXAME: {tipo_exame}
-
-    --- DADOS ESTRUTURADOS (JSON) ---
-    {json.dumps(dados_estruturados, ensure_ascii=False, indent=2)}
-
-    --- TEXTO DO LAUDO ---
-    {texto_laudo}
-    """
-
     try:
+        # Instancia o cliente do Claude APENAS no momento do uso e com a chave garantida
+        client = Anthropic(api_key=api_key)
+
+        prompt_usuario = f"""
+        TIPO DE EXAME: {tipo_exame}
+
+        --- DADOS ESTRUTURADOS (JSON) ---
+        {json.dumps(dados_estruturados, ensure_ascii=False, indent=2)}
+
+        --- TEXTO DO LAUDO ---
+        {texto_laudo}
+        """
+
         response = client.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=1000,
@@ -62,6 +69,7 @@ def auditar_coerencia_laudo(dados_estruturados: dict, texto_laudo: str, tipo_exa
         )
 
         conteudo_raw = response.content[0].text.strip()
+        
         # Tratamento de segurança caso o modelo envolva em markdown
         if conteudo_raw.startswith("```"):
             conteudo_raw = conteudo_raw.split("```")[1]
@@ -69,7 +77,8 @@ def auditar_coerencia_laudo(dados_estruturados: dict, texto_laudo: str, tipo_exa
                 conteudo_raw = conteudo_raw[4:]
         
         return json.loads(conteudo_raw.strip())
+        
     except Exception as e:
         print(f"[AUDITORIA IA] Erro ao consultar Claude: {e}")
-        # Em caso de falha de conexão com a IA, não barra o médico
+        # Em caso de falha de conexão (ex: internet caiu), libera o laudo
         return {"aprovado": True, "discrepancias": [], "erro_comunicacao": str(e)}
