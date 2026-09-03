@@ -235,7 +235,7 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                         display: 'flex',
                                         flexDirection: 'column',
                                         alignItems: 'stretch',
-                                        py: 0.5, px: 1, mb: 0.5, borderRadius: 1.5,
+                                        py: 0.45, px: 1, mb: 0.4, borderRadius: 1.5,
                                         bgcolor: semaforo.cor.bg,
                                         border: `1px solid ${semaforo.cor.border}`,
                                         borderLeft: `4px solid ${semaforo.cor.indicator}`,
@@ -244,50 +244,56 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                         '&:hover': { filter: 'brightness(0.97)' }
                                     }}
                                 >
-                                    {/* LINHA 1: Horário, ID, Nome e Cronômetro/Status */}
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.25 }}>
-                                        <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center', overflow: 'hidden', flexGrow: 1 }}>
-                                            <Typography sx={{ fontWeight: 800, fontSize: '0.72rem', color: semaforo.cor.text }}>
+                                    {/* LINHA 1: Horário, ID, Nome e Cronômetro/Status — sempre em uma única linha */}
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                                        <Box sx={{ display: 'flex', gap: 0.6, alignItems: 'center', overflow: 'hidden', minWidth: 0, flexGrow: 1 }}>
+                                            <Typography sx={{ fontWeight: 800, fontSize: '0.72rem', color: semaforo.cor.text, flexShrink: 0 }}>
                                                 {formatarHoraTZ(ag.data_hora_inicio)}
                                             </Typography>
-                                            
+
                                             <Box component="span" sx={{
                                                 bgcolor: semaforo.cor.text, color: semaforo.cor.bg,
                                                 px: 0.5, py: 0.1, borderRadius: '4px', fontSize: '0.55rem',
-                                                fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', flexShrink: 0 
+                                                fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', flexShrink: 0
                                             }}>
                                                 ID: {ag.paciente_id || ag.paciente}
                                             </Box>
 
-                                            <Typography sx={{ fontWeight: 700, fontSize: '0.72rem', color: semaforo.cor.text, noWrap: true, textOverflow: 'ellipsis' }}>
-                                                {ag.paciente_nome}
-                                            </Typography>
+                                            <Tooltip title={ag.paciente_nome || ''}>
+                                                <Typography noWrap sx={{ fontWeight: 700, fontSize: '0.72rem', color: semaforo.cor.text, minWidth: 0 }}>
+                                                    {ag.paciente_nome}
+                                                </Typography>
+                                            </Tooltip>
                                         </Box>
-                                        
-                                        {/* CRONÔMETRO / TEXTO DO STATUS */}
-                                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, ml: 1 }}>
+
+                                        {/* CRONÔMETRO + STATUS — compactados em uma única linha */}
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, flexShrink: 0, ml: 0.5, maxWidth: '46%' }}>
                                             {semaforo.timer && (
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'rgba(255,255,255,0.5)', px: 0.5, borderRadius: 1, mb: 0.25 }}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, bgcolor: 'rgba(255,255,255,0.5)', px: 0.5, py: 0.05, borderRadius: 1, flexShrink: 0 }}>
                                                     <AccessTimeIcon sx={{ fontSize: 10, color: semaforo.cor.text }} />
-                                                    <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: semaforo.cor.text }}>
+                                                    <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: semaforo.cor.text, whiteSpace: 'nowrap' }}>
                                                         {semaforo.timer}
                                                     </Typography>
                                                 </Box>
                                             )}
-                                            <Typography sx={{ fontSize: '0.6rem', fontWeight: 600, color: semaforo.cor.text, opacity: 0.9 }}>
-                                                {semaforo.label}
-                                            </Typography>
+                                            <Tooltip title={semaforo.label}>
+                                                <Typography noWrap sx={{ fontSize: '0.6rem', fontWeight: 600, color: semaforo.cor.text, opacity: 0.9, minWidth: 0 }}>
+                                                    {semaforo.label}
+                                                </Typography>
+                                            </Tooltip>
                                         </Box>
                                     </Box>
 
                                     {/* LINHA 2: Procedimento e Tags (1ª Vez, Pendente, Encaixe) */}
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, overflow: 'hidden' }}>
-                                            <MedicalInformationIcon sx={{ fontSize: 11, color: semaforo.cor.indicator }} />
-                                            <Typography sx={{ fontSize: '0.6rem', color: semaforo.cor.text, opacity: 0.9, noWrap: true, textOverflow: 'ellipsis' }}>
-                                                {ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta'}
-                                            </Typography>
-                                        </Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.5 }}>
+                                        <Tooltip title={ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta'}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, overflow: 'hidden', minWidth: 0, flexGrow: 1 }}>
+                                                <MedicalInformationIcon sx={{ fontSize: 11, color: semaforo.cor.indicator, flexShrink: 0 }} />
+                                                <Typography noWrap sx={{ fontSize: '0.6rem', color: semaforo.cor.text, opacity: 0.9, minWidth: 0 }}>
+                                                    {ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta'}
+                                                </Typography>
+                                            </Box>
+                                        </Tooltip>
 
                                         <Box sx={{ display: 'flex', gap: 0.4, alignItems: 'center', flexShrink: 0 }}>
                                             {ag.primeira_consulta ? (
@@ -295,7 +301,7 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                             ) : (
                                                 <Tooltip title="Retorno"><AssignmentReturnIcon sx={{ color: semaforo.cor.indicator, fontSize: 12 }} /></Tooltip>
                                             )}
-                                            
+
                                             {isEncaixe && (
                                                 <Chip label="⚡ Encaixe" size="small" sx={{ height: '12px', fontSize: '0.5rem', bgcolor: '#fff3e0', color: '#e65100', border: '1px solid #ffcc80', fontWeight: 'bold', '& .MuiChip-label': { px: 0.4 }, ml: 0.4 }} />
                                             )}
@@ -306,20 +312,24 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
                                         </Box>
                                     </Box>
 
-                                    {/* LINHA 3: Sala e Médico */}
+                                    {/* LINHA 3: Sala e Médico — sempre em uma única linha, truncando com reticências */}
                                     {(ag.sala_nome || ag.medico_nome) && (
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.3 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, mt: 0.25, minWidth: 0 }}>
                                             {ag.sala_nome && (
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, overflow: 'hidden' }}>
-                                                    <MeetingRoomOutlinedIcon sx={{ fontSize: 10, color: semaforo.cor.text, opacity: 0.7 }} />
-                                                    <Typography sx={{ fontSize: '0.55rem', color: semaforo.cor.text, opacity: 0.8, noWrap: true }}>{ag.sala_nome}</Typography>
-                                                </Box>
+                                                <Tooltip title={`Sala: ${ag.sala_nome}`}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, overflow: 'hidden', flexShrink: 0, maxWidth: '45%' }}>
+                                                        <MeetingRoomOutlinedIcon sx={{ fontSize: 10, color: semaforo.cor.text, opacity: 0.7, flexShrink: 0 }} />
+                                                        <Typography noWrap sx={{ fontSize: '0.55rem', color: semaforo.cor.text, opacity: 0.8, minWidth: 0 }}>{ag.sala_nome}</Typography>
+                                                    </Box>
+                                                </Tooltip>
                                             )}
                                             {ag.medico_nome && (
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, overflow: 'hidden' }}>
-                                                    <PersonOutlineIcon sx={{ fontSize: 10, color: semaforo.cor.text, opacity: 0.7 }} />
-                                                    <Typography sx={{ fontSize: '0.55rem', color: semaforo.cor.text, opacity: 0.8, noWrap: true }}>{ag.medico_nome_com_prefixo || ag.medico_nome}</Typography>
-                                                </Box>
+                                                <Tooltip title={ag.medico_nome_com_prefixo || ag.medico_nome}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, overflow: 'hidden', minWidth: 0, flexGrow: 1 }}>
+                                                        <PersonOutlineIcon sx={{ fontSize: 10, color: semaforo.cor.text, opacity: 0.7, flexShrink: 0 }} />
+                                                        <Typography noWrap sx={{ fontSize: '0.55rem', color: semaforo.cor.text, opacity: 0.8, minWidth: 0 }}>{ag.medico_nome_com_prefixo || ag.medico_nome}</Typography>
+                                                    </Box>
+                                                </Tooltip>
                                             )}
                                         </Box>
                                     )}
