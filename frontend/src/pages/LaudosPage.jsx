@@ -1,6 +1,6 @@
 // src/pages/LaudosPage.jsx
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaCalendarAlt } from 'react-icons/fa';
+import { FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaFileSignature, FaUserInjured, FaNotesMedical, FaIdCard, FaTimes, FaCalendarAlt, FaExclamationTriangle } from 'react-icons/fa';
 import { FaWhatsapp, FaEnvelope, FaCheckCircle } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 // Imports Material UI
@@ -200,6 +200,12 @@ const getInitialState = (key, fallback) => {
   const [modalRevisaoOpen, setModalRevisaoOpen] = useState(false); // NOVO: Controle do Modal de Revisão
   const [modalNuvemOpen, setModalNuvemOpen] = useState(false); // <--- ADICIONE ISSO
   const [isPolling, setIsPolling] = useState(false);
+
+  // 🚀 NOVOS ESTADOS PARA A IA (CLAUDE) 🚀
+  const [discrepanciasDetectadas, setDiscrepanciasDetectadas] = useState([]);
+  const [modalAuditoriaOpen, setModalAuditoriaOpen] = useState(false);
+  // Usado para "Lembrar" da senha caso o médico clique em "Ignorar e Assinar"
+  const [tempSubmissionData, setTempSubmissionData] = useState(null);
 
   const searchTimeoutRef = useRef(null);
 
@@ -420,22 +426,28 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
 };
 
   // --- 4. FUNÇÃO MASTER: SALVAR E FINALIZAR ---
-  const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais, dataExameSelecionada, senhaAutorizacao) => {
+  const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais, dataExameSelecionada, senhaAutorizacao, ignorarAuditoria = false) => {
     // 🛑 1. TRAVA DEFINITIVA ANTI-CLIQUE DUPLO
     if (isPolling) return;
     
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
     if (!medicoNome) return alert("Preencha o nome do médico.");
 
-    const confirmacao = window.confirm(
-        "Atenção: Após finalizado, este laudo será processado e assinado digitalmente.\n\n" +
-        "Se houver erros e você precisar corrigir algo depois, o laudo atual será CANCELADO no prontuário e substituído por um novo laudo oficial para o paciente.\n\n" +
-        "Deseja gerar o laudo definitivo agora?"
-    );
-    if (!confirmacao) return;
+    // Se estiver ignorando a auditoria, não faz o prompt de confirmação de novo
+    if (!ignorarAuditoria) {
+        const confirmacao = window.confirm(
+            "Atenção: Após finalizado, este laudo será processado e assinado digitalmente.\n\n" +
+            "Se houver erros e você precisar corrigir algo depois, o laudo atual será CANCELADO no prontuário e substituído por um novo laudo oficial para o paciente.\n\n" +
+            "Deseja gerar o laudo definitivo agora?"
+        );
+        if (!confirmacao) return;
+    }
 
     setModalRevisaoOpen(false);
-    setIsPolling(true); // Bloqueia a tela com o loader do Polling
+    setIsPolling(true); 
+
+    // Salva os dados caso o médico decida "Ignorar e Assinar" após o aviso do Claude
+    setTempSubmissionData({ textoCorrigido, imagensFinais, dataExameSelecionada, senhaAutorizacao });
 
     try {
         // 1. Otimização das imagens (Em fila, para não estourar a RAM do Chrome)
@@ -462,7 +474,12 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         console.log("Senha fornecida?", !!senhaAutorizacao); // Mostra true/false por segurança
         console.log("========================================================\n");
 
-        // 3. Prepara o envio APENAS com os textos e imagens
+        // 🚀 INJETA A FLAG PARA O BACKEND SABER SE PULA O CLAUDE 🚀
+        const dadosParaEnvio = { 
+            ...dadosEstruturados, 
+            ignorar_auditoria_ia: ignorarAuditoria 
+        };
+
         const formData = new FormData();
         formData.append('paciente', paciente.id);
         formData.append('data_exame', dataExameSelecionada); 
@@ -471,8 +488,8 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         formData.append('texto_laudo', textoCorrigido);
         formData.append('medico_responsavel', medicoNome);
         formData.append('crm_medico', medicoCrm);
-        formData.append('senha_medico', senhaAutorizacao); // <-- NOVA LINHA
-        formData.append('dados_estruturados', JSON.stringify(dadosEstruturados));
+        formData.append('senha_medico', senhaAutorizacao); 
+        formData.append('dados_estruturados', JSON.stringify(dadosParaEnvio));
         formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas));
         
         // A ausência do formData.append('arquivo_pdf', ...) acionará o gerador do Django!
@@ -488,7 +505,7 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         const laudoProcessandoId = response.data.id;
         setLaudoId(laudoProcessandoId);
 
-        // 5. O POLLING (Pergunta ao servidor se o PDF e as senhas já estão prontos)
+       // 5. O POLLING (Pergunta ao servidor se o PDF e as senhas já estão prontos)
         const checkStatus = async () => {
             try {
                 const res = await apiClient.get(`/prontuario/laudos/${laudoProcessandoId}/status/`);
@@ -497,7 +514,6 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                 if (statusAtual === 'FINALIZADO') {
                     setIsPolling(false);
 
-                    // >>> ADICIONE ESTES LOGS DE CREDENCIAIS <<<
                     console.log("=== DEBUG CREDENCIAIS (FRONTEND) ===");
                     console.log("Status recebido:", statusAtual);
                     console.log("Credenciais recebidas do backend:", res.data.credenciais);
@@ -517,10 +533,8 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                             const blobFinal = await fetchResponse.blob();
                             const blobUrl = URL.createObjectURL(blobFinal);
                             
-                            // Abre na aba
                             window.open(blobUrl, '_blank');
                             
-                            // Força download
                             const a = document.createElement('a');
                             a.style.display = 'none';
                             a.href = blobUrl;
@@ -531,13 +545,27 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                             
                             setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
                         } catch (err) {
-                            // Fallback caso dê erro de rede
                             window.open(urlCompleta, '_blank');
                         }
                     }
 
-                    // Abre a tela de botões do WhatsApp
                     setModalSucessoOpen(true);
+
+                // =======================================================
+                // 🚀 NOVIDADE: A INTERCEPTAÇÃO DA AUDITORIA DA IA
+                // =======================================================
+                } else if (statusAtual === 'REVISAO_SUGERIDA') {
+                    setIsPolling(false); // Para a rodinha de carregamento
+                    
+                    // Puxa as discrepâncias que o Claude retornou no JSON
+                    const alertas = res.data.discrepancias || [];
+                    
+                    // Salva no estado para o modal renderizar
+                    setDiscrepanciasDetectadas(alertas);
+                    
+                    // Abre o modal de aviso para o médico
+                    setModalAuditoriaOpen(true);
+
                 } else if (statusAtual === 'ERRO') {
                     setIsPolling(false);
                     alert(
@@ -550,8 +578,8 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
                     setTimeout(checkStatus, 3000);
                 }
             } catch(e) {
-                 console.error("Erro no polling", e);
-                 setTimeout(checkStatus, 3000); // Ignora oscilações de rede e continua tentando
+                console.error("Erro no polling", e);
+                setTimeout(checkStatus, 3000); // Ignora oscilações de rede e continua tentando
             }
         };
 
@@ -986,7 +1014,68 @@ const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => 
         </Typography>
     </div>
 </Dialog>
+{/* 🚀 NOVO MODAL: AUDITORIA DO CLAUDE 🚀 */}
+      <Dialog open={modalAuditoriaOpen} onClose={() => {}} maxWidth="sm" fullWidth>
+        <div style={{ padding: '30px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                <FaExclamationTriangle size={24} color="#d32f2f" />
+                <Typography variant="h6" style={{ color: '#b71c1c', fontWeight: 'bold', margin: 0 }}>
+                    Revisão Sugerida
+                </Typography>
+            </div>
+            
+            <Typography variant="body2" style={{ marginBottom: '20px', color: '#555', fontSize: '14px' }}>
+                O Assistente de Qualidade encontrou possíveis inconsistências lógicas no seu laudo. Verifique os pontos abaixo antes de emitir o documento final:
+            </Typography>
+            
+            <div style={{ maxHeight: '250px', overflowY: 'auto', background: '#fff3f3', padding: '15px', borderRadius: '8px', border: '1px solid #ffcdd2', marginBottom: '25px' }}>
+                {discrepanciasDetectadas.map((disc, idx) => (
+                    <div key={idx} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: idx !== discrepanciasDetectadas.length - 1 ? '1px dashed #ef9a9a' : 'none' }}>
+                        <span style={{ fontWeight: 'bold', color: '#b71c1c', display: 'block', fontSize: '12px', marginBottom: '2px' }}>{disc.campo.toUpperCase()}:</span>
+                        <span style={{ color: '#333', fontSize: '13px' }}>{disc.aviso}</span>
+                    </div>
+                ))}
+            </div>
 
+            <Grid container spacing={2}>
+                <Grid item xs={6}>
+                    <Button 
+                        fullWidth 
+                        variant="outlined" 
+                        onClick={() => {
+                            setModalAuditoriaOpen(false);
+                            setModalRevisaoOpen(true); // Reabre o preview para edição
+                        }}
+                        style={{ borderColor: '#1C2E4A', color: '#1C2E4A', fontWeight: 'bold', height: '45px' }}
+                    >
+                        Voltar e Corrigir
+                    </Button>
+                </Grid>
+                <Grid item xs={6}>
+                    <Button 
+                        fullWidth 
+                        variant="contained" 
+                        onClick={() => {
+                            setModalAuditoriaOpen(false);
+                            // Roda a submissão de novo, mas com a flag ignorarAuditoria = true
+                            if (tempSubmissionData) {
+                                handleFinalizacaoAssincrona(
+                                    tempSubmissionData.textoCorrigido, 
+                                    tempSubmissionData.imagensFinais, 
+                                    tempSubmissionData.dataExameSelecionada, 
+                                    tempSubmissionData.senhaAutorizacao,
+                                    true 
+                                );
+                            }
+                        }}
+                        style={{ background: '#b71c1c', fontWeight: 'bold', height: '45px' }}
+                    >
+                        Ignorar e Assinar
+                    </Button>
+                </Grid>
+            </Grid>
+        </div>
+    </Dialog>
         {/* ADICIONE AQUI O MODAL DE ATESTADO */}
 <AtestadoModal 
     open={modalAtestadoOpen} 

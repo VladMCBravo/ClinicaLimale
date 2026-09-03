@@ -1910,14 +1910,15 @@ class LaudoStatusView(APIView):
             "id": laudo.id,
             "status": laudo.status,
             "arquivo_url": laudo.arquivo_pdf.url if laudo.status == 'FINALIZADO' and laudo.arquivo_pdf else None,
+            "discrepancias": laudo.feedback_auditoria if laudo.status == 'REVISAO_SUGERIDA' else []
         }
         
         # Se finalizou, incluímos as credenciais para o portal
-        if laudo.status == 'FINALIZADO': # <-- Removida a exigência do laudo.exame
+        if laudo.status == 'FINALIZADO':
             data["credenciais"] = {
-                "codigo": laudo.codigo_acesso, # <-- Trocado de exame para laudo
-                "senha": laudo.senha_acesso,   # <-- Trocado de exame para laudo
-                "link": "https://clinica-limale.vercel.app/resultados"
+                "codigo": laudo.codigo_acesso,
+                "senha": laudo.senha_acesso,
+                "link": "[https://clinica-limale.vercel.app/resultados](https://clinica-limale.vercel.app/resultados)"
             }
             
         return Response(data)

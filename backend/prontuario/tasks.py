@@ -7,6 +7,7 @@ from django.db import connection # Importante para fechar a conexão da Thread
 from .models import Laudo
 from core.pdf_services import aplicar_mascara_padrao
 from core.services_assinatura import assinar_pdf_digitalmente
+from .services_auditoria import auditar_coerencia_laudo
 
 # Remova o @shared_task, já que não estamos mais usando Celery
 def processar_laudo_background(laudo_id):
@@ -16,8 +17,25 @@ def processar_laudo_background(laudo_id):
     print(f"[THREAD] Iniciando processamento do Laudo ID: {laudo_id}")
     
     try:
-        # 1. Busca o laudo no banco de dados
         laudo = Laudo.objects.get(id=laudo_id)
+        
+        # Flag que o frontend envia se o médico já viu os avisos e optou por ignorar
+        ignorar_auditoria = laudo.dados_estruturados.get('ignorar_auditoria_ia', False)
+
+        if not ignorar_auditoria:
+            print(f"[THREAD] Executando auditoria do Claude no Laudo {laudo_id}...")
+            resultado_ia = auditar_coerencia_laudo(
+                dados_estruturados=laudo.dados_estruturados,
+                texto_laudo=laudo.texto_laudo,
+                tipo_exame=laudo.tipo_exame
+            )
+
+            if not resultado_ia.get('aprovado', True) and resultado_ia.get('discrepancias'):
+                print(f"[THREAD] ⚠️ Discrepâncias encontradas pelo Claude no Laudo {laudo_id}!")
+                laudo.status = 'REVISAO_SUGERIDA'
+                laudo.feedback_auditoria = resultado_ia.get('discrepancias', [])
+                laudo.save(update_fields=['status', 'feedback_auditoria'])
+                return  # Interrompe o fluxo antes da assinatura
         
         if not laudo.arquivo_pdf:
             raise ValueError("O laudo não possui um arquivo PDF base anexado.")
