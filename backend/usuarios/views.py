@@ -491,9 +491,22 @@ class CadastrarBiometriaView(APIView):
     Agora o Django apenas recebe o texto (template) gerado pelo app local
     e guarda no banco de dados. Sem cálculos pesados!
     """
-    permission_classes = [IsAdminUser] 
+    # 1. Trocamos IsAdminUser por IsAuthenticated. Isso deixa a requisição entrar 
+    # na função para podermos avaliar quem é o usuário com as nossas próprias regras.
+    permission_classes = [IsAuthenticated] 
 
     def post(self, request, user_id):
+        # 2. A NOSSA TRAVA DE SEGURANÇA INTELIGENTE
+        cargos_permitidos = ['admin', 'medico_admin']
+        
+        # Avalia: Se o cargo não for admin/medico_admin E ele não for superuser, bloqueia!
+        if request.user.cargo not in cargos_permitidos and not request.user.is_staff:
+            return Response(
+                {"detail": "Acesso negado. Apenas administradores e médicos-admin podem cadastrar digitais."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 3. Se passou da trava acima, segue o fluxo normal de salvar a digital
         template_b64 = request.data.get('template_b64')
         if not template_b64:
             return Response({"detail": "Template da digital não fornecido."}, status=status.HTTP_400_BAD_REQUEST)
