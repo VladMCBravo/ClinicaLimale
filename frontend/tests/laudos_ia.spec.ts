@@ -62,13 +62,22 @@ test.describe('Fluxo do Copiloto de Laudos (IA Claude)', () => {
     });
 
     // 5. Preparação da Tela: Preencher e CLICAR nas opções para preencher o estado do React
+    await page.getByRole('button', { name: 'Laudo Avulso (Sem Agendamento)' }).click();
+    
     await page.getByPlaceholder('Buscar Paciente...').fill('Maria');
     // Aguarda o dropdown renderizar a resposta da API e clica no paciente (usamos a tag "ID:" como âncora)
     await page.getByText(/ID:/i).first().click();
     
     await page.getByPlaceholder('Médico...').fill('Daniel');
-    // Aguarda o dropdown renderizar e clica no médico (usamos .last() pois o dropdown renderiza no final do DOM)
+    // Aguarda o dropdown renderizar e clica no médico
     await page.getByText(/Daniel/i).last().click();
+
+    // 👇 APRIMORAMENTO AQUI: Manipulando o FormAbdome
+    // 5.1 Muda o dropdown de "Tipo de Exame" para US Geral (ABDOME)
+    await page.locator('select').first().selectOption('ABDOME');
+    
+    // 5.2 O FormAbdome agora está na tela. Vamos preencher o texto do laudo!
+    await page.getByPlaceholder('Digite o laudo completo aqui...').fill('Fígado com dimensões normais. Vesícula biliar sem cálculos. Ovário DIREITO com cisto.');
 
     // 6. Ação: Abre o modal de revisão e envia a assinatura
     await page.getByRole('button', { name: 'Finalizar' }).click();

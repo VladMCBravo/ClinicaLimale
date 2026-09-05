@@ -1,5 +1,6 @@
 # backend/prontuario/tests_tasks.py (ou adicionar no tests.py mesmo)
-
+import pytest
+from django.core.files.base import ContentFile
 from unittest.mock import patch
 from prontuario.tasks import processar_laudo_background
 
