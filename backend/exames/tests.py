@@ -10,7 +10,10 @@ import datetime
 
 # 👇 A MÁGICA ACONTECE AQUI 👇 
 # Mandamos o Django usar o armazenamento local e não a AWS S3 durante este teste
-@override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.FileSystemStorage')
+@override_settings(STORAGES={
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+})
 class ExamesSegurancaTests(APITestCase):
     
     def setUp(self):
