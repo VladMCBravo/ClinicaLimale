@@ -6,10 +6,9 @@ import {
   FaEnvelope, FaExclamationTriangle, FaCalendarAlt, FaStethoscope, FaClock
 } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
-// Imports Material UI
 import { 
-  Box, Typography, Grid, Button, Dialog, DialogActions, 
-  Stack, Tooltip, IconButton, Divider, Card, CardActionArea, CardContent, Chip 
+  Box, Typography, Grid, Button, Dialog, DialogTitle, DialogContent, DialogActions, 
+  Stack, Tooltip, IconButton, Divider, Chip, List, ListItem, ListItemButton, ListItemText, ListItemIcon
 } from '@mui/material';
 import '../components/laudos/Laudos.css';
 
@@ -34,77 +33,20 @@ import ImagensNuvemModal from '../components/laudos/ImagensNuvemModal';
 const theme = { primary: '#1C2E4A', secondary: '#C5A47E', accent: '#2E7D32', bg: '#F0F2F5', border: '#D1D5DB' };
 
 const styles = {
-  container: { 
-      flex: 1, 
-      display: 'flex', 
-      background: theme.bg, 
-      minHeight: 0, 
-      overflow: 'hidden', 
-      fontFamily: "'Segoe UI', Roboto, sans-serif", 
-      fontSize: '11px', 
-      color: '#333' 
-  },
-  leftCol: { 
-      flex: 2, 
-      minWidth: '700px', 
-      display: 'flex', 
-      flexDirection: 'column', 
-      background: '#fff',
-      borderRight: '1px solid #ddd',
-      minHeight: 0 
-  },
-  formScrollArea: {
-      flex: 1,
-      overflowY: 'auto', 
-      padding: '10px'
-  },
-  rightCol: { 
-      flex: 1, 
-      minWidth: '400px',
-      display: 'flex', 
-      flexDirection: 'column', 
-      background: theme.bg,
-      minHeight: 0 
-  },
-  toolbar: {
-      background: '#fff',
-      borderBottom: `1px solid ${theme.border}`,
-      padding: '8px 12px',
-      display: 'grid',
-      gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px',
-      gap: '8px', 
-      alignItems: 'center',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-      flexShrink: 0, 
-      zIndex: 20 
-  },
-  inputGroup: {
-      position: 'relative',
-      display: 'flex',
-      alignItems: 'center',
-      height: '30px', 
-      background: '#F0F2F5',
-      borderRadius: '4px',
-      border: '1px solid #ced4da',
-  },
-  inputIcon: {
-      padding: '0 8px', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid #e0e0e0', height: '100%', fontSize: '12px' 
-  },
-  inputCompact: {
-      border: 'none', background: 'transparent', width: '100%', height: '100%', padding: '0 6px', fontSize: '11px', fontWeight: '600', color: '#2C3E50', outline: 'none', textOverflow: 'ellipsis' 
-  },
-  dropdownList: {
-      position: 'absolute', top: '32px', left: 0, right: 0, background: 'white', border: '1px solid #ccc', borderRadius: '0 0 4px 4px', zIndex: 100, maxHeight: '180px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-  },
-  dropdownItem: {
-      padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid #eee', fontSize: '11px', color: '#333'
-  }
+  container: { flex: 1, display: 'flex', background: theme.bg, minHeight: 0, overflow: 'hidden', fontFamily: "'Segoe UI', Roboto, sans-serif", fontSize: '11px', color: '#333' },
+  leftCol: { flex: 2, minWidth: '700px', display: 'flex', flexDirection: 'column', background: '#fff', borderRight: '1px solid #ddd', minHeight: 0 },
+  formScrollArea: { flex: 1, overflowY: 'auto', padding: '10px' },
+  rightCol: { flex: 1, minWidth: '400px', display: 'flex', flexDirection: 'column', background: theme.bg, minHeight: 0 },
+  toolbar: { background: '#fff', borderBottom: `1px solid ${theme.border}`, padding: '8px 12px', display: 'grid', gridTemplateColumns: 'minmax(220px, 3.5fr) minmax(130px, 1.5fr) minmax(180px, 2.5fr) 100px', gap: '8px', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', flexShrink: 0, zIndex: 20 },
+  inputGroup: { position: 'relative', display: 'flex', alignItems: 'center', height: '30px', background: '#F0F2F5', borderRadius: '4px', border: '1px solid #ced4da' },
+  inputIcon: { padding: '0 8px', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid #e0e0e0', height: '100%', fontSize: '12px' },
+  inputCompact: { border: 'none', background: 'transparent', width: '100%', height: '100%', padding: '0 6px', fontSize: '11px', fontWeight: '600', color: '#2C3E50', outline: 'none', textOverflow: 'ellipsis' },
+  dropdownList: { position: 'absolute', top: '32px', left: 0, right: 0, background: 'white', border: '1px solid #ccc', borderRadius: '0 0 4px 4px', zIndex: 100, maxHeight: '180px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' },
+  dropdownItem: { padding: '8px 10px', cursor: 'pointer', borderBottom: '1px solid #eee', fontSize: '11px', color: '#333' }
 };
 
 const STORAGE_KEY = 'laudos_rascunho_auto_save';
-const maskCRM = (value) => {
-  return value.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').replace(/(-\d{2})\d+?$/, '$1'); 
-};
+const maskCRM = (value) => value.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').replace(/(-\d{2})\d+?$/, '$1'); 
 
 const getInitialState = (key, fallback) => {
     try {
@@ -124,11 +66,9 @@ const descobrirTipoExame = (ag) => {
     const desc = (ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || '').toLowerCase();
     const cat = (ag.categoria || '').toUpperCase(); 
 
-    // 1. Tenta pela Categoria definida no ProcedimentosView
     if (cat === 'MED_FETAL') return 'OBSTETRICO';
     if (cat === 'ECOCARDIOGRAMA') return 'ECOCARDIOGRAMA';
     
-    // 2. Fallback: Palavras-chave na descrição
     if (desc.includes('obst') || desc.includes('morfol') || desc.includes('fetal') || desc.includes('transluc')) return 'OBSTETRICO';
     if (desc.includes('transvaginal') || desc.includes('endovaginal') || desc.includes('tv')) return 'TRANSVAGINAL';
     if (desc.includes('eco') && !desc.includes('doppler')) return 'ECOCARDIOGRAMA'; 
@@ -136,37 +76,33 @@ const descobrirTipoExame = (ag) => {
     if (desc.includes('carotida') || desc.includes('vertebrais')) return 'DOPPLER_CAROTIDAS';
     if (desc.includes('doppler') && desc.includes('obst')) return 'OBSTETRICO'; 
     
-    // Default (US_GERAL, MUSCULO, OUTROS)
     return 'ABDOME';
 };
 
 
 const LaudosPage = () => {
-  // Controle de Visualização
   const [telaAtual, setTelaAtual] = useState('CARDS'); // 'CARDS' ou 'FORM'
-
-  // Estados dos Agendamentos do Dia
   const [pacientesDia, setPacientesDia] = useState([]);
   const [loadingCards, setLoadingCards] = useState(true);
   const [now, setNow] = useState(new Date());
 
-  // Ticker: Atualiza o estado "now" a cada 30 segundos
+  // Estados para Seleção de Exames Múltiplos
+  const [modalSelecaoExameOpen, setModalSelecaoExameOpen] = useState(false);
+  const [examesParaSelecionar, setExamesParaSelecionar] = useState([]);
+
   useEffect(() => {
       const interval = setInterval(() => setNow(new Date()), 30000);
       return () => clearInterval(interval);
   }, []);
 
-  // Estados principais
   const [tipoExame, setTipoExame] = useState(() => getInitialState('tipoExame', 'OBSTETRICO'));
   const [paciente, setPaciente] = useState(() => getInitialState('paciente', null));
   const hojeISO = new Date().toISOString().split('T')[0];
 
-  // Busca Paciente Manual
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
   const [loadingBusca, setLoadingBusca] = useState(false);
   
-  // Médico
   const [medicoNome, setMedicoNome] = useState(() => getInitialState('medicoNome', ''));
   const [medicoCrm, setMedicoCrm] = useState(() => getInitialState('medicoCrm', ''));
   const [medicoEspecialidades, setMedicoEspecialidades] = useState(() => getInitialState('medicoEspecialidades', [])); 
@@ -174,15 +110,13 @@ const LaudosPage = () => {
   const [medicosFiltrados, setMedicosFiltrados] = useState([]); 
   const [mostrarListaMedicos, setMostrarListaMedicos] = useState(false);
   const [usuarioTemCertificado, setUsuarioTemCertificado] = useState(false);
-  const [medicoLogadoObj, setMedicoLogadoObj] = useState(null); // Guarda os dados do médico logado para auto-fill
+  const [medicoLogadoObj, setMedicoLogadoObj] = useState(null); 
   
-  // Conteúdo do Laudo
   const [textoFinal, setTextoFinal] = useState(() => getInitialState('textoFinal', ''));
   const [dadosEstruturados, setDadosEstruturados] = useState(() => getInitialState('dadosEstruturados', {}));
   const [tituloExame, setTituloExame] = useState(() => getInitialState('tituloExame', ''));
   const [imagens, setImagens] = useState(() => getInitialState('imagens', []));
   
-  // Estados de Controle
   const [credenciais, setCredenciais] = useState(null);
   const [laudoId, setLaudoId] = useState(() => getInitialState('laudoId', null)); 
   const [modalSucessoOpen, setModalSucessoOpen] = useState(false);
@@ -192,14 +126,12 @@ const LaudosPage = () => {
   const [modalNuvemOpen, setModalNuvemOpen] = useState(false); 
   const [isPolling, setIsPolling] = useState(false);
 
-  // IA
   const [discrepanciasDetectadas, setDiscrepanciasDetectadas] = useState([]);
   const [modalAuditoriaOpen, setModalAuditoriaOpen] = useState(false);
   const [tempSubmissionData, setTempSubmissionData] = useState(null);
 
   const searchTimeoutRef = useRef(null);
 
-  // --- 1. CARREGAMENTOS INICIAIS ---
   useEffect(() => {
     const carregarMedicos = async () => {
         try {
@@ -213,28 +145,19 @@ const LaudosPage = () => {
             });
             setTodosMedicos(listaOrdenada);
             setMedicosFiltrados(listaOrdenada); 
-        } catch (e) { 
-            console.error("Erro ao buscar médicos:", e); 
-        }
+        } catch (e) { console.error("Erro ao buscar médicos:", e); }
     };
     carregarMedicos();
 
     const checarUsuario = async () => {
         try {
             const res = await apiClient.get('/usuarios/me/'); 
-            if (res.data.tem_certificado_valido) { 
-                setUsuarioTemCertificado(true);
-            }
-            if (res.data.cargo === 'medico') {
-                setMedicoLogadoObj(res.data);
-            }
-        } catch (e) {
-            console.error("Erro ao verificar certificado", e);
-        }
+            if (res.data.tem_certificado_valido) setUsuarioTemCertificado(true);
+            if (res.data.cargo === 'medico') setMedicoLogadoObj(res.data);
+        } catch (e) { console.error("Erro ao verificar certificado", e); }
     };
     checarUsuario();
 
-    // Se já houver um paciente salvo na sessão, vai direto para a tela de edição
     const rascunho = sessionStorage.getItem(STORAGE_KEY);
     if (rascunho) {
         const parsed = JSON.parse(rascunho);
@@ -242,7 +165,6 @@ const LaudosPage = () => {
     }
   }, []);
 
-  // Busca os agendamentos de hoje para renderizar os cards
   const fetchAgendamentosCards = useCallback(async () => {
     setLoadingCards(true);
     try {
@@ -257,16 +179,16 @@ const LaudosPage = () => {
             if (agrupadosMap.has(chave)) {
                 const existente = agrupadosMap.get(chave);
                 existente.procedimento_descricao += ` + ${procAtual}`;
+                existente.agendamentos_vinculados.push(ag); // Salva o array de exames vinculados
             } else {
                 const novo = { ...ag };
                 novo.procedimento_descricao = procAtual;
+                novo.agendamentos_vinculados = [ag];
                 agrupadosMap.set(chave, novo);
             }
         });
 
-        const dadosOrdenados = Array.from(agrupadosMap.values()).sort((a, b) => 
-            new Date(a.data_hora_inicio) - new Date(b.data_hora_inicio)
-        );
+        const dadosOrdenados = Array.from(agrupadosMap.values()).sort((a, b) => new Date(a.data_hora_inicio) - new Date(b.data_hora_inicio));
         setPacientesDia(dadosOrdenados);
     } catch (error) {
         console.error("Erro ao buscar agendamentos do dia:", error);
@@ -276,37 +198,44 @@ const LaudosPage = () => {
   }, []);
 
   useEffect(() => { 
-      if (telaAtual === 'CARDS') {
-          fetchAgendamentosCards(); 
-      }
+      if (telaAtual === 'CARDS') fetchAgendamentosCards(); 
   }, [telaAtual, fetchAgendamentosCards]);
 
-  // Trava o scroll do documento
   useEffect(() => {
       const htmlEl = document.documentElement;
       const bodyEl = document.body;
-      const prev = {
-          htmlOverflow: htmlEl.style.overflow, bodyOverflow: bodyEl.style.overflow,
-          htmlHeight: htmlEl.style.height, bodyHeight: bodyEl.style.height,
-      };
-      htmlEl.style.overflow = 'hidden'; bodyEl.style.overflow = 'hidden';
-      htmlEl.style.height = '100%'; bodyEl.style.height = '100%';
-      return () => {
-          htmlEl.style.overflow = prev.htmlOverflow; bodyEl.style.overflow = prev.bodyOverflow;
-          htmlEl.style.height = prev.htmlHeight; bodyEl.style.height = prev.bodyHeight;
-      };
+      const prev = { htmlOverflow: htmlEl.style.overflow, bodyOverflow: bodyEl.style.overflow, htmlHeight: htmlEl.style.height, bodyHeight: bodyEl.style.height };
+      htmlEl.style.overflow = 'hidden'; bodyEl.style.overflow = 'hidden'; htmlEl.style.height = '100%'; bodyEl.style.height = '100%';
+      return () => { htmlEl.style.overflow = prev.htmlOverflow; bodyEl.style.overflow = prev.bodyOverflow; htmlEl.style.height = prev.htmlHeight; bodyEl.style.height = prev.bodyHeight; };
   }, []);
 
-  // --- 2. PREENCHIMENTO AUTOMÁTICO (Clique no Card) ---
-  const handleCardClick = async (ag) => {
+  // --- 2. GESTÃO DE CLIQUES NOS CARDS ---
+  const handleCardClick = (ag) => {
+      if (ag.agendamentos_vinculados && ag.agendamentos_vinculados.length > 1) {
+          // Mais de um exame -> Abre o modal para perguntar
+          setExamesParaSelecionar(ag.agendamentos_vinculados);
+          setModalSelecaoExameOpen(true);
+      } else {
+          // Apenas um exame -> Inicia direto
+          const exameEspecifico = ag.agendamentos_vinculados ? ag.agendamentos_vinculados[0] : ag;
+          iniciarLaudo(exameEspecifico);
+      }
+  };
+
+  const iniciarLaudo = async (agEspecifico) => {
+    setModalSelecaoExameOpen(false);
     setLoadingBusca(true);
     try {
-        // 1. Busca os dados completos do Paciente (Para injetar Idade/Sexo nos forms)
-        const idPaciente = ag.paciente_id || ag.paciente;
+        // === MÁGICA 1: ATUALIZA PARA AZUL (Em Atendimento) ===
+        if (agEspecifico.status !== 'Em Atendimento' && agEspecifico.status !== 'Realizado' && agEspecifico.status !== 'Cancelado') {
+            apiClient.patch(`/agendamentos/${agEspecifico.id}/`, { status: 'Em Atendimento' })
+                .catch(e => console.error("Falha silenciosa ao atualizar status para Em Atendimento", e));
+        }
+
+        const idPaciente = agEspecifico.paciente_id || agEspecifico.paciente;
         const res = await apiClient.get(`/pacientes/${idPaciente}/`);
         const pacienteCompleto = res.data;
 
-        // Normalização de Sexo
         const rawSexo = pacienteCompleto.genero || pacienteCompleto.sexo || '';
         const cleanSexo = rawSexo.toString().trim().toUpperCase();
         let sexoMapeado = 'Masculino'; 
@@ -315,34 +244,24 @@ const LaudosPage = () => {
         else if (cleanSexo === 'M' || cleanSexo === 'MASCULINO') sexoMapeado = 'Masculino';
         else sexoMapeado = rawSexo;
 
-        // 2. Preenche o Médico (Prefere o do agendamento, senão o logado)
-        let nomeMedico = ag.medico_nome || ag.medico_nome_com_prefixo || '';
+        let nomeMedico = agEspecifico.medico_nome || agEspecifico.medico_nome_com_prefixo || '';
         let crm = '';
         if (!nomeMedico && medicoLogadoObj) {
             nomeMedico = medicoLogadoObj.first_name ? `${medicoLogadoObj.first_name} ${medicoLogadoObj.last_name}` : medicoLogadoObj.username;
             crm = medicoLogadoObj.crm || '';
         }
 
-        // 3. Descobre o tipo de exame inteligentemente
-        const tipoMatch = descobrirTipoExame(ag);
+        const tipoMatch = descobrirTipoExame(agEspecifico);
 
-        // 4. Aplica os Estados e vira a tela
         setPaciente(pacienteCompleto);
-        setDadosEstruturados(prev => ({
-            ...prev,
-            dataNascimento: pacienteCompleto.data_nascimento || '',
-            sexo: sexoMapeado
-        }));
+        setDadosEstruturados(prev => ({ ...prev, dataNascimento: pacienteCompleto.data_nascimento || '', sexo: sexoMapeado }));
         setMedicoNome(nomeMedico);
         if (crm) setMedicoCrm(crm);
         setTipoExame(tipoMatch);
-        
-        // Puxa título padrão baseado na descrição do exame
-        setTituloExame(ag.procedimento_descricao || '');
+        setTituloExame(agEspecifico.procedimento_descricao || '');
 
-        setTelaAtual('FORM'); // <-- Muda a tela!
+        setTelaAtual('FORM'); 
 
-        // Busca credenciais se já existirem
         try {
             const resCred = await apiClient.get(`/prontuario/credenciais-ativas/?paciente_id=${idPaciente}`);
             if (resCred.data?.codigo) setCredenciais(resCred.data); else setCredenciais(null);
@@ -356,8 +275,6 @@ const LaudosPage = () => {
     }
   };
 
-
-  // --- 3. LÓGICA DE FILTROS E BUSCAS ---
   const handleInputMedicoChange = (texto) => {
       setMedicoNome(texto);
       setMostrarListaMedicos(true);
@@ -398,39 +315,21 @@ const LaudosPage = () => {
   };
 
   useEffect(() => {
-      const dadosParaSalvar = {
-          laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens 
-      };
+      const dadosParaSalvar = { laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens };
       const timeoutId = setTimeout(() => {
-          try {
-              sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar));
-          } catch (e) {
-              const dadosSemImagens = { ...dadosParaSalvar, imagens: [] };
-              sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dadosSemImagens));
-          }
+          try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar)); } 
+          catch (e) { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...dadosParaSalvar, imagens: [] })); }
       }, 1000);
       return () => clearTimeout(timeoutId);
   }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens]);
 
-  // --- 4. MANIPULADORES DO FORMULÁRIO ---
   const handleLimpar = () => {
     if (window.confirm("Limpar formulário e retornar aos cards? O rascunho será perdido.")) {
         sessionStorage.removeItem(STORAGE_KEY);
-        setLaudoId(null);
-        setCredenciais(null);
-        setTipoExame('OBSTETRICO');
-        setPaciente(null);
-        setMedicoNome('');
-        setMedicoCrm('');
-        setMedicoEspecialidades([]);
-        setTextoFinal('');
-        setDadosEstruturados({});
-        setTituloExame('');
-        setImagens([]);
-        setTermoBusca('');
+        setLaudoId(null); setCredenciais(null); setTipoExame('OBSTETRICO'); setPaciente(null);
+        setMedicoNome(''); setMedicoCrm(''); setMedicoEspecialidades([]); setTextoFinal('');
+        setDadosEstruturados({}); setTituloExame(''); setImagens([]); setTermoBusca('');
         setPacientesEncontrados([]);
-        
-        // VOLTA PARA A TELA INICIAL
         setTelaAtual('CARDS');
     }
   };
@@ -443,16 +342,12 @@ const LaudosPage = () => {
 
   const otimizarImagemParaPDF = (base64Str, maxWidth = 1200, qualidade = 0.85) => {
     return new Promise((resolve, reject) => {
-        if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image/')) {
-            resolve(base64Str);
-            return;
-        }
+        if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image/')) return resolve(base64Str);
         const img = new Image();
         img.src = base64Str;
         img.onload = () => {
             const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
+            let width = img.width; let height = img.height;
             if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
             canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext('2d');
@@ -465,45 +360,28 @@ const LaudosPage = () => {
     });
   };
 
-  // --- 5. FUNÇÃO MASTER: SALVAR E FINALIZAR ---
   const handleFinalizacaoAssincrona = async (textoCorrigido, imagensFinais, dataExameSelecionada, senhaAutorizacao, ignorarAuditoria = false) => {
     if (isPolling) return;
     if (!paciente || !paciente.id) return alert("Selecione um paciente.");
     if (!medicoNome) return alert("Preencha o nome do médico.");
 
     if (!ignorarAuditoria) {
-        const confirmacao = window.confirm(
-            "Atenção: Após finalizado, este laudo será processado e assinado digitalmente.\n\n" +
-            "Se houver erros e você precisar corrigir algo depois, o laudo atual será CANCELADO no prontuário e substituído por um novo laudo oficial para o paciente.\n\n" +
-            "Deseja gerar o laudo definitivo agora?"
-        );
-        if (!confirmacao) return;
+        if (!window.confirm("Atenção: Após finalizado, este laudo será processado e assinado digitalmente.\n\nSe houver erros e você precisar corrigir algo depois, o laudo atual será CANCELADO no prontuário e substituído por um novo laudo oficial para o paciente.\n\nDeseja gerar o laudo definitivo agora?")) return;
     }
 
-    setModalRevisaoOpen(false);
-    setIsPolling(true); 
-    setTempSubmissionData({ textoCorrigido, imagensFinais, dataExameSelecionada, senhaAutorizacao });
+    setModalRevisaoOpen(false); setIsPolling(true); setTempSubmissionData({ textoCorrigido, imagensFinais, dataExameSelecionada, senhaAutorizacao });
 
     try {
         const imagensOtimizadas = [];
         for (let img of imagensFinais) imagensOtimizadas.push(await otimizarImagemParaPDF(img));
         
-        setTextoFinal(textoCorrigido);
-        setImagens(imagensOtimizadas);
-
+        setTextoFinal(textoCorrigido); setImagens(imagensOtimizadas);
         const dadosParaEnvio = { ...dadosEstruturados, ignorar_auditoria_ia: ignorarAuditoria };
-
         const formData = new FormData();
-        formData.append('paciente', paciente.id);
-        formData.append('data_exame', dataExameSelecionada); 
-        formData.append('tipo_exame', tipoExame);
-        formData.append('titulo', tituloExame || `Laudo de ${tipoExame}`);
-        formData.append('texto_laudo', textoCorrigido);
-        formData.append('medico_responsavel', medicoNome);
-        formData.append('crm_medico', medicoCrm);
-        formData.append('senha_medico', senhaAutorizacao); 
-        formData.append('dados_estruturados', JSON.stringify(dadosParaEnvio));
-        formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas));
+        formData.append('paciente', paciente.id); formData.append('data_exame', dataExameSelecionada); formData.append('tipo_exame', tipoExame);
+        formData.append('titulo', tituloExame || `Laudo de ${tipoExame}`); formData.append('texto_laudo', textoCorrigido);
+        formData.append('medico_responsavel', medicoNome); formData.append('crm_medico', medicoCrm); formData.append('senha_medico', senhaAutorizacao); 
+        formData.append('dados_estruturados', JSON.stringify(dadosParaEnvio)); formData.append('imagens_anexas', JSON.stringify(imagensOtimizadas));
         
         let response = await apiClient.post('/prontuario/laudos-async/', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
         const laudoProcessandoId = response.data.id;
@@ -512,93 +390,60 @@ const LaudosPage = () => {
         const checkStatus = async () => {
             try {
                 const res = await apiClient.get(`/prontuario/laudos/${laudoProcessandoId}/status/`);
-                const statusAtual = res.data.status;
-
-                if (statusAtual === 'FINALIZADO') {
+                if (res.data.status === 'FINALIZADO') {
                     setIsPolling(false);
                     if (res.data.credenciais) setCredenciais(res.data.credenciais);
-
                     if (res.data.arquivo_url) {
                         const baseUrl = apiClient.defaults.baseURL.replace('/api', '').replace(/\/$/, '');
                         const urlCompleta = res.data.arquivo_url.startsWith('/') ? `${baseUrl}${res.data.arquivo_url}` : res.data.arquivo_url;
                         try {
                             const fetchResponse = await fetch(urlCompleta);
-                            const blobFinal = await fetchResponse.blob();
-                            const blobUrl = URL.createObjectURL(blobFinal);
+                            const blobUrl = URL.createObjectURL(await fetchResponse.blob());
                             window.open(blobUrl, '_blank');
                             setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
                         } catch (err) { window.open(urlCompleta, '_blank'); }
                     }
-                    
-                    // Limpa o cache após sucesso e exibe modal
                     sessionStorage.removeItem(STORAGE_KEY);
                     setModalSucessoOpen(true);
-
-                } else if (statusAtual === 'REVISAO_SUGERIDA') {
-                    setIsPolling(false); 
-                    setDiscrepanciasDetectadas(res.data.discrepancias || []);
-                    setModalAuditoriaOpen(true);
-                } else if (statusAtual === 'ERRO') {
-                    setIsPolling(false);
-                    alert("⚠️ Falha na Assinatura Digital!\nOcorreu um erro de comunicação ao aplicar o seu certificado no PDF. O laudo NÃO foi finalizado e continua como rascunho.");
-                } else {
-                    setTimeout(checkStatus, 3000);
-                }
-            } catch(e) {
-                setTimeout(checkStatus, 3000); 
-            }
+                } else if (res.data.status === 'REVISAO_SUGERIDA') {
+                    setIsPolling(false); setDiscrepanciasDetectadas(res.data.discrepancias || []); setModalAuditoriaOpen(true);
+                } else if (res.data.status === 'ERRO') {
+                    setIsPolling(false); alert("⚠️ Falha na Assinatura Digital!\nOcorreu um erro de comunicação ao aplicar o seu certificado no PDF. O laudo NÃO foi finalizado e continua como rascunho.");
+                } else setTimeout(checkStatus, 3000);
+            } catch(e) { setTimeout(checkStatus, 3000); }
         };
-
         setTimeout(checkStatus, 3000);
 
     } catch (e) {
         setIsPolling(false);
-        const mensagemErro = e.response?.data?.detail || (Array.isArray(e.response?.data) ? e.response.data[0] : null) || "Erro ao enviar o laudo para processamento.";
-        alert(`⚠️ Atenção: ${mensagemErro}`);
+        alert(`⚠️ Atenção: ${e.response?.data?.detail || (Array.isArray(e.response?.data) ? e.response.data[0] : null) || "Erro ao enviar o laudo para processamento."}`);
     }
   };
 
   const getMensagemCompartilhamento = (canal) => {
-      const cod = credenciais?.codigo || "---";
-      const pass = credenciais?.senha || "---";
-      const link = credenciais?.link || "https://clinica-limale.vercel.app/resultados";
-      const nomePct = paciente?.nome_completo?.split(' ')[0] || "Paciente";
-      const exameTitulo = tituloExame || tipoExame || "Exame";
-
+      const cod = credenciais?.codigo || "---"; const pass = credenciais?.senha || "---"; const link = credenciais?.link || "https://clinica-limale.vercel.app/resultados";
+      const nomePct = paciente?.nome_completo?.split(' ')[0] || "Paciente"; const exameTitulo = tituloExame || tipoExame || "Exame";
       if (canal === 'whatsapp') return `Olá, *${nomePct}*! \n\nSeu laudo de *${exameTitulo}* está pronto.\n\nAcesse o resultado e imagens no link:\n${link}\n\n*DADOS DE ACESSO:*\nUsuário: *${cod}*\nSenha: *${pass}*\n\nBaixe o PDF em anexo.\nAtt, Clínica Limalé`;
       if (canal === 'email') return `Olá, ${nomePct}!\n\nSeu laudo de ${exameTitulo} está pronto.\n\nAcesse o resultado e imagens clicando no link abaixo:\n${link}\n\nDADOS DE ACESSO:\nUsuário: ${cod}\nSenha: ${pass}\n\nBaixe o PDF em anexo.\nAtt, Clínica Limalé`;
   };
 
   const handleEnviarWhatsApp = () => {
-      const telefoneRaw = paciente?.telefone_celular || paciente?.telefone || ""; 
-      const apenasNumeros = telefoneRaw.replace(/\D/g, "");
-      let urlWhats = apenasNumeros.length >= 10 ? `https://wa.me/55${apenasNumeros}?text=${encodeURIComponent(getMensagemCompartilhamento('whatsapp'))}` : `https://wa.me/?text=${encodeURIComponent(getMensagemCompartilhamento('whatsapp'))}`;
-      window.open(urlWhats, '_blank');
+      const numero = (paciente?.telefone_celular || paciente?.telefone || "").replace(/\D/g, "");
+      window.open(numero.length >= 10 ? `https://wa.me/55${numero}?text=${encodeURIComponent(getMensagemCompartilhamento('whatsapp'))}` : `https://wa.me/?text=${encodeURIComponent(getMensagemCompartilhamento('whatsapp'))}`, '_blank');
   };
 
-  const handleEnviarEmail = () => {
-      window.open(`mailto:${paciente?.email || ""}?subject=${encodeURIComponent('Resultado de Exame - Clínica Limalé')}&body=${encodeURIComponent(getMensagemCompartilhamento('email'))}`, '_blank');
-  };
+  const handleEnviarEmail = () => window.open(`mailto:${paciente?.email || ""}?subject=${encodeURIComponent('Resultado de Exame - Clínica Limalé')}&body=${encodeURIComponent(getMensagemCompartilhamento('email'))}`, '_blank');
 
-  // --- RENDERIZAÇÃO ---
   return (
     <div style={styles.container}>
-      
-      {/* ================= COLUNA ESQUERDA ================= */}
       <div style={styles.leftCol}>
-        
-        {/* TELA DE SELEÇÃO: CARDS DE AGENDAMENTO */}
         {telaAtual === 'CARDS' ? (
-          <Box sx={{ p: 3, flexGrow: 1, overflowY: 'auto', background: '#F9FAFB' }}>
-              <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#1C2E4A' }}>
+          <Box sx={{ p: 2, flexGrow: 1, overflowY: 'auto', background: '#F8F9FA' }}>
+              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, borderBottom: '1px solid #e9ecef' }}>
+                  <Typography sx={{ fontWeight: 800, color: '#1C2E4A', fontSize: '1.2rem' }}>
                       Pacientes do Dia
                   </Typography>
-                  <Button 
-                      variant="outlined" 
-                      onClick={() => setTelaAtual('FORM')}
-                      sx={{ textTransform: 'none', fontWeight: 'bold' }}
-                  >
+                  <Button variant="outlined" size="small" onClick={() => setTelaAtual('FORM')} sx={{ textTransform: 'none', fontWeight: 'bold' }}>
                       Laudo Avulso (Sem Agendamento)
                   </Button>
               </Box>
@@ -606,68 +451,78 @@ const LaudosPage = () => {
               {loadingCards ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}><FaSpinner className="spin" size={30} /></Box>
               ) : pacientesDia.length === 0 ? (
-                  <Typography variant="body1" sx={{ color: '#666', textAlign: 'center', mt: 5 }}>
-                      Nenhum paciente agendado para hoje.
-                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', mt: 5 }}>Nenhum paciente agendado para hoje.</Typography>
               ) : (
-                  <Grid container spacing={2}>
+                  // ==== CARDS SUPER COMPACTOS ESTILO SIDEBAR ====
+                  <Grid container spacing={1.5}>
                       {pacientesDia.map(ag => {
                           const semaforo = calcularStatusSemaforo(ag, now);
                           const isCancelado = ag.status === 'Cancelado' || ag.status === 'Não Compareceu';
+                          const possuiVariosExames = ag.agendamentos_vinculados && ag.agendamentos_vinculados.length > 1;
                           
                           return (
-                              <Grid item xs={12} sm={6} md={4} key={ag.id}>
-                                  <Card 
-                                    elevation={0}
-                                    sx={{ 
-                                        borderRadius: 2, 
-                                        border: `1px solid ${semaforo.cor.border}`,
-                                        borderLeft: `5px solid ${semaforo.cor.indicator}`,
-                                        background: semaforo.cor.bg,
-                                        opacity: isCancelado ? 0.6 : 1,
-                                        transition: 'all 0.2s ease',
-                                        '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }
-                                    }}
+                              <Grid item xs={12} sm={6} md={4} lg={3} key={ag.id}>
+                                  <Box
+                                      onClick={() => handleCardClick(ag)}
+                                      sx={{
+                                          display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+                                          py: 1, px: 1.5, borderRadius: 2, cursor: 'pointer',
+                                          bgcolor: semaforo.cor.bg,
+                                          border: `1px solid ${semaforo.cor.border}`,
+                                          borderLeft: `5px solid ${semaforo.cor.indicator}`,
+                                          opacity: isCancelado ? 0.6 : 1,
+                                          transition: 'all 0.2s ease',
+                                          '&:hover': { filter: 'brightness(0.97)', transform: 'translateY(-1px)', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }
+                                      }}
                                   >
-                                      <CardActionArea onClick={() => handleCardClick(ag)} sx={{ p: 2, height: '100%' }}>
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                              <Typography variant="h6" sx={{ fontWeight: 800, color: semaforo.cor.text, fontSize: '1.1rem' }}>
+                                      {/* LINHA 1: Horário, ID e Timer */}
+                                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                                          <Box sx={{ display: 'flex', gap: 0.8, alignItems: 'center' }}>
+                                              <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: semaforo.cor.text }}>
                                                   {formatarHoraTZ(ag.data_hora_inicio)}
                                               </Typography>
-                                              
-                                              {semaforo.timer && (
-                                                  <Chip 
-                                                      icon={<FaClock size={10} color={semaforo.cor.text} />} 
-                                                      label={semaforo.timer} 
-                                                      size="small" 
-                                                      sx={{ height: 20, fontSize: '0.7rem', fontWeight: 'bold', bgcolor: 'rgba(255,255,255,0.6)', color: semaforo.cor.text }} 
-                                                  />
-                                              )}
+                                              <Box component="span" sx={{ bgcolor: semaforo.cor.text, color: semaforo.cor.bg, px: 0.6, py: 0.1, borderRadius: '4px', fontSize: '0.6rem', fontWeight: 'bold' }}>
+                                                  ID: {ag.paciente_id || ag.paciente}
+                                              </Box>
                                           </Box>
-                                          
-                                          <Typography noWrap variant="subtitle1" sx={{ fontWeight: 700, color: semaforo.cor.text, mb: 0.5 }}>
-                                              {ag.paciente_nome}
-                                          </Typography>
-                                          
-                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                                              <FaStethoscope size={12} color={semaforo.cor.indicator} />
-                                              <Typography noWrap variant="body2" sx={{ color: semaforo.cor.text, opacity: 0.9, fontSize: '0.85rem' }}>
-                                                  {ag.procedimento_descricao || ag.especialidade_nome || 'Consulta'}
-                                              </Typography>
-                                          </Box>
+                                          {semaforo.timer && (
+                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, bgcolor: 'rgba(255,255,255,0.6)', px: 0.6, py: 0.2, borderRadius: 1 }}>
+                                                  <FaClock size={10} color={semaforo.cor.text} />
+                                                  <Typography sx={{ fontSize: '0.65rem', fontWeight: 800, color: semaforo.cor.text }}>{semaforo.timer}</Typography>
+                                              </Box>
+                                          )}
+                                      </Box>
 
-                                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-                                              <Typography variant="caption" sx={{ fontWeight: 'bold', color: semaforo.cor.text, opacity: 0.8 }}>
-                                                  {semaforo.label}
+                                      {/* LINHA 2: Nome do Paciente */}
+                                      <Typography noWrap sx={{ fontWeight: 800, fontSize: '0.85rem', color: semaforo.cor.text, mb: 0.5 }}>
+                                          {ag.paciente_nome}
+                                      </Typography>
+
+                                      {/* LINHA 3: Procedimento e Etiqueta de Exames Múltiplos */}
+                                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.5 }}>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
+                                              <FaStethoscope size={10} color={semaforo.cor.indicator} style={{ flexShrink: 0 }} />
+                                              <Typography noWrap sx={{ fontSize: '0.7rem', color: semaforo.cor.text, opacity: 0.9 }}>
+                                                  {possuiVariosExames ? 'Vários Exames (Clique para Escolher)' : (ag.procedimento_descricao || ag.especialidade_nome || 'Consulta')}
                                               </Typography>
-                                              {ag.medico_nome && (
-                                                  <Typography variant="caption" sx={{ color: semaforo.cor.text, opacity: 0.7 }}>
-                                                      Dr(a) {ag.medico_nome.split(' ')[0]}
-                                                  </Typography>
-                                              )}
                                           </Box>
-                                      </CardActionArea>
-                                  </Card>
+                                          {possuiVariosExames && (
+                                              <Chip label={`+${ag.agendamentos_vinculados.length}`} size="small" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 'bold', bgcolor: semaforo.cor.text, color: semaforo.cor.bg }} />
+                                          )}
+                                      </Box>
+
+                                      {/* LINHA 4: Status e Médico */}
+                                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+                                          <Typography noWrap sx={{ fontSize: '0.65rem', fontWeight: 700, color: semaforo.cor.text, opacity: 0.8 }}>
+                                              {semaforo.label}
+                                          </Typography>
+                                          {ag.medico_nome && (
+                                              <Typography noWrap sx={{ fontSize: '0.6rem', color: semaforo.cor.text, opacity: 0.8 }}>
+                                                  Dr(a) {ag.medico_nome.split(' ')[0]}
+                                              </Typography>
+                                          )}
+                                      </Box>
+                                  </Box>
                               </Grid>
                           );
                       })}
@@ -675,58 +530,31 @@ const LaudosPage = () => {
               )}
           </Box>
         ) : (
-          /* TELA DO FORMULÁRIO (ANTIGO LAUDOS) */
           <>
             <div style={styles.toolbar}>
                 <div style={{position: 'relative'}}> 
                     <div style={styles.inputGroup}>
                         <div style={styles.inputIcon} title="Paciente"><FaUserInjured size={14} /></div>
-                        <input 
-                            style={styles.inputCompact} placeholder="Buscar Paciente..."
-                            value={paciente ? `${paciente.id}_${paciente.nome_completo}` : termoBusca}
-                            onChange={(e) => { 
-                                if (paciente) { setPaciente(null); setTermoBusca(''); setPacientesEncontrados([]); } 
-                                else { handleBuscaPacienteChange(e); }
-                            }}
+                        <input style={styles.inputCompact} placeholder="Buscar Paciente..." value={paciente ? `${paciente.id}_${paciente.nome_completo}` : termoBusca}
+                            onChange={(e) => { if (paciente) { setPaciente(null); setTermoBusca(''); setPacientesEncontrados([]); } else { handleBuscaPacienteChange(e); } }}
                         />
                         <div style={{position:'absolute', right:'8px', cursor:'pointer'}}>
-                            {loadingBusca ? <FaSpinner className="spin" color="#999"/> : 
-                            (paciente || termoBusca.length > 0) ? 
-                                <FaTimes color="#C62828" onClick={() => { 
-                                    setPaciente(null); setTermoBusca(''); setPacientesEncontrados([]); setMedicoEspecialidades([]);
-                                    setLaudoId(null); setCredenciais(null); setTextoFinal(''); setDadosEstruturados({}); 
-                                    setImagens([]); setTituloExame(''); sessionStorage.removeItem(STORAGE_KEY); 
-                                }}/> 
-                                : null}
+                            {loadingBusca ? <FaSpinner className="spin" color="#999"/> : (paciente || termoBusca.length > 0) ? <FaTimes color="#C62828" onClick={() => { setPaciente(null); setTermoBusca(''); setPacientesEncontrados([]); setMedicoEspecialidades([]); setLaudoId(null); setCredenciais(null); setTextoFinal(''); setDadosEstruturados({}); setImagens([]); setTituloExame(''); sessionStorage.removeItem(STORAGE_KEY); }}/> : null}
                         </div>
                     </div>
                     {!paciente && pacientesEncontrados.length > 0 && (
                         <div style={styles.dropdownList}>
                             {pacientesEncontrados.map(p => (
                                 <div key={p.id} style={styles.dropdownItem} onClick={async () => {
-                                    setLaudoId(null); setCredenciais(null); setTextoFinal(''); setDadosEstruturados({});
-                                    setImagens([]); setTituloExame(''); sessionStorage.removeItem(STORAGE_KEY);
-
-                                    const rawSexo = p.genero || p.sexo || '';
-                                    const cleanSexo = rawSexo.toString().trim().toUpperCase();
+                                    setLaudoId(null); setCredenciais(null); setTextoFinal(''); setDadosEstruturados({}); setImagens([]); setTituloExame(''); sessionStorage.removeItem(STORAGE_KEY);
+                                    const cleanSexo = (p.genero || p.sexo || '').toString().trim().toUpperCase();
                                     let sexoMapeado = 'Masculino'; 
-                                    if (cleanSexo === 'F' || cleanSexo === 'FEMININO') sexoMapeado = 'Feminino';
-                                    else if (cleanSexo === 'O' || cleanSexo === 'OUTRO') sexoMapeado = 'Outro';
-                                    else if (cleanSexo === 'M' || cleanSexo === 'MASCULINO') sexoMapeado = 'Masculino';
-                                    else sexoMapeado = rawSexo;
-
-                                    setPaciente(p);
-                                    setDadosEstruturados(prev => ({ ...prev, dataNascimento: p.data_nascimento || '', sexo: sexoMapeado }));
-                                    setTermoBusca(''); setPacientesEncontrados([]);
-
-                                    try {
-                                        const res = await apiClient.get(`/prontuario/credenciais-ativas/?paciente_id=${p.id}`);
-                                        if (res.data?.codigo) setCredenciais(res.data); else setCredenciais(null);
-                                    } catch (e) { }
+                                    if (cleanSexo === 'F' || cleanSexo === 'FEMININO') sexoMapeado = 'Feminino'; else if (cleanSexo === 'O' || cleanSexo === 'OUTRO') sexoMapeado = 'Outro'; else if (cleanSexo === 'M' || cleanSexo === 'MASCULINO') sexoMapeado = 'Masculino'; else sexoMapeado = p.genero || p.sexo || '';
+                                    setPaciente(p); setDadosEstruturados(prev => ({ ...prev, dataNascimento: p.data_nascimento || '', sexo: sexoMapeado })); setTermoBusca(''); setPacientesEncontrados([]);
+                                    try { const res = await apiClient.get(`/prontuario/credenciais-ativas/?paciente_id=${p.id}`); if (res.data?.codigo) setCredenciais(res.data); else setCredenciais(null); } catch (e) { }
                                 }}>
                                     <span style={{fontWeight:'bold', display:'flex', alignItems: 'center', gap: '8px'}}>
-                                        <span style={{background: '#1C2E4A', color: '#FFF', padding: '2px 6px', borderRadius: '4px', fontSize: '10px'}}>ID: {p.id}</span>
-                                        {p.nome_completo}
+                                        <span style={{background: '#1C2E4A', color: '#FFF', padding: '2px 6px', borderRadius: '4px', fontSize: '10px'}}>ID: {p.id}</span>{p.nome_completo}
                                     </span>
                                 </div>
                             ))}
@@ -737,31 +565,20 @@ const LaudosPage = () => {
                 <div style={styles.inputGroup}>
                     <div style={styles.inputIcon} title="Tipo de Exame"><FaNotesMedical size={14} /></div>
                     <select value={tipoExame} onChange={(e) => setTipoExame(e.target.value)} style={{...styles.inputCompact, cursor: 'pointer'}}>
-                        <option value="OBSTETRICO">Medicina Fetal</option>
-                        <option value="TRANSVAGINAL">Transvaginal</option>
-                        <option value="ECOCARDIOGRAMA">Ecocardiograma</option>
-                        <option value="ABDOME">US Geral</option>
-                        <option value="DOPPLER_CAROTIDAS">Carótidas</option>
-                        <option value="ELETROCARDIOGRAMA">Eletrocardiograma</option> 
+                        <option value="OBSTETRICO">Medicina Fetal</option><option value="TRANSVAGINAL">Transvaginal</option><option value="ECOCARDIOGRAMA">Ecocardiograma</option>
+                        <option value="ABDOME">US Geral</option><option value="DOPPLER_CAROTIDAS">Carótidas</option><option value="ELETROCARDIOGRAMA">Eletrocardiograma</option> 
                     </select>
                 </div>
 
                 <div style={{position: 'relative'}}>
                     <div style={styles.inputGroup}>
                         <div style={styles.inputIcon} title="Médico Responsável"><FaUserMd size={14} /></div>
-                        <input 
-                            style={styles.inputCompact} placeholder="Médico..." value={medicoNome} 
-                            onChange={(e) => handleInputMedicoChange(e.target.value)} 
-                            onFocus={() => { setMostrarListaMedicos(true); if(!medicoNome) setMedicosFiltrados(todosMedicos); }} 
-                            onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)}
-                        />
+                        <input style={styles.inputCompact} placeholder="Médico..." value={medicoNome} onChange={(e) => handleInputMedicoChange(e.target.value)} onFocus={() => { setMostrarListaMedicos(true); if(!medicoNome) setMedicosFiltrados(todosMedicos); }} onBlur={() => setTimeout(() => setMostrarListaMedicos(false), 200)} />
                     </div>
                     {mostrarListaMedicos && medicosFiltrados.length > 0 && (
                         <div style={styles.dropdownList}>
                             {medicosFiltrados.map(med => (
-                                <div key={med.id} onClick={() => selecionarMedico(med)} style={styles.dropdownItem}>
-                                    <span>{med.first_name ? `${med.first_name} ${med.last_name}` : med.username}</span>
-                                </div>
+                                <div key={med.id} onClick={() => selecionarMedico(med)} style={styles.dropdownItem}><span>{med.first_name ? `${med.first_name} ${med.last_name}` : med.username}</span></div>
                             ))}
                         </div>
                     )}
@@ -785,61 +602,53 @@ const LaudosPage = () => {
         )}
       </div> 
 
-      {/* ================= COLUNA DIREITA (PREVIEW E AÇÕES) ================= */}
       <div style={styles.rightCol}>
          <div style={{ flex: 1, minHeight: 0, background: '#fff', borderRadius: '6px', border: `1px solid ${theme.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}> 
-             
              <Box sx={{ px: 1.5, background: '#fff', borderBottom: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '45px', flexShrink: 0, zIndex: 10 }}>
-                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                     <FaFileAlt color="#1C2E4A" size={12} />
-                     <Typography variant="caption" sx={{ fontWeight: 800, color: '#1C2E4A', fontSize: '11px' }}>PRÉVIA</Typography>
-                 </Box>
+                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><FaFileAlt color="#1C2E4A" size={12} /><Typography variant="caption" sx={{ fontWeight: 800, color: '#1C2E4A', fontSize: '11px' }}>PRÉVIA</Typography></Box>
                  <Stack direction="row" spacing={0.5} alignItems="center">
-                     <Tooltip title="Limpar e Voltar aos Cards">
-                        <IconButton onClick={handleLimpar} size="small" sx={{ color: '#EF5350', padding: '4px' }}>
-                            <FaEraser size={12} />
-                        </IconButton>
-                     </Tooltip>
+                     <Tooltip title="Limpar e Voltar aos Cards"><IconButton onClick={handleLimpar} size="small" sx={{ color: '#EF5350', padding: '4px' }}><FaEraser size={12} /></IconButton></Tooltip>
                      <Divider orientation="vertical" flexItem sx={{ height: 20, my: 'auto', mx: 0.5 }} />
-                    <Button 
-                        size="small" onClick={() => { if (!medicoNome) return alert("Por favor, preencha o nome do Médico."); setModalTermoOpen(true); }} 
-                        sx={{ color: '#546E7A', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}
-                    >Termo</Button>
-                    <Button 
-                        size="small" onClick={() => { if (!paciente || !medicoNome) { alert("Selecione um Paciente e identifique o Médico antes de gerar o documento."); return; } setModalAtestadoOpen(true); }} 
-                        sx={{ color: '#00897B', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}
-                    >Atestado / Declaração</Button>
-                    <Button 
-                        variant="contained" size="small" onClick={() => {
-                            if (!textoFinal || textoFinal.trim() === '') { alert("⚠️ O texto do laudo está vazio!\nPor favor, preencha as medidas e certifique-se de que o texto apareceu na tela de Prévia antes de finalizar."); return; }
-                            setModalRevisaoOpen(true);
-                        }} 
-                        endIcon={<FaSave size={12}/>} 
-                        sx={{ background: '#1C2E4A', textTransform: 'none', fontWeight: 'bold', fontSize: '11px', padding: '4px 12px', minWidth: 'auto', marginLeft: '4px !important', '&:hover': { background: '#2C3E50' } }}
-                    >Finalizar</Button>
+                    <Button size="small" onClick={() => { if (!medicoNome) return alert("Por favor, preencha o nome do Médico."); setModalTermoOpen(true); }} sx={{ color: '#546E7A', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Termo</Button>
+                    <Button size="small" onClick={() => { if (!paciente || !medicoNome) { alert("Selecione um Paciente e identifique o Médico antes de gerar o documento."); return; } setModalAtestadoOpen(true); }} sx={{ color: '#00897B', textTransform: 'none', fontSize: '10px', fontWeight: 600, minWidth: 'auto', padding: '4px 8px' }}>Atestado / Declaração</Button>
+                    <Button variant="contained" size="small" onClick={() => { if (!textoFinal || textoFinal.trim() === '') { alert("⚠️ O texto do laudo está vazio!\nPor favor, preencha as medidas e certifique-se de que o texto apareceu na tela de Prévia antes de finalizar."); return; } setModalRevisaoOpen(true); }} endIcon={<FaSave size={12}/>} sx={{ background: '#1C2E4A', textTransform: 'none', fontWeight: 'bold', fontSize: '11px', padding: '4px 12px', minWidth: 'auto', marginLeft: '4px !important', '&:hover': { background: '#2C3E50' } }}>Finalizar</Button>
                  </Stack>
              </Box>
-             
              <div style={{flex: 1, minHeight: 0, padding: '0', overflow: 'hidden', background: '#EEEEEE', position: 'relative'}}>
-                <textarea 
-                    value={textoFinal} readOnly={true} 
-                    style={{ width: '100%', height: '100%', border: 'none', padding: '25px', resize: 'none', outline: 'none', fontFamily: '"Times New Roman", serif', fontSize: '14px', lineHeight: '1.5', color: '#000', background: '#FAFAFA', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)', cursor: 'default', overflowY: 'auto' }}
-                />
+                <textarea value={textoFinal} readOnly={true} style={{ width: '100%', height: '100%', border: 'none', padding: '25px', resize: 'none', outline: 'none', fontFamily: '"Times New Roman", serif', fontSize: '14px', lineHeight: '1.5', color: '#000', background: '#FAFAFA', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)', cursor: 'default', overflowY: 'auto' }} />
              </div>
          </div>
       </div>
 
-      {/* --- MODAIS --- */}
-      <LaudosPreviewModal 
-          open={modalRevisaoOpen} onClose={() => setModalRevisaoOpen(false)} 
-          textoInicial={textoFinal} imagensIniciais={imagens} 
-          onFinalizar={handleFinalizacaoAssincrona}
-          onAbrirNuvem={() => setModalNuvemOpen(true)}
-          nomePaciente={paciente?.nome_completo} 
-      />
+      {/* --- MODAIS DE NEGÓCIO --- */}
+      <LaudosPreviewModal open={modalRevisaoOpen} onClose={() => setModalRevisaoOpen(false)} textoInicial={textoFinal} imagensIniciais={imagens} onFinalizar={handleFinalizacaoAssincrona} onAbrirNuvem={() => setModalNuvemOpen(true)} nomePaciente={paciente?.nome_completo} />
       <ImagensNuvemModal open={modalNuvemOpen} onClose={() => setModalNuvemOpen(false)} paciente={paciente} onConfirmar={(novas) => setImagens(prev => [...prev, ...novas])} />
       
-      <Dialog open={modalSucessoOpen} onClose={() => { setModalSucessoOpen(false); setTelaAtual('CARDS'); /* Retorna aos cards após fechar o modal */ }} maxWidth="sm" fullWidth>
+      {/* MODAL DE SELEÇÃO DE EXAMES MÚLTIPLOS */}
+      <Dialog open={modalSelecaoExameOpen} onClose={() => setModalSelecaoExameOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ bgcolor: '#F0F2F5', pb: 1.5 }}>
+              <Typography variant="h6" fontWeight="bold" color="#1C2E4A">Qual exame será realizado agora?</Typography>
+              <Typography variant="body2" color="text.secondary">Este paciente agendou múltiplos procedimentos para este horário.</Typography>
+          </DialogTitle>
+          <DialogContent sx={{ p: 0 }}>
+              <List disablePadding>
+                  {examesParaSelecionar.map((exame, idx) => (
+                      <ListItem disablePadding key={exame.id || idx} divider>
+                          <ListItemButton onClick={() => iniciarLaudo(exame)} sx={{ py: 2 }}>
+                              <ListItemIcon><FaNotesMedical size={18} color="#1976d2" /></ListItemIcon>
+                              <ListItemText 
+                                  primary={<Typography fontWeight="bold" color="#333">{exame.procedimento_descricao || exame.especialidade_nome}</Typography>} 
+                                  secondary={`Dr(a) ${exame.medico_nome || 'Não vinculado'} • Status atual: ${exame.status}`} 
+                              />
+                          </ListItemButton>
+                      </ListItem>
+                  ))}
+              </List>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}><Button onClick={() => setModalSelecaoExameOpen(false)} color="inherit">Cancelar</Button></DialogActions>
+      </Dialog>
+
+      <Dialog open={modalSucessoOpen} onClose={() => { setModalSucessoOpen(false); setTelaAtual('CARDS'); }} maxWidth="sm" fullWidth>
         <div style={{padding: '30px', textAlign: 'center'}}>
             <FaCheckCircle size={60} color="#4CAF50" style={{marginBottom: 15}} />
             <Typography variant="h5" style={{fontWeight: 'bold', color: '#2C3E50', marginBottom: 10}}>Laudo Salvo com Sucesso!</Typography>
@@ -847,8 +656,7 @@ const LaudosPage = () => {
             <div style={{background: '#F0F4F8', border: '1px dashed #B0BEC5', borderRadius: 8, padding: '15px', marginBottom: 30, textAlign: 'left'}}>
                 <Typography variant="subtitle2" style={{color: '#1C2E4A', fontWeight: 'bold', marginBottom: 5}}>DADOS DE ACESSO GERADOS:</Typography>
                 <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '14px'}}>
-                    <span>Usuário: <strong>{credenciais?.codigo || '---'}</strong></span>
-                    <span>Senha: <strong>{credenciais?.senha || '---'}</strong></span>
+                    <span>Usuário: <strong>{credenciais?.codigo || '---'}</strong></span><span>Senha: <strong>{credenciais?.senha || '---'}</strong></span>
                 </div>
             </div>
             <Grid container spacing={2}>
@@ -859,36 +667,16 @@ const LaudosPage = () => {
         <DialogActions><Button onClick={() => { setModalSucessoOpen(false); setTelaAtual('CARDS'); }} style={{color: '#888'}}>Voltar à Tela Inicial</Button></DialogActions>
       </Dialog>
       
-      <Dialog open={isPolling} disableEscapeKeyDown>
-        <div style={{padding: '40px', textAlign: 'center', minWidth: '300px'}}>
-            <FaSpinner className="spin" size={40} color="#1C2E4A" style={{marginBottom: '20px'}}/>
-            <Typography variant="h6" style={{fontWeight: 'bold', color: '#1C2E4A'}}>Processando Laudo...</Typography>
-            <Typography variant="body2" color="textSecondary" style={{marginTop: '10px'}}>Gerando PDF e aplicando assinatura digital.<br/>Isso pode levar alguns segundos.</Typography>
-        </div>
-      </Dialog>
+      <Dialog open={isPolling} disableEscapeKeyDown><div style={{padding: '40px', textAlign: 'center', minWidth: '300px'}}><FaSpinner className="spin" size={40} color="#1C2E4A" style={{marginBottom: '20px'}}/><Typography variant="h6" style={{fontWeight: 'bold', color: '#1C2E4A'}}>Processando Laudo...</Typography><Typography variant="body2" color="textSecondary" style={{marginTop: '10px'}}>Gerando PDF e aplicando assinatura digital.<br/>Isso pode levar alguns segundos.</Typography></div></Dialog>
 
       <Dialog open={modalAuditoriaOpen} onClose={() => {}} maxWidth="sm" fullWidth>
         <div style={{ padding: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
-                <FaExclamationTriangle size={24} color="#d32f2f" />
-                <Typography variant="h6" style={{ color: '#b71c1c', fontWeight: 'bold', margin: 0 }}>Revisão Sugerida</Typography>
-            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}><FaExclamationTriangle size={24} color="#d32f2f" /><Typography variant="h6" style={{ color: '#b71c1c', fontWeight: 'bold', margin: 0 }}>Revisão Sugerida</Typography></div>
             <Typography variant="body2" style={{ marginBottom: '20px', color: '#555', fontSize: '14px' }}>O Assistente de Qualidade encontrou possíveis inconsistências lógicas no seu laudo. Verifique os pontos abaixo antes de emitir o documento final:</Typography>
-            <div style={{ maxHeight: '250px', overflowY: 'auto', background: '#fff3f3', padding: '15px', borderRadius: '8px', border: '1px solid #ffcdd2', marginBottom: '25px' }}>
-                {discrepanciasDetectadas.map((disc, idx) => (
-                    <div key={idx} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: idx !== discrepanciasDetectadas.length - 1 ? '1px dashed #ef9a9a' : 'none' }}>
-                        <span style={{ fontWeight: 'bold', color: '#b71c1c', display: 'block', fontSize: '12px', marginBottom: '2px' }}>{disc.campo.toUpperCase()}:</span>
-                        <span style={{ color: '#333', fontSize: '13px' }}>{disc.aviso}</span>
-                    </div>
-                ))}
-            </div>
+            <div style={{ maxHeight: '250px', overflowY: 'auto', background: '#fff3f3', padding: '15px', borderRadius: '8px', border: '1px solid #ffcdd2', marginBottom: '25px' }}>{discrepanciasDetectadas.map((disc, idx) => (<div key={idx} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: idx !== discrepanciasDetectadas.length - 1 ? '1px dashed #ef9a9a' : 'none' }}><span style={{ fontWeight: 'bold', color: '#b71c1c', display: 'block', fontSize: '12px', marginBottom: '2px' }}>{disc.campo.toUpperCase()}:</span><span style={{ color: '#333', fontSize: '13px' }}>{disc.aviso}</span></div>))}</div>
             <Grid container spacing={2}>
-                <Grid item xs={6}>
-                    <Button fullWidth variant="outlined" onClick={() => { setModalAuditoriaOpen(false); setModalRevisaoOpen(true); }} style={{ borderColor: '#1C2E4A', color: '#1C2E4A', fontWeight: 'bold', height: '45px' }}>Voltar e Corrigir</Button>
-                </Grid>
-                <Grid item xs={6}>
-                    <Button fullWidth variant="contained" onClick={() => { setModalAuditoriaOpen(false); if (tempSubmissionData) { handleFinalizacaoAssincrona(tempSubmissionData.textoCorrigido, tempSubmissionData.imagensFinais, tempSubmissionData.dataExameSelecionada, tempSubmissionData.senhaAutorizacao, true); } }} style={{ background: '#b71c1c', fontWeight: 'bold', height: '45px' }}>Ignorar e Assinar</Button>
-                </Grid>
+                <Grid item xs={6}><Button fullWidth variant="outlined" onClick={() => { setModalAuditoriaOpen(false); setModalRevisaoOpen(true); }} style={{ borderColor: '#1C2E4A', color: '#1C2E4A', fontWeight: 'bold', height: '45px' }}>Voltar e Corrigir</Button></Grid>
+                <Grid item xs={6}><Button fullWidth variant="contained" onClick={() => { setModalAuditoriaOpen(false); if (tempSubmissionData) { handleFinalizacaoAssincrona(tempSubmissionData.textoCorrigido, tempSubmissionData.imagensFinais, tempSubmissionData.dataExameSelecionada, tempSubmissionData.senhaAutorizacao, true); } }} style={{ background: '#b71c1c', fontWeight: 'bold', height: '45px' }}>Ignorar e Assinar</Button></Grid>
             </Grid>
         </div>
       </Dialog>
