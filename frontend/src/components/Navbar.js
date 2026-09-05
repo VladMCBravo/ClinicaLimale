@@ -1,5 +1,6 @@
 // src/components/Navbar.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSnackbar } from '../contexts/SnackbarContext';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useChat } from '../contexts/ChatContext';
@@ -17,10 +18,42 @@ import './Navbar.css';
 
 const Navbar = () => {
     const { user, logout, token } = useAuth();
-    const { mensagensNaoLidas, isChatOpen, abrirChat, fecharChat } = useChat();
-
-    // Estado limpo apenas para controlar se o modal está aberto ou fechado
+    const { showSnackbar } = useSnackbar(); // <-- 2. INICIE O SNACKBAR
+    
+    // 3. PUXE O SOCKET DO CONTEXTO
+    const { mensagensNaoLidas, isChatOpen, abrirChat, fecharChat, socket } = useChat(); 
     const [isPontoOpen, setIsPontoOpen] = useState(false);
+
+    // 4. ADICIONE O OUVINTE GLOBAL DE MENSAGENS E NOTIFICAÇÕES
+    useEffect(() => {
+        if (!socket || !user) return;
+
+        const handleNotificacaoGlobal = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'chat_message' && data.message.sender_id !== user.id) {
+                
+                // Avisa o backend que a mensagem foi entregue à máquina
+                socket.send(JSON.stringify({ 
+                    action: 'update_status', 
+                    message_id: data.message.id, 
+                    status: 'delivered' 
+                }));
+
+                // Se o chat estiver fechado, dispara o som e o Toast
+                if (!isChatOpen) {
+                    // ✅ O .play() retorna uma Promise. Tratamos o erro assíncrono com .catch()
+                    const audio = new Audio('/notificacao.mp3');
+                    audio.play().catch(e => console.warn("Áudio ausente ou bloqueado", e));
+                    
+                    showSnackbar(`Nova mensagem de ${data.message.sender_nome || 'um colega'}!`, 'info');
+                }
+            }
+        };
+
+        socket.addEventListener('message', handleNotificacaoGlobal);
+        return () => socket.removeEventListener('message', handleNotificacaoGlobal);
+    }, [socket, isChatOpen, user, showSnackbar]);
 
     const renderPrincipalLink = () => {
         if (user.isRecepcao || user.isAdmin) {
