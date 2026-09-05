@@ -988,7 +988,6 @@ class LaudoListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         paciente_id = self.request.query_params.get('paciente')
         
-        # Mágica do ORM: Carrega os relacionamentos na mesma query
         queryset = Laudo.objects.select_related(
             'paciente', 'medico', 'exame'
         ).prefetch_related(
@@ -1863,10 +1862,7 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
             from .tasks import processar_laudo_background
             
             # Só inicia a Thread APÓS o commit final no banco de dados (evita Race Condition)
-            transaction.on_commit(lambda: threading.Thread(
-                target=processar_laudo_background, 
-                args=(laudo.id,)
-            ).start())
+            transaction.on_commit(lambda: processar_laudo_background.delay(laudo.id))
             
             print(f"[API] Laudo {laudo.id} programado para Thread em background.")
 

@@ -10,11 +10,12 @@ from core.services_assinatura import assinar_pdf_digitalmente
 from .services_auditoria import auditar_coerencia_laudo
 
 # Remova o @shared_task, já que não estamos mais usando Celery
+@shared_task
 def processar_laudo_background(laudo_id):
     """
-    Tarefa assíncrona usando Threading nativo.
+    Tarefa assíncrona via Celery.
     """
-    print(f"[THREAD] Iniciando processamento do Laudo ID: {laudo_id}")
+    print(f"[CELERY] Iniciando processamento do Laudo ID: {laudo_id}")
     
     try:
         laudo = Laudo.objects.get(id=laudo_id)
