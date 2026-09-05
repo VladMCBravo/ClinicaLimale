@@ -484,3 +484,37 @@ class TestAtestadoAPIViews:
         
         assert atestado.cid == 'J01.9'
         assert atestado.paciente_autorizou_cid is True
+
+@pytest.mark.django_db
+class TestLaudoAsyncViewDisparaCeleryCorretamente:
+
+    @patch('django.db.transaction.on_commit', side_effect=lambda callback: callback())
+    @patch('prontuario.tasks.processar_laudo_background.delay')
+    @patch('prontuario.utils.gerar_pdf_laudo_backend')
+    def test_view_chama_delay_e_nao_threading(
+        self, mock_gerar_pdf, mock_delay, mock_on_commit,
+        client, medico_titular, paciente_padrao
+    ):
+        """
+        Regressão: garante que a view usa Celery (.delay()) e não
+        volta a usar threading.Thread(...) por engano.
+        """
+        mock_gerar_pdf.return_value = b"PDF_FALSO"
+
+        client.force_authenticate(user=medico_titular)
+        url = reverse('laudo-create-async')
+        payload = {
+            'paciente': paciente_padrao.id,
+            'titulo': 'USG Obstétrico',
+            'texto_laudo': 'Feto bem desenvolvido.',
+            'crm_medico': '123456',
+            'senha_medico': '123'
+        }
+
+        response = client.post(url, payload, format='multipart')
+        assert response.status_code == status.HTTP_202_ACCEPTED
+
+        laudo = Laudo.objects.get(paciente=paciente_padrao)
+
+        # A prova de ouro: o .delay() precisa ter sido chamado com o ID certo
+        mock_delay.assert_called_once_with(laudo.id)
