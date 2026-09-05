@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { 
   FaSave, FaFileAlt, FaSpinner, FaEraser, FaUserMd, FaUserInjured, 
   FaNotesMedical, FaIdCard, FaTimes, FaCheckCircle, FaWhatsapp, 
-  FaEnvelope, FaExclamationTriangle, FaCalendarAlt, FaStethoscope, FaClock
+  FaEnvelope, FaExclamationTriangle, FaStethoscope, FaClock
 } from 'react-icons/fa';
 import apiClient from '../api/axiosConfig';
 import { 
@@ -98,8 +98,7 @@ const LaudosPage = () => {
 
   const [tipoExame, setTipoExame] = useState(() => getInitialState('tipoExame', 'OBSTETRICO'));
   const [paciente, setPaciente] = useState(() => getInitialState('paciente', null));
-  const hojeISO = new Date().toISOString().split('T')[0];
-
+  
   const [termoBusca, setTermoBusca] = useState('');
   const [pacientesEncontrados, setPacientesEncontrados] = useState([]);
   const [loadingBusca, setLoadingBusca] = useState(false);
@@ -180,7 +179,7 @@ const LaudosPage = () => {
             if (agrupadosMap.has(chave)) {
                 const existente = agrupadosMap.get(chave);
                 existente.procedimento_descricao += ` + ${procAtual}`;
-                existente.agendamentos_vinculados.push(ag); // Salva o array de exames vinculados
+                existente.agendamentos_vinculados.push(ag);
             } else {
                 const novo = { ...ag };
                 novo.procedimento_descricao = procAtual;
@@ -210,20 +209,16 @@ const LaudosPage = () => {
       return () => { htmlEl.style.overflow = prev.htmlOverflow; bodyEl.style.overflow = prev.bodyOverflow; htmlEl.style.height = prev.htmlHeight; bodyEl.style.height = prev.bodyHeight; };
   }, []);
 
-  // --- 2. GESTÃO DE CLIQUES NOS CARDS ---
   const handleCardClick = (ag) => {
       if (ag.agendamentos_vinculados && ag.agendamentos_vinculados.length > 1) {
-          // Mais de um exame -> Abre o modal para perguntar
           setExamesParaSelecionar(ag.agendamentos_vinculados);
           setModalSelecaoExameOpen(true);
       } else {
-          // Apenas um exame -> Inicia direto
           const exameEspecifico = ag.agendamentos_vinculados ? ag.agendamentos_vinculados[0] : ag;
           iniciarLaudo(exameEspecifico);
       }
   };
 
-  // --- FUNÇÃO AUXILIAR DE STATUS ---
   const atualizarStatusAgendamento = async (idAgendamento, novoStatus) => {
       if (!idAgendamento) return;
       try {
@@ -258,38 +253,7 @@ const LaudosPage = () => {
             atualizarStatusAgendamento(agEspecifico.id, 'Em Atendimento');
         }
         
-        // SALVA O ID para podermos finalizar depois!
         setAgendamentoAtivoId(agEspecifico.id);
-
-        const idPaciente = agEspecifico.paciente_id || agEspecifico.paciente;
-            try {
-                // 1. Buscamos o agendamento fresco do banco de dados
-                const resAg = await apiClient.get(`/agendamentos/${agEspecifico.id}/`);
-                const agBanco = resAg.data;
-
-                // 2. Extrator de IDs: Garante que objetos virem IDs numéricos limpos
-                const extrairId = (campo) => (campo && typeof campo === 'object' && 'id' in campo) ? campo.id : campo;
-
-                // 3. Montamos o pacote de dados exigido pelo Django Rest Framework
-                const payloadSeguro = {
-                    status: 'Em Atendimento',
-                    paciente: extrairId(agBanco.paciente),
-                    data_hora_inicio: agBanco.data_hora_inicio,
-                    data_hora_fim: agBanco.data_hora_fim,
-                    medico: extrairId(agBanco.medico),
-                    sala: extrairId(agBanco.sala),
-                    procedimento: extrairId(agBanco.procedimento),
-                    tipo_atendimento: agBanco.tipo_atendimento || 'Particular',
-                    plano_utilizado: agBanco.plano_utilizado_id || null,
-                    is_encaixe: agBanco.is_encaixe
-                };
-
-                await apiClient.patch(`/agendamentos/${agEspecifico.id}/`, payloadSeguro);
-                console.log("Status atualizado para Em Atendimento com sucesso!");
-            } catch (e) {
-                console.error("Falha ao atualizar status para Em Atendimento:", e.response?.data || e.message);
-            }
-        }
 
         const idPaciente = agEspecifico.paciente_id || agEspecifico.paciente;
         const res = await apiClient.get(`/pacientes/${idPaciente}/`);
@@ -456,7 +420,7 @@ const LaudosPage = () => {
                     // === MÁGICA 2: ENCERRA O CRONÔMETRO ===
                     if (agendamentoAtivoId) {
                         await atualizarStatusAgendamento(agendamentoAtivoId, 'Realizado');
-                        setAgendamentoAtivoId(null); // Limpa o ID após finalizar
+                        setAgendamentoAtivoId(null); 
                     }
 
                     if (res.data.credenciais) setCredenciais(res.data.credenciais);
@@ -520,7 +484,6 @@ const LaudosPage = () => {
               ) : pacientesDia.length === 0 ? (
                   <Typography variant="body2" sx={{ color: '#666', textAlign: 'center', mt: 5 }}>Nenhum paciente agendado para hoje.</Typography>
               ) : (
-                  // ==== CARDS SUPER COMPACTOS ESTILO SIDEBAR ====
                   <Grid container spacing={1.5}>
                       {pacientesDia.map(ag => {
                           const semaforo = calcularStatusSemaforo(ag, now);
@@ -542,7 +505,6 @@ const LaudosPage = () => {
                                           '&:hover': { filter: 'brightness(0.97)', transform: 'translateY(-1px)', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }
                                       }}
                                   >
-                                      {/* LINHA 1: Horário, ID e Timer */}
                                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                                           <Box sx={{ display: 'flex', gap: 0.8, alignItems: 'center' }}>
                                               <Typography sx={{ fontWeight: 800, fontSize: '0.85rem', color: semaforo.cor.text }}>
@@ -560,12 +522,10 @@ const LaudosPage = () => {
                                           )}
                                       </Box>
 
-                                      {/* LINHA 2: Nome do Paciente */}
                                       <Typography noWrap sx={{ fontWeight: 800, fontSize: '0.85rem', color: semaforo.cor.text, mb: 0.5 }}>
                                           {ag.paciente_nome}
                                       </Typography>
 
-                                      {/* LINHA 3: Procedimento e Etiqueta de Exames Múltiplos */}
                                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.5 }}>
                                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
                                               <FaStethoscope size={10} color={semaforo.cor.indicator} style={{ flexShrink: 0 }} />
@@ -578,7 +538,6 @@ const LaudosPage = () => {
                                           )}
                                       </Box>
 
-                                      {/* LINHA 4: Status e Médico */}
                                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
                                           <Typography noWrap sx={{ fontSize: '0.65rem', fontWeight: 700, color: semaforo.cor.text, opacity: 0.8 }}>
                                               {semaforo.label}
