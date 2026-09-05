@@ -83,6 +83,7 @@ const descobrirTipoExame = (ag) => {
 const LaudosPage = () => {
   const [telaAtual, setTelaAtual] = useState('CARDS'); // 'CARDS' ou 'FORM'
   const [pacientesDia, setPacientesDia] = useState([]);
+  const [agendamentoAtivoId, setAgendamentoAtivoId] = useState(() => getInitialState('agendamentoAtivoId', null));
   const [loadingCards, setLoadingCards] = useState(true);
   const [now, setNow] = useState(new Date());
 
@@ -222,14 +223,72 @@ const LaudosPage = () => {
       }
   };
 
+  // --- FUNÇÃO AUXILIAR DE STATUS ---
+  const atualizarStatusAgendamento = async (idAgendamento, novoStatus) => {
+      if (!idAgendamento) return;
+      try {
+          const resAg = await apiClient.get(`/agendamentos/${idAgendamento}/`);
+          const agBanco = resAg.data;
+          const extrairId = (c) => (c && typeof c === 'object' && 'id' in c) ? c.id : c;
+          
+          await apiClient.patch(`/agendamentos/${idAgendamento}/`, {
+              status: novoStatus,
+              paciente: extrairId(agBanco.paciente),
+              data_hora_inicio: agBanco.data_hora_inicio,
+              data_hora_fim: agBanco.data_hora_fim,
+              medico: extrairId(agBanco.medico),
+              sala: extrairId(agBanco.sala),
+              procedimento: extrairId(agBanco.procedimento),
+              tipo_atendimento: agBanco.tipo_atendimento || 'Particular',
+              plano_utilizado: agBanco.plano_utilizado_id || null,
+              is_encaixe: agBanco.is_encaixe
+          });
+          console.log(`Status do agendamento ${idAgendamento} atualizado para ${novoStatus}`);
+      } catch (e) {
+          console.error(`Falha ao atualizar status para ${novoStatus}:`, e.response?.data || e.message);
+      }
+  };
+
   const iniciarLaudo = async (agEspecifico) => {
     setModalSelecaoExameOpen(false);
     setLoadingBusca(true);
     try {
         // === MÁGICA 1: ATUALIZA PARA AZUL (Em Atendimento) ===
         if (agEspecifico.status !== 'Em Atendimento' && agEspecifico.status !== 'Realizado' && agEspecifico.status !== 'Cancelado') {
-            apiClient.patch(`/agendamentos/${agEspecifico.id}/`, { status: 'Em Atendimento' })
-                .catch(e => console.error("Falha silenciosa ao atualizar status para Em Atendimento", e));
+            atualizarStatusAgendamento(agEspecifico.id, 'Em Atendimento');
+        }
+        
+        // SALVA O ID para podermos finalizar depois!
+        setAgendamentoAtivoId(agEspecifico.id);
+
+        const idPaciente = agEspecifico.paciente_id || agEspecifico.paciente;
+            try {
+                // 1. Buscamos o agendamento fresco do banco de dados
+                const resAg = await apiClient.get(`/agendamentos/${agEspecifico.id}/`);
+                const agBanco = resAg.data;
+
+                // 2. Extrator de IDs: Garante que objetos virem IDs numéricos limpos
+                const extrairId = (campo) => (campo && typeof campo === 'object' && 'id' in campo) ? campo.id : campo;
+
+                // 3. Montamos o pacote de dados exigido pelo Django Rest Framework
+                const payloadSeguro = {
+                    status: 'Em Atendimento',
+                    paciente: extrairId(agBanco.paciente),
+                    data_hora_inicio: agBanco.data_hora_inicio,
+                    data_hora_fim: agBanco.data_hora_fim,
+                    medico: extrairId(agBanco.medico),
+                    sala: extrairId(agBanco.sala),
+                    procedimento: extrairId(agBanco.procedimento),
+                    tipo_atendimento: agBanco.tipo_atendimento || 'Particular',
+                    plano_utilizado: agBanco.plano_utilizado_id || null,
+                    is_encaixe: agBanco.is_encaixe
+                };
+
+                await apiClient.patch(`/agendamentos/${agEspecifico.id}/`, payloadSeguro);
+                console.log("Status atualizado para Em Atendimento com sucesso!");
+            } catch (e) {
+                console.error("Falha ao atualizar status para Em Atendimento:", e.response?.data || e.message);
+            }
         }
 
         const idPaciente = agEspecifico.paciente_id || agEspecifico.paciente;
@@ -315,13 +374,13 @@ const LaudosPage = () => {
   };
 
   useEffect(() => {
-      const dadosParaSalvar = { laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens };
+      const dadosParaSalvar = { laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens, agendamentoAtivoId };
       const timeoutId = setTimeout(() => {
           try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dadosParaSalvar)); } 
           catch (e) { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...dadosParaSalvar, imagens: [] })); }
       }, 1000);
       return () => clearTimeout(timeoutId);
-  }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens]);
+  }, [laudoId, tipoExame, paciente, medicoNome, medicoCrm, medicoEspecialidades, textoFinal, dadosEstruturados, tituloExame, imagens, agendamentoAtivoId]);
 
   const handleLimpar = () => {
     if (window.confirm("Limpar formulário e retornar aos cards? O rascunho será perdido.")) {
@@ -331,6 +390,7 @@ const LaudosPage = () => {
         setDadosEstruturados({}); setTituloExame(''); setImagens([]); setTermoBusca('');
         setPacientesEncontrados([]);
         setTelaAtual('CARDS');
+        setAgendamentoAtivoId(null);
     }
   };
 
@@ -392,6 +452,13 @@ const LaudosPage = () => {
                 const res = await apiClient.get(`/prontuario/laudos/${laudoProcessandoId}/status/`);
                 if (res.data.status === 'FINALIZADO') {
                     setIsPolling(false);
+
+                    // === MÁGICA 2: ENCERRA O CRONÔMETRO ===
+                    if (agendamentoAtivoId) {
+                        await atualizarStatusAgendamento(agendamentoAtivoId, 'Realizado');
+                        setAgendamentoAtivoId(null); // Limpa o ID após finalizar
+                    }
+
                     if (res.data.credenciais) setCredenciais(res.data.credenciais);
                     if (res.data.arquivo_url) {
                         const baseUrl = apiClient.defaults.baseURL.replace('/api', '').replace(/\/$/, '');
