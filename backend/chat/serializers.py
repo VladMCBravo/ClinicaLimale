@@ -7,11 +7,13 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Message
-        fields = ['id', 'content', 'attachment_type', 'attachment_id', 'created_at', 'is_mine']
+        fields = [
+            'id', 'content', 'attachment_type', 'attachment_id', 
+            'created_at', 'is_mine', 'is_delivered', 'is_read'
+        ]
 
     def get_is_mine(self, obj):
         request = self.context.get('request')
-        # Verifica se o remetente é o usuário que fez a requisição
         if request and hasattr(request, 'user'):
             return obj.sender == request.user
         return False

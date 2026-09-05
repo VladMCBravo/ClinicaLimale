@@ -4,7 +4,11 @@ import {
   List, ListItem, ListItemAvatar, ListItemText, Avatar, Badge,
   CircularProgress, Divider, Paper
 } from '@mui/material';
-import { Send as SendIcon, Person as PersonIcon, Event as EventIcon, Description as DescriptionIcon } from '@mui/icons-material';
+import { 
+  Send as SendIcon, Person as PersonIcon, Event as EventIcon, 
+  Description as DescriptionIcon, Done as DoneIcon, DoneAll as DoneAllIcon 
+} from '@mui/icons-material';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../hooks/useAuth'; 
 import apiClient from '../../api/axiosConfig';
@@ -15,6 +19,7 @@ import ChatApoioDireita from './ChatApoioDireita';
 const ChatInterno = ({ onClose, token }) => {
   const { user: currentUser } = useAuth(); 
   const { socket } = useChat();
+  const { showSnackbar } = useSnackbar(); // <--- ADICIONE ESTA LINHA
   
   const [contatoAtivo, setContatoAtivo] = useState(null);
   const [mensagens, setMensagens] = useState([]);
@@ -44,7 +49,7 @@ const ChatInterno = ({ onClose, token }) => {
         const usuariosValidos = res.data.filter(u => 
           u.is_active && 
           u.id !== currentUser?.id &&
-          (u.cargo === 'admin' || u.cargo === 'recepcao') &&
+          (u.cargo === 'admin' || u.cargo === 'recepcao' || u.cargo === 'medico') && // <-- Adicione 'medico' aqui
           (u.first_name && u.first_name.trim() !== '') 
         );
         
@@ -75,14 +80,45 @@ const ChatInterno = ({ onClose, token }) => {
           
           if (pertenceAAbaAtual) {
             setMensagens((prev) => [...prev, { ...msg, sender: msg.sender_id === currentUser.id ? 'me' : 'other' }]);
+            
+            // NOVO: Se a mensagem não é minha e estou com a aba aberta, eu li!
+            if (msg.sender_id !== currentUser.id) {
+               socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'read' }));
+            }
           } else if (msg.sender_id !== currentUser.id) {
+            
+            // NOVO: A mensagem é pra mim, mas estou em outra aba. Foi entregue, mas não lida.
+            socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'delivered' }));
+            
             setNaoLidasPorContato(prev => ({
               ...prev,
               [msg.sender_id]: (prev[msg.sender_id] || 0) + 1
             }));
-          }
 
-        } else if (data.type === 'user_status') {
+            // NOVO: Toca o som de notificação (coloque o arquivo public/notificacao.mp3)
+            try {
+                const audio = new Audio('/notificacao.mp3');
+                audio.play();
+            } catch (e) { console.warn("Navegador bloqueou áudio", e); }
+
+            // NOVO: Dispara notificação visual usando o SEU provider!
+            showSnackbar(`Nova mensagem de ${msg.sender_nome || 'um colega'}!`, 'info');
+          }
+        } 
+        // NOVO: Escuta a mudança de status (os tiques azuis)
+        else if (data.type === 'message_status') {
+            setMensagens(prev => prev.map(m => {
+                if (m.id === data.message_id) {
+                    return { 
+                        ...m, 
+                        is_delivered: data.status === 'delivered' || m.is_delivered || data.status === 'read',
+                        is_read: data.status === 'read' || m.is_read 
+                    };
+                }
+                return m;
+            }));
+        }
+        else if (data.type === 'user_status') {
           setEquipe((prevEquipe) => 
             prevEquipe.map((func) => 
               func.id === data.user_id ? { ...func, is_online: data.is_online } : func
@@ -104,15 +140,22 @@ const ChatInterno = ({ onClose, token }) => {
         .then(res => {
           const data = res.data;
           const lista = Array.isArray(data) ? data : (data.results || []);
-          const historicoFormatado = lista.map(msg => ({
-            ...msg,
-            sender: msg.is_mine ? 'me' : 'other' 
-          }));
+          const historicoFormatado = lista.map(msg => {
+            // Varre o histórico e avisa o backend que agora você leu
+            if (!msg.is_mine && !msg.is_read && socket && socket.readyState === 1) {
+                socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'read' }));
+                msg.is_read = true;
+            }
+            return {
+                ...msg,
+                sender: msg.is_mine ? 'me' : 'other' 
+            };
+          });
           setMensagens(historicoFormatado);
         })
         .catch(err => console.error("Erro ao carregar histórico:", err));
     }
-  }, [contatoAtivo]);
+  }, [contatoAtivo, socket]);
 
 
   // 4. FUNÇÕES DE ENVIO PARA O SOCKET
@@ -133,6 +176,7 @@ const ChatInterno = ({ onClose, token }) => {
     if (!checkSocket() || !mensagemAtual.trim()) return;
 
     const payload = {
+      action: 'send_message', // <--- NOVO
       receiver_id: contatoAtivo.id,
       content: mensagemAtual.trim(),
       attachment_type: 'text'
@@ -151,6 +195,7 @@ const ChatInterno = ({ onClose, token }) => {
     const nomePaciente = agendamento.paciente_nome || 'Paciente não informado';
 
     const payload = {
+      action: 'send_message', // <--- NOVO
       receiver_id: contatoAtivo.id,
       content: `Agendamento: ${nomePaciente} às ${horaStr}`, 
       attachment_type: 'appointment',
@@ -171,6 +216,7 @@ const ChatInterno = ({ onClose, token }) => {
     const email = paciente.email || 'Não informado';
 
     const payload = {
+      action: 'send_message', // <--- NOVO
       receiver_id: contatoAtivo.id,
       // A string content abaixo é o texto que o chat vai desenhar dentro do balão
       content: `👤 ${paciente.nome_completo || paciente.nome}\n📱 Tel: ${telefone}\n✉️ Email: ${email}`, 
@@ -191,6 +237,7 @@ const ChatInterno = ({ onClose, token }) => {
     const tipo = doc.tipo_atestado || 'Documento Médico';
 
     const payload = {
+      action: 'send_message', // <--- NOVO
       receiver_id: contatoAtivo.id,
       content: `📄 ${tipo}\n👤 Paciente: ${paciente.nome_completo || paciente.nome}\n📅 Data: ${dataBR}`, 
       attachment_type: 'document',
@@ -310,6 +357,24 @@ const ChatInterno = ({ onClose, token }) => {
                   const horaMsg = msg.timestamp || msg.created_at || new Date().toISOString();
                   const horaStr = new Date(horaMsg).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
+                  // CRIAMOS ISSO PARA NÃO REPETIR O CÓDIGO 4 VEZES!
+                  const renderHorarioETiques = () => (
+                    <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mt: 1, color: isMe ? '#558b2f' : '#9e9e9e', fontSize: '0.65rem' }}>
+                      {horaStr}
+                      {isMe && (
+                        <Box component="span" sx={{ ml: 0.5, display: 'inline-flex' }}>
+                          {msg.is_read ? (
+                            <DoneAllIcon sx={{ fontSize: 16, color: '#2196f3' }} /> /* Azul: Lido */
+                          ) : msg.is_delivered ? (
+                            <DoneAllIcon sx={{ fontSize: 16, color: '#9e9e9e' }} /> /* Cinza Duplo: Entregue */
+                          ) : (
+                            <DoneIcon sx={{ fontSize: 16, color: '#9e9e9e' }} />    /* Cinza Simples: Enviado */
+                          )}
+                        </Box>
+                      )}
+                    </Typography>
+                  );
+
                   return (
                     <Box key={idx} sx={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
                       <Box sx={{ maxWidth: '75%' }}>
@@ -323,7 +388,7 @@ const ChatInterno = ({ onClose, token }) => {
                             <Box sx={{ p: 2, bgcolor: '#fff' }}>
                               <Typography variant="body2" fontWeight="bold" sx={{ color: '#333' }}>{msg.content}</Typography>
                               <Button size="small" variant="outlined" sx={{ mt: 1, textTransform: 'none' }}>Ver no Prontuário</Button>
-                              <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mt: 1, color: '#9e9e9e', fontSize: '0.65rem' }}>{horaStr}</Typography>
+                              {renderHorarioETiques()}
                             </Box>
                           </Paper>
                         ) : msg.attachment_type === 'document' ? (
@@ -341,7 +406,7 @@ const ChatInterno = ({ onClose, token }) => {
                               >
                                 Visualizar PDF
                               </Button>
-                              <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mt: 1, color: '#9e9e9e', fontSize: '0.65rem' }}>{horaStr}</Typography>
+                              {renderHorarioETiques()}
                             </Box>
                           </Paper>
                         ) : msg.attachment_type === 'patient' ? (
@@ -352,7 +417,7 @@ const ChatInterno = ({ onClose, token }) => {
                             </Box>
                             <Box sx={{ p: 2, bgcolor: '#fff', whiteSpace: 'pre-wrap' }}>
                               <Typography variant="body2" fontWeight="bold" sx={{ color: '#333' }}>{msg.content}</Typography>
-                              <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mt: 1, color: '#9e9e9e', fontSize: '0.65rem' }}>{horaStr}</Typography>
+                              {renderHorarioETiques()}
                             </Box>
                           </Paper>
                         ) : (
@@ -363,9 +428,7 @@ const ChatInterno = ({ onClose, token }) => {
                             borderTopRightRadius: isMe ? 0 : 8, borderTopLeftRadius: !isMe ? 0 : 8,
                           }}>
                             <Typography variant="body2" sx={{ color: '#222', whiteSpace: 'pre-wrap' }}>{msg.content}</Typography>
-                            <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', mt: 0.5, color: isMe ? '#558b2f' : '#9e9e9e', fontSize: '0.65rem' }}>
-                              {horaStr}
-                            </Typography>
+                            {renderHorarioETiques()}
                           </Paper>
                         )}
                       </Box>
