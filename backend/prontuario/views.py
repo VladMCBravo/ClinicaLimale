@@ -993,7 +993,7 @@ class LaudoListCreateView(generics.ListCreateAPIView):
             'paciente', 'medico', 'exame'
         ).prefetch_related(
             'imagens', 'exame__arquivos'
-        ).order_by('-data_criacao')
+        ).defer('dados_estruturados').order_by('-data_criacao')
 
         if paciente_id:
             return queryset.filter(paciente__id=paciente_id)

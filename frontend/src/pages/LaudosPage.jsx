@@ -267,19 +267,33 @@ const LaudosPage = () => {
         else if (cleanSexo === 'M' || cleanSexo === 'MASCULINO') sexoMapeado = 'Masculino';
         else sexoMapeado = rawSexo;
 
-        let nomeMedico = agEspecifico.medico_nome || agEspecifico.medico_nome_com_prefixo || '';
+        // ==============================================================
+        // --- LÓGICA CORRIGIDA DO MÉDICO E CRM ---
+        // ==============================================================
+        let nomeMedico = agEspecifico.medico_nome_com_prefixo || agEspecifico.medico_nome || '';
         let crm = '';
-        if (!nomeMedico && medicoLogadoObj) {
+        
+        // 1. Tenta achar o médico na lista de médicos carregada no sistema (todosMedicos) usando o ID
+        const idDoMedico = agEspecifico.medico_id || agEspecifico.medico;
+        const medicoMatch = todosMedicos.find(m => m.id === idDoMedico);
+
+        if (medicoMatch) {
+            // Se achou o médico no banco de dados do frontend, puxa o Nome e o CRM exatos!
+            nomeMedico = medicoMatch.first_name ? `${medicoMatch.first_name} ${medicoMatch.last_name}` : medicoMatch.username;
+            crm = medicoMatch.crm || '';
+        } else if (!nomeMedico && medicoLogadoObj) {
+            // Fallback de Segurança: Se não tem médico no agendamento, joga para o usuário logado
             nomeMedico = medicoLogadoObj.first_name ? `${medicoLogadoObj.first_name} ${medicoLogadoObj.last_name}` : medicoLogadoObj.username;
             crm = medicoLogadoObj.crm || '';
         }
+        // ==============================================================
 
         const tipoMatch = descobrirTipoExame(agEspecifico);
 
         setPaciente(pacienteCompleto);
         setDadosEstruturados(prev => ({ ...prev, dataNascimento: pacienteCompleto.data_nascimento || '', sexo: sexoMapeado }));
         setMedicoNome(nomeMedico);
-        if (crm) setMedicoCrm(crm);
+        setMedicoCrm(crm); // <- Agora ele seta o CRM encontrado com precisão!
         setTipoExame(tipoMatch);
         setTituloExame(agEspecifico.procedimento_descricao || '');
 
