@@ -64,7 +64,7 @@ class AgendamentoConflitosTests(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         # Verifica se o serializer cuspiu a mensagem correta interceptando o erro na 'sala'
-        self.assertIn("já está ocupada", str(response.data))
+        self.assertIn("já tem um paciente", str(response.data))
 
     def test_sucesso_ao_forcar_encaixe(self):
         """
@@ -95,13 +95,13 @@ class AgendamentoRegrasNegocioTests(APITestCase):
         self.medico = User.objects.create_user(username='dr_tempo', password='123', cargo='medico')
         self.url = reverse('lista-agendamentos')
         
-        # Criamos uma data exata de 1 dia atrás
-        self.ontem = timezone.now() - timedelta(days=1)
+        # 👇 CORREÇÃO 1: Mudamos de 1 dia para 3 dias atrás, forçando o bloqueio das 48h
+        self.data_retroativa = timezone.now() - timedelta(days=3)
 
     def test_bloqueio_agendamento_no_passado(self):
         """
-        Cenário: Tentar marcar uma consulta para ontem.
-        Resultado Esperado: Erro 400 Bad Request bloqueando a viagem no tempo.
+        Cenário: Tentar marcar uma consulta para 3 dias atrás (fora da janela de 48h).
+        Resultado Esperado: Erro 400 Bad Request bloqueando o agendamento retroativo.
         """
         self.client.force_authenticate(user=self.user_recepcao)
         
@@ -109,39 +109,36 @@ class AgendamentoRegrasNegocioTests(APITestCase):
             "paciente": self.paciente.id,
             "medico": self.medico.id,
             "tipo_agendamento": "Consulta",
-            "data_hora_inicio": self.ontem.isoformat(),
-            "data_hora_fim": (self.ontem + timedelta(minutes=30)).isoformat()
+            "data_hora_inicio": self.data_retroativa.isoformat(),
+            "data_hora_fim": (self.data_retroativa + timedelta(minutes=30)).isoformat()
         }
         
         response = self.client.post(self.url, dados_passado)
         
-        # Nós ESPERAMOS que o sistema barre com um 400 Bad Request
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         
-        # E esperamos que a mensagem de erro tenha a palavra 'passado'
-        self.assertIn("passado", str(response.data).lower())
+        # 👇 CORREÇÃO 2: A nova mensagem da API usa a palavra "retroativa"
+        self.assertIn("retroativa", str(response.data).lower())
 
     def test_admin_pode_agendar_no_passado(self):
-            """
-            Cenário: Admin tenta marcar uma consulta para ontem (regularização de agenda).
-            Resultado Esperado: Sucesso (201 Created), pois a trava não se aplica a ele.
-            """
-            # Criamos o nosso usuário Administrador com a "chave mestra"
-            user_admin = User.objects.create_user(username='chefe_admin', password='123', cargo='admin')
-            self.client.force_authenticate(user=user_admin)
-            
-            dados_passado = {
-                "paciente": self.paciente.id,
-                "medico": self.medico.id,
-                "tipo_agendamento": "Consulta",
-                "data_hora_inicio": self.ontem.isoformat(),
-                "data_hora_fim": (self.ontem + timedelta(minutes=30)).isoformat()
-            }
-            
-            response = self.client.post(self.url, dados_passado)
-            
-            # O Admin TEM o poder da viagem no tempo, então esperamos sucesso 201
-            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        """
+        Cenário: Admin tenta marcar uma consulta para 3 dias atrás (regularização de agenda).
+        Resultado Esperado: Sucesso (201 Created), pois a trava das 48h não se aplica a ele.
+        """
+        user_admin = User.objects.create_user(username='chefe_admin', password='123', cargo='admin')
+        self.client.force_authenticate(user=user_admin)
+        
+        dados_passado = {
+            "paciente": self.paciente.id,
+            "medico": self.medico.id,
+            "tipo_agendamento": "Consulta",
+            "data_hora_inicio": self.data_retroativa.isoformat(),
+            "data_hora_fim": (self.data_retroativa + timedelta(minutes=30)).isoformat()
+        }
+        
+        response = self.client.post(self.url, dados_passado)
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
 class AgendamentoPrivacidadeTests(APITestCase):
     
