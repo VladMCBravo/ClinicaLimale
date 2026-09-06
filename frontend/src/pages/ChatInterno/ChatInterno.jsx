@@ -21,6 +21,9 @@ const ChatInterno = ({ onClose, token }) => {
   
   // Agora as não lidas usam prefixos: "user_2" ou "room_1"
   const [naoLidas, setNaoLidas] = useState({});
+  // NOVO: guarda o horário da última mensagem de cada conversa (mesma chave "user_2"/"room_1")
+  // -> é isso que faltava para ordenar a sidebar por "quem mandou mensagem por último", estilo WhatsApp
+  const [ultimaAtividade, setUltimaAtividade] = useState({});
   const contatoAtivoRef = useRef(contatoAtivo);
 
   useEffect(() => { contatoAtivoRef.current = contatoAtivo; }, [contatoAtivo]);
@@ -31,7 +34,9 @@ const ChatInterno = ({ onClose, token }) => {
 
     const handleMessage = (event) => {
       const data = JSON.parse(event.data);
-      
+
+      console.log('[CHAT-WS] Evento recebido do socket:', data);
+
       if (data.type === 'chat_message') {
         const msg = data.message;
         const currentContato = contatoAtivoRef.current;
@@ -48,6 +53,19 @@ const ChatInterno = ({ onClose, token }) => {
         // É da aba aberta? Ou fui eu mesmo que mandei via P2P (para refletir na minha tela)?
         const pertenceAAbaAtual = (incomingChatKey === activeChatKey) || (!msg.room_id && msg.sender_id === currentUser.id);
 
+        console.log(
+          `[CHAT-WS] msg_id=${msg.id} de sender_id=${msg.sender_id} (${msg.sender_nome || '?'}) ` +
+          `incomingChatKey=${incomingChatKey} activeChatKey=${activeChatKey} pertenceAAbaAtual=${pertenceAAbaAtual}`
+        );
+
+        // NOVO: registra o horário desta conversa, esteja ela aberta ou não.
+        // É isso que a sidebar vai usar pra subir a conversa mais recente pro topo.
+        setUltimaAtividade(prev => {
+          const atualizado = { ...prev, [incomingChatKey]: msg.created_at || new Date().toISOString() };
+          console.log('[CHAT-WS] ultimaAtividade atualizada:', atualizado);
+          return atualizado;
+        });
+
         if (pertenceAAbaAtual) {
           setMensagens((prev) => [...prev, { ...msg, sender: msg.sender_id === currentUser.id ? 'me' : 'other' }]);
           
@@ -59,10 +77,14 @@ const ChatInterno = ({ onClose, token }) => {
           // Chegou para outra aba! Aumenta a bolinha vermelha.
           socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'delivered' }));
           
-          setNaoLidas(prev => ({
-            ...prev,
-            [incomingChatKey]: (prev[incomingChatKey] || 0) + 1
-          }));
+          setNaoLidas(prev => {
+            const atualizado = {
+              ...prev,
+              [incomingChatKey]: (prev[incomingChatKey] || 0) + 1
+            };
+            console.log(`[CHAT-WS] naoLidas[${incomingChatKey}] agora = ${atualizado[incomingChatKey]}`, atualizado);
+            return atualizado;
+          });
 
           try { new Audio('/notificacao.mp3').play().catch(()=>{}); } catch (e) { }
           showSnackbar(`Nova mensagem em ${msg.room_id ? 'Consultório' : (msg.sender_nome || 'Colega')}!`, 'info');
@@ -95,9 +117,12 @@ const ChatInterno = ({ onClose, token }) => {
           ? `/chat/history/?room_id=${contatoAtivo.id}`
           : `/chat/history/?contact_id=${contatoAtivo.id}`;
 
+      console.log('[CHAT-HIST] Buscando histórico em', url);
+
       apiClient.get(url)
         .then(res => {
           const lista = Array.isArray(res.data) ? res.data : (res.data.results || []);
+          console.log(`[CHAT-HIST] ${lista.length} mensagens recebidas de ${url}`);
           const historicoFormatado = lista.map(msg => {
             if (!msg.is_mine && !msg.is_read && socket && socket.readyState === 1) {
                 socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'read' }));
@@ -107,13 +132,18 @@ const ChatInterno = ({ onClose, token }) => {
           });
           setMensagens(historicoFormatado);
         })
-        .catch(err => console.error("Erro ao carregar histórico:", err));
+        .catch(err => console.error("[CHAT-HIST] Erro ao carregar histórico:", err));
     }
   }, [contatoAtivo, socket]);
 
   // 3. FUNÇÕES DE ENVIO GENÉRICAS
   const dispararMensagem = (conteudo, tipo, idAnexo = null, dadosAnexo = null) => {
-    if (!socket || socket.readyState !== 1 || !contatoAtivo) return;
+    if (!socket || socket.readyState !== 1 || !contatoAtivo) {
+      console.warn('[CHAT-WS] Envio abortado: socket não pronto ou nenhum contato ativo.', {
+        socketState: socket?.readyState, contatoAtivo
+      });
+      return;
+    }
 
     const payload = {
       action: 'send_message',
@@ -125,7 +155,8 @@ const ChatInterno = ({ onClose, token }) => {
       room_id: contatoAtivo.is_room ? contatoAtivo.id : undefined,
       receiver_id: !contatoAtivo.is_room ? contatoAtivo.id : undefined,
     };
-    
+
+    console.log('[CHAT-WS] Enviando payload:', payload);
     socket.send(JSON.stringify(payload));
   };
 
@@ -168,6 +199,7 @@ const ChatInterno = ({ onClose, token }) => {
           setContatoAtivo={setContatoAtivo} 
           naoLidas={naoLidas} 
           setNaoLidas={setNaoLidas}
+          ultimaAtividade={ultimaAtividade}
         />
 
         <ChatAreaMeio 
