@@ -3,7 +3,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .models import UserPresence, Message
+from .models import Message, ChatRoom, UserPresence
 
 User = get_user_model()
 
@@ -15,17 +15,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        # 1. Entra na sala privada para receber mensagens diretas
+        # 1. Entra na sala privada para receber mensagens diretas (P2P)
         self.user_room_name = f"user_{self.user.id}"
         await self.channel_layer.group_add(self.user_room_name, self.channel_name)
         
-        # 2. NOVO: Entra na sala global para ouvir quem está online
+        # 2. Entra na sala global para ouvir quem está online
         await self.channel_layer.group_add("global_presence", self.channel_name)
+
+        # 3. NOVO: Inscreve o usuário em todas as salas de consultório que ele tem acesso
+        self.room_ids = await self.get_user_rooms(self.user)
+        for room_id in self.room_ids:
+            await self.channel_layer.group_add(f"room_{room_id}", self.channel_name)
 
         await self.accept()
         await self.set_online_status(True)
 
-        # 3. NOVO: Avisa a todos da clínica que este usuário acabou de entrar
+        # 4. Avisa a todos da clínica que este usuário acabou de entrar
         await self.channel_layer.group_send(
             "global_presence",
             {
@@ -37,7 +42,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         if hasattr(self, 'user_room_name'):
-            # 1. NOVO: Avisa a todos da clínica que este usuário saiu
+            # 1. Avisa a todos da clínica que este usuário saiu
             await self.channel_layer.group_send(
                 "global_presence",
                 {
@@ -47,20 +52,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
 
-            # 2. Remove dos grupos
+            # 2. Remove dos grupos básicos
             await self.channel_layer.group_discard(self.user_room_name, self.channel_name)
             await self.channel_layer.group_discard("global_presence", self.channel_name)
+            
+            # 3. NOVO: Remove dos grupos de consultórios
+            if hasattr(self, 'room_ids'):
+                for room_id in self.room_ids:
+                    await self.channel_layer.group_discard(f"room_{room_id}", self.channel_name)
+
             await self.set_online_status(False)
 
     # 1. RECEBE O JSON DO REACT
     async def receive(self, text_data):
         data = json.loads(text_data)
         
-        # Adicionamos um 'action' para saber o que o React quer fazer. O padrão é enviar mensagem.
         action = data.get('action', 'send_message')
 
         if action == 'send_message':
             receiver_id = data.get('receiver_id')
+            room_id = data.get('room_id')  # <-- NOVO: Pode receber o ID de uma sala
             content = data.get('content', '')
             attachment_type = data.get('attachment_type', 'text')
             attachment_id = data.get('attachment_id')
@@ -69,16 +80,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message = await self.save_message(
                 sender_id=self.user.id,
                 receiver_id=receiver_id,
+                room_id=room_id,
                 content=content,
                 attachment_type=attachment_type,
                 attachment_id=attachment_id
             )
 
             # 3. MONTA O PACOTE DE DISTRIBUIÇÃO
+            sender_nome = await self.get_user_first_name(self.user.id)
             message_data = {
                 'id': message.id,
                 'sender_id': self.user.id,
+                'sender_nome': sender_nome, # Adicionado para exibir o nome nos grupos
                 'receiver_id': receiver_id,
+                'room_id': room_id,         # Adicionado para o React saber de qual sala veio
                 'content': message.content,
                 'attachment_type': message.attachment_type,
                 'attachment_id': message.attachment_id,
@@ -87,44 +102,66 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'is_read': message.is_read,
             }
 
-            # 4. ENVIA PARA O DESTINATÁRIO
-            await self.channel_layer.group_send(
-                f"user_{receiver_id}",
-                {
-                    'type': 'chat_message',
-                    'message': message_data
-                }
-            )
-
-            # 5. ENVIA DE VOLTA PARA O REMETENTE (Confirmação)
-            await self.channel_layer.group_send(
-                self.user_room_name,
-                {
-                    'type': 'chat_message',
-                    'message': message_data
-                }
-            )
+            # 4. ROTEAMENTO: Grupo vs P2P
+            if room_id:
+                # Dispara o Broadcast para TODOS que estão inscritos na sala
+                await self.channel_layer.group_send(
+                    f"room_{room_id}",
+                    {
+                        'type': 'chat_message',
+                        'message': message_data
+                    }
+                )
+            elif receiver_id:
+                # ENVIA PARA O DESTINATÁRIO (P2P)
+                await self.channel_layer.group_send(
+                    f"user_{receiver_id}",
+                    {
+                        'type': 'chat_message',
+                        'message': message_data
+                    }
+                )
+                # ENVIA DE VOLTA PARA O REMETENTE (Confirmação)
+                await self.channel_layer.group_send(
+                    self.user_room_name,
+                    {
+                        'type': 'chat_message',
+                        'message': message_data
+                    }
+                )
 
         elif action == 'update_status':
             message_id = data.get('message_id')
             status = data.get('status')  # Pode ser 'delivered' ou 'read'
             
             # Atualiza no banco e retorna a mensagem atualizada
-            updated_message = await self.mark_message_status(message_id, status, self.user.id)
+            updated_message = await self.mark_message_status(message_id, status, self.user)
             
             if updated_message:
-                # Avisa o REMETENTE original que a mensagem dele foi entregue ou lida (para mudar a cor dos tiques)
-                await self.channel_layer.group_send(
-                    f"user_{updated_message.sender_id}",
-                    {
-                        'type': 'message_status',
-                        'message_id': message_id,
-                        'status': status,
-                        'receiver_id': self.user.id
-                    }
-                )
+                # Se for mensagem de sala, avisa a sala toda que foi lida. Se for P2P, avisa o remetente.
+                if updated_message.room_id:
+                    await self.channel_layer.group_send(
+                        f"room_{updated_message.room_id}",
+                        {
+                            'type': 'message_status',
+                            'message_id': message_id,
+                            'status': status,
+                            'receiver_id': self.user.id,
+                            'room_id': updated_message.room_id
+                        }
+                    )
+                else:
+                    await self.channel_layer.group_send(
+                        f"user_{updated_message.sender_id}",
+                        {
+                            'type': 'message_status',
+                            'message_id': message_id,
+                            'status': status,
+                            'receiver_id': self.user.id
+                        }
+                    )
 
-    # 6. DISPARADOR DE MENSAGEM (Mantenha o seu original, apenas garantindo que is_read vem junto)
+    # 6. DISPARADOR DE MENSAGEM
     async def chat_message(self, event):
         message_dict = event['message'].copy()
         
@@ -138,16 +175,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message': message_dict
         }))
 
-    # 7. NOVO: DISPARADOR DE ATUALIZAÇÃO DE STATUS (Tiques)
+    # 7. DISPARADOR DE ATUALIZAÇÃO DE STATUS (Tiques)
     async def message_status(self, event):
         await self.send(text_data=json.dumps({
             'type': 'message_status',
             'message_id': event['message_id'],
             'status': event['status'],
-            'receiver_id': event['receiver_id']
+            'receiver_id': event['receiver_id'],
+            'room_id': event.get('room_id') # Adicionado suporte a room_id no React
         }))
 
-    # 4. NOVO: O disparador que envia o JSON de status para o React
+    # 4. DISPARADOR QUE ENVIA O JSON DE PRESENCE
     async def user_status(self, event):
         await self.send(text_data=json.dumps({
             'type': 'user_status',
@@ -158,14 +196,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
     # === FUNÇÕES DE BANCO DE DADOS (Assíncronas) ===
     
     @database_sync_to_async
-    def save_message(self, sender_id, receiver_id, content, attachment_type, attachment_id):
-        return Message.objects.create(
-            sender_id=sender_id,
-            receiver_id=receiver_id,
-            content=content,
-            attachment_type=attachment_type,
-            attachment_id=attachment_id
-        )
+    def get_user_first_name(self, user_id):
+        return User.objects.get(id=user_id).first_name
+
+    @database_sync_to_async
+    def get_user_rooms(self, user):
+        """ Retorna uma lista com os IDs das salas que este usuário tem acesso """
+        salas = ChatRoom.objects.all()
+        return [sala.id for sala in salas if sala.user_has_access(user)]
+
+    @database_sync_to_async
+    def save_message(self, sender_id, receiver_id, room_id, content, attachment_type, attachment_id):
+        if room_id:
+            room = ChatRoom.objects.get(id=room_id)
+            return Message.objects.create(
+                sender_id=sender_id,
+                room=room,
+                content=content,
+                attachment_type=attachment_type,
+                attachment_id=attachment_id
+            )
+        else:
+            return Message.objects.create(
+                sender_id=sender_id,
+                receiver_id=receiver_id,
+                content=content,
+                attachment_type=attachment_type,
+                attachment_id=attachment_id
+            )
 
     @database_sync_to_async
     def set_online_status(self, is_online):
@@ -174,12 +232,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
             defaults={'is_online': is_online, 'last_seen': timezone.now()}
         )
 
-    # 8. NOVO: ATUALIZA NO BANCO DE DADOS ASSINCRONAMENTE
     @database_sync_to_async
-    def mark_message_status(self, message_id, status, user_id):
+    def mark_message_status(self, message_id, status, user):
         try:
-            # Filtra por receiver_id para garantir que apenas o destinatário pode marcar como lida
-            msg = Message.objects.get(id=message_id, receiver_id=user_id)
+            msg = Message.objects.get(id=message_id)
+            
+            # PROTEÇÃO: Só pode marcar como lida se for o recebedor P2P ou se fizer parte do grupo
+            if msg.receiver_id and msg.receiver_id != user.id:
+                return None
+            if msg.room_id and not msg.room.user_has_access(user):
+                return None
+
             now = timezone.now()
             
             if status == 'delivered' and not msg.is_delivered:
@@ -188,7 +251,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 msg.save(update_fields=['is_delivered', 'delivered_at'])
             
             elif status == 'read' and not msg.is_read:
-                # Se foi lida, automaticamente também foi entregue
                 msg.is_read = True
                 msg.read_at = now
                 msg.is_delivered = True 
