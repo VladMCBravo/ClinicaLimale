@@ -12,21 +12,39 @@ import ChatApoioDireita from './ChatApoioDireita';
 
 const ChatInterno = ({ onClose, token }) => {
   const { user: currentUser } = useAuth(); 
-  const { socket } = useChat();
+  const { socket, naoLidas, setNaoLidas, ultimaAtividade, setContatoAtivoKey } = useChat();
   const { showSnackbar } = useSnackbar(); 
   
-  const [contatoAtivo, setContatoAtivo] = useState(null);
+  const [contatoAtivo, setContatoAtivoState] = useState(null);
   const [mensagens, setMensagens] = useState([]);
   const [mensagemAtual, setMensagemAtual] = useState('');
-  
-  // Agora as não lidas usam prefixos: "user_2" ou "room_1"
-  const [naoLidas, setNaoLidas] = useState({});
-  // NOVO: guarda o horário da última mensagem de cada conversa (mesma chave "user_2"/"room_1")
-  // -> é isso que faltava para ordenar a sidebar por "quem mandou mensagem por último", estilo WhatsApp
-  const [ultimaAtividade, setUltimaAtividade] = useState({});
+
+  // ANTES: naoLidas/ultimaAtividade eram useState() aqui dentro, então "nasciam" zerados
+  // toda vez que o ChatInterno montava — ou seja, mensagens que chegaram com o chat
+  // fechado eram perdidas. Agora vêm do ChatContext (que nunca desmonta) e persistem.
   const contatoAtivoRef = useRef(contatoAtivo);
 
+  // Envolve o setContatoAtivo local pra também avisar o Context qual conversa está
+  // aberta agora (é o que o ChatContext usa pra não contar como "não lida" uma
+  // mensagem da conversa que a pessoa já está olhando).
+  const setContatoAtivo = (item) => {
+    setContatoAtivoState(item);
+    if (item) {
+      const chave = item.is_room ? `room_${item.id}` : `user_${item.id}`;
+      setContatoAtivoKey(chave);
+    } else {
+      setContatoAtivoKey(null);
+    }
+  };
+
   useEffect(() => { contatoAtivoRef.current = contatoAtivo; }, [contatoAtivo]);
+
+  // Segurança: se o modal for desmontado (fechado) enquanto uma conversa estava
+  // selecionada, garante que o ChatContext saiba que ninguém está mais olhando nada —
+  // senão mensagens novas dessa conversa parariam de contar como "não lida".
+  useEffect(() => {
+    return () => setContatoAtivoKey(null);
+  }, []);
 
   // 1. OUVINTE DO WEBSOCKET
   useEffect(() => {
@@ -58,13 +76,9 @@ const ChatInterno = ({ onClose, token }) => {
           `incomingChatKey=${incomingChatKey} activeChatKey=${activeChatKey} pertenceAAbaAtual=${pertenceAAbaAtual}`
         );
 
-        // NOVO: registra o horário desta conversa, esteja ela aberta ou não.
-        // É isso que a sidebar vai usar pra subir a conversa mais recente pro topo.
-        setUltimaAtividade(prev => {
-          const atualizado = { ...prev, [incomingChatKey]: msg.created_at || new Date().toISOString() };
-          console.log('[CHAT-WS] ultimaAtividade atualizada:', atualizado);
-          return atualizado;
-        });
+        // OBS: naoLidas, ultimaAtividade e o envio de 'delivered' já são cuidados
+        // pelo ChatContext (que ouve o socket independentemente deste componente estar
+        // montado). Aqui só cuidamos do que é específico de a conversa estar ABERTA na tela.
 
         if (pertenceAAbaAtual) {
           setMensagens((prev) => [...prev, { ...msg, sender: msg.sender_id === currentUser.id ? 'me' : 'other' }]);
@@ -74,18 +88,6 @@ const ChatInterno = ({ onClose, token }) => {
           }
         } 
         else if (msg.sender_id !== currentUser.id) {
-          // Chegou para outra aba! Aumenta a bolinha vermelha.
-          socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'delivered' }));
-          
-          setNaoLidas(prev => {
-            const atualizado = {
-              ...prev,
-              [incomingChatKey]: (prev[incomingChatKey] || 0) + 1
-            };
-            console.log(`[CHAT-WS] naoLidas[${incomingChatKey}] agora = ${atualizado[incomingChatKey]}`, atualizado);
-            return atualizado;
-          });
-
           try { new Audio('/notificacao.mp3').play().catch(()=>{}); } catch (e) { }
           showSnackbar(`Nova mensagem em ${msg.room_id ? 'Consultório' : (msg.sender_nome || 'Colega')}!`, 'info');
         }
