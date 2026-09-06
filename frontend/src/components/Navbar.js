@@ -46,7 +46,9 @@ const Navbar = () => {
                     const audio = new Audio('/notificacao.mp3');
                     audio.play().catch(e => console.warn("Áudio ausente ou bloqueado", e));
                     
-                    showSnackbar(`Nova mensagem de ${data.message.sender_nome || 'um colega'}!`, 'info');
+                    // Substitua o seu showSnackbar atual no Navbar.jsx por este:
+                    const nomeOrigem = data.message.room_id ? 'Consultório' : (data.message.sender_nome || 'um colega');
+                    showSnackbar(`Nova mensagem de ${nomeOrigem}!`, 'info');
                 }
             }
         };
