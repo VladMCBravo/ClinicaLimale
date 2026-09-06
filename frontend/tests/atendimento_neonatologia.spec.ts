@@ -16,8 +16,10 @@ test.describe('Fluxo de Atendimento Neonatal e Documentos', () => {
 
     await expect(page.getByText('Olá, Dr. Limberg')).toBeVisible();
     
-    // Seleciona um paciente (Idealmente, selecione um paciente com agendamento de Neonatologia)
-    await page.getByRole('button', { name: /Joao Eduardo Pereira da Silva/i }).click();
+    // ✅ BOA PRÁTICA E2E: Seleciona dinamicamente o PRIMEIRO paciente da lista
+    // Ele procura pela lista na tela e clica no primeiro botão/item disponível.
+    // Lembrete: É obrigatório ter pelo menos 1 paciente agendado no dia para o teste passar!
+    await page.getByRole('list').first().getByRole('button').first().click();
 
     // ==========================================
     // 2. PREENCHIMENTO DO HISTÓRICO NEONATAL
@@ -75,8 +77,6 @@ test.describe('Fluxo de Atendimento Neonatal e Documentos', () => {
     // Valida se o backend criou o relatório com sucesso (HTTP 201 Created)
     expect(postRelatorioResponse.status()).toBe(201);
 
-    // Valida se o backend criou o relatório com sucesso (HTTP 201 Created)
-    expect(postRelatorioResponse.status()).toBe(201);
   });
 
 });

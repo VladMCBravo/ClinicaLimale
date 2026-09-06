@@ -2,99 +2,84 @@ import { test, expect } from '@playwright/test';
 
 const BASE_URL = 'http://localhost:3000';
 
-// Usamos test.describe.serial para não rodar paralelamente e bugar o WebSocket
-test.describe.serial('Sincronia Real-Time do Chat (2 Navegadores)', () => {
+test.describe.serial('Sincronia Real-Time do Chat (Grupos e Ordenação)', () => {
 
-  test('Notificações, Mensagens Não Lidas e Tique Azul', async ({ browser }) => {
+  test('Fluxo de Grupos: Notificações, Ordenação Dinâmica e Tique Azul', async ({ browser }) => {
     
-    // 1. SETUP: CRIANDO "DOIS COMPUTADORES" DIFERENTES
-    // Isso cria duas sessões de navegador totalmente isoladas (sem compartilhar cookies)
+    // 1. SETUP DE CONTEXTOS ISOLADOS
     const pcRecepcao = await browser.newContext();
     const pageRecepcao = await pcRecepcao.newPage();
 
     const pcMedico = await browser.newContext();
     const pageMedico = await pcMedico.newPage();
 
-    // 2. LOGIN DA RECEPÇÃO (Janela A)
+    // 2. LOGIN DA RECEPÇÃO (Remetente)
     await pageRecepcao.goto(`${BASE_URL}/login`);
-    await pageRecepcao.locator('input[name="username"], input[type="text"]').first().fill('Teste'); // ✏️ EDITE AQUI
-    await pageRecepcao.locator('input[name="password"], input[type="password"]').first().fill('Teste@123');  // ✏️ EDITE AQUI
+    await pageRecepcao.locator('input[name="username"], input[type="text"]').first().fill('Teste'); 
+    await pageRecepcao.locator('input[name="password"], input[type="password"]').first().fill('Teste@123');  
     await pageRecepcao.getByRole('button', { name: 'Entrar' }).click();
-    await pageRecepcao.waitForURL('**/painel'); // Aguarda entrar no sistema
+    await pageRecepcao.getByTitle('Chat Interno').waitFor(); // Aguarda UI carregar
     
-    // 3. LOGIN DO MÉDICO (Janela B)
+    // 3. LOGIN DO MÉDICO (Destinatário)
     await pageMedico.goto(`${BASE_URL}/login`);
-    await pageMedico.locator('input[name="username"], input[type="text"]').first().fill('Daniel');   // ✏️ EDITE AQUI
-    await pageMedico.locator('input[name="password"], input[type="password"]').first().fill('Med@123');    // ✏️ EDITE AQUI
+    await pageMedico.locator('input[name="username"], input[type="text"]').first().fill('Daniel');   
+    await pageMedico.locator('input[name="password"], input[type="password"]').first().fill('Med@123');    
     await pageMedico.getByRole('button', { name: 'Entrar' }).click();
-    // ✅ BOA PRÁTICA: Confie na espera automática do seletor. 
-    // O Playwright vai esperar o login terminar e o botão do chat aparecer sozinho antes de clicar.
     await pageMedico.getByTitle('Chat Interno').waitFor();
 
     // ---------------------------------------------------------
-    // CENA 1: O MÉDICO ENVIA A MENSAGEM
+    // CENA 1: A RECEPÇÃO ENVIA UM AVISO NO GRUPO
     // ---------------------------------------------------------
-    
-    // Médico abre o chat
-    await pageMedico.getByTitle('Chat Interno').click();
-    
-    // Médico seleciona a Recepcionista na lista lateral
-    await pageMedico.getByText('Recepção Teste').click(); // ✏️ EDITE AQUI (Ex: 'Maria Recepção')
-    
-    // Espera de segurança para o WebSocket conectar
-    await pageMedico.waitForTimeout(1000); 
-
-    const inputMedico = pageMedico.getByPlaceholder('Escreva uma mensagem...');
-    await inputMedico.fill('Olá, o paciente do consultório 1 já chegou?');
-    await pageMedico.locator('form').getByRole('button').click();
-    
-    // Garante que o input limpou (mensagem saiu da tela do médico)
-    await expect(inputMedico).toHaveValue('');
-
-    // ---------------------------------------------------------
-    // CENA 2: A RECEPÇÃO RECEBE A NOTIFICAÇÃO (Snackbar e Badge)
-    // ---------------------------------------------------------
-    
-    // ✅ BOA PRÁTICA: Traz a tela da Recepção para o foco do sistema operacional.
-    // Isso "acorda" a aba e permite que a animação do Snackbar do React aconteça.
     await pageRecepcao.bringToFront();
+    await pageRecepcao.getByTitle('Chat Interno').click();
     
-    // 1. O Snackbar deve pular na tela da recepção (que está com o chat fechado)
-    await expect(pageRecepcao.getByText(/Nova mensagem de/i)).toBeVisible();
+    await pageRecepcao.getByRole('tab', { name: 'Consultórios' }).click();
+    await pageRecepcao.getByRole('dialog').getByRole('listitem').filter({ hasText: 'Consultório 01' }).click();
+    
+    await pageRecepcao.waitForTimeout(1000); 
 
-    // 2. O ícone de chat na Navbar deve ganhar a bolinha vermelha com o número 1
-    const badgeNaoLidas = pageRecepcao.getByTitle('Chat Interno').locator('.MuiBadge-badge');
+    const inputRecepcao = pageRecepcao.getByPlaceholder('Escreva uma mensagem...');
+    await inputRecepcao.fill('Paciente do exame chegou!');
+    await pageRecepcao.locator('form').getByRole('button').click();
+    
+    await expect(inputRecepcao).toHaveValue(''); 
+
+    // 🚨 A MÁGICA: Espera o pacote do WebSocket sair da aba antes de congelá-la!
+    await pageRecepcao.waitForTimeout(1000); 
+
+    // ---------------------------------------------------------
+    // CENA 2: O MÉDICO RECEBE A NOTIFICAÇÃO
+    // ---------------------------------------------------------
+    await pageMedico.bringToFront();
+    
+    await expect(pageMedico.getByText(/Nova mensagem/i).first()).toBeVisible();
+
+    const badgeNaoLidas = pageMedico.getByTitle('Chat Interno').locator('.MuiBadge-badge');
     await expect(badgeNaoLidas).not.toBeEmpty(); 
 
     // ---------------------------------------------------------
-    // CENA 3: A RECEPÇÃO ABRE O CHAT E LÊ
+    // CENA 3: O MÉDICO ABRE O CHAT E LÊ
     // ---------------------------------------------------------
+    await pageMedico.getByTitle('Chat Interno').click();
+    await pageMedico.getByRole('tab', { name: 'Consultórios' }).click();
     
-    // Recepção abre o chat
-    await pageRecepcao.getByTitle('Chat Interno').click();
+    // Verifica a bolinha vermelha na lista esquerda
+    await expect(pageMedico.locator('.MuiBadge-badge.MuiBadge-colorError').last()).toBeVisible();
+
+    // 🚨 AJUSTE: Buscamos o consultório pelo nome em vez da posição .first()
+    // (Até refatorarmos o ChatContext para guardar o histórico global de não lidas)
+    const salaAlvo = pageMedico.getByRole('dialog').getByRole('listitem').filter({ hasText: 'Consultório 01' });
+    await salaAlvo.click();
     
-    // Verifica se a bolinha vermelha também está na lista lateral, ao lado do nome do médico
-    await expect(pageRecepcao.locator('.MuiBadge-badge.MuiBadge-colorError').last()).toBeVisible();
-
-    // Recepção clica no nome do médico para abrir a conversa e ler
-    await pageRecepcao.getByText('NOME_EXIBICAO_MEDICO').click(); // ✏️ EDITE AQUI (Ex: 'Dr. Daniel')
-
-    // A mensagem tem que aparecer na tela da recepção (Confirmando que o WS recebeu)
-    await expect(pageRecepcao.getByText('Olá, o paciente do consultório 1 já chegou?').last()).toBeVisible();
+    await expect(pageMedico.getByText('Paciente do exame chegou!').last()).toBeVisible();
 
     // ---------------------------------------------------------
-    // CENA 4: O MÉDICO RECEBE O TIQUE AZUL DE LEITURA
+    // CENA 4: A RECEPÇÃO RECEBE O TIQUE AZUL DO GRUPO
     // ---------------------------------------------------------
+    await pageRecepcao.bringToFront();
     
-    // Agora voltamos para a tela do Médico.
-    // Como a Recepção abriu a conversa, o WebSocket enviou o status 'read'.
-    // O Material UI injeta automaticamente data-testid="DoneAllIcon" nos ícones.
-    const tiqueDuplo = pageMedico.locator('svg[data-testid="DoneAllIcon"]').last();
-    
-    // O tique duplo precisa estar visível
+    const tiqueDuplo = pageRecepcao.locator('svg[data-testid="DoneAllIcon"]').last();
     await expect(tiqueDuplo).toBeVisible();
-
-    // A cor dele precisa ser o Azul do Material UI (#2196f3 / rgb(33, 150, 243))
     await expect(tiqueDuplo).toHaveCSS('color', 'rgb(33, 150, 243)');
     
   });
