@@ -1,4 +1,5 @@
 import json
+import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
@@ -6,6 +7,7 @@ from django.utils import timezone
 from .models import Message, ChatRoom, UserPresence
 
 User = get_user_model()
+logger = logging.getLogger('chat')
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -27,6 +29,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         for room_id in self.room_ids:
             await self.channel_layer.group_add(f"room_{room_id}", self.channel_name)
 
+        logger.info(
+            f"[CHAT-WS] CONNECT user={self.user.id} ({self.user}) "
+            f"grupo_pessoal={self.user_room_name} salas={self.room_ids}"
+        )
+
         await self.accept()
         await self.set_online_status(True)
 
@@ -41,6 +48,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def disconnect(self, close_code):
+        logger.info(f"[CHAT-WS] DISCONNECT user={getattr(self, 'user', None)} code={close_code}")
         if hasattr(self, 'user_room_name'):
             # 1. Avisa a todos da clínica que este usuário saiu
             await self.channel_layer.group_send(
@@ -68,6 +76,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
         
         action = data.get('action', 'send_message')
+
+        logger.info(f"[CHAT-WS] RECEIVE user={self.user.id} action={action} payload={data}")
 
         if action == 'send_message':
             receiver_id = data.get('receiver_id')
@@ -102,8 +112,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'is_read': message.is_read,
             }
 
+            logger.info(
+                f"[CHAT-WS] MSG CRIADA id={message.id} sender={self.user.id} "
+                f"receiver_id={receiver_id} room_id={room_id} conteudo={content!r}"
+            )
+
             # 4. ROTEAMENTO: Grupo vs P2P
             if room_id:
+                logger.info(f"[CHAT-WS] BROADCAST msg={message.id} -> grupo room_{room_id}")
                 # Dispara o Broadcast para TODOS que estão inscritos na sala
                 await self.channel_layer.group_send(
                     f"room_{room_id}",
@@ -113,6 +129,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     }
                 )
             elif receiver_id:
+                logger.info(
+                    f"[CHAT-WS] BROADCAST msg={message.id} -> user_{receiver_id} (destinatário) "
+                    f"e -> {self.user_room_name} (confirmação p/ remetente)"
+                )
                 # ENVIA PARA O DESTINATÁRIO (P2P)
                 await self.channel_layer.group_send(
                     f"user_{receiver_id}",
@@ -129,6 +149,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'message': message_data
                     }
                 )
+            else:
+                logger.warning(
+                    f"[CHAT-WS] msg={message.id} NÃO foi roteada: sem room_id e sem receiver_id!"
+                )
 
         elif action == 'update_status':
             message_id = data.get('message_id')
@@ -136,7 +160,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             # Atualiza no banco e retorna a mensagem atualizada
             updated_message = await self.mark_message_status(message_id, status, self.user)
-            
+
+            logger.info(
+                f"[CHAT-WS] UPDATE_STATUS user={self.user.id} message_id={message_id} "
+                f"status={status} -> {'OK' if updated_message else 'IGNORADO (permissão ou não existe)'}"
+            )
+
             if updated_message:
                 # Se for mensagem de sala, avisa a sala toda que foi lida. Se for P2P, avisa o remetente.
                 if updated_message.room_id:
@@ -169,6 +198,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message_dict['sender'] = 'me'
         else:
             message_dict['sender'] = message_dict['sender_id']
+
+        logger.info(
+            f"[CHAT-WS] ENVIANDO p/ user={self.user.id} msg_id={message_dict.get('id')} "
+            f"sender_id={message_dict.get('sender_id')} room_id={message_dict.get('room_id')} "
+            f"sender_calculado={message_dict['sender']}"
+        )
 
         await self.send(text_data=json.dumps({
             'type': 'chat_message',
@@ -239,8 +274,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
             # PROTEÇÃO: Só pode marcar como lida se for o recebedor P2P ou se fizer parte do grupo
             if msg.receiver_id and msg.receiver_id != user.id:
+                logger.warning(
+                    f"[CHAT-WS] mark_message_status NEGADO: msg={message_id} receiver={msg.receiver_id} "
+                    f"!= user={user.id}"
+                )
                 return None
             if msg.room_id and not msg.room.user_has_access(user):
+                logger.warning(
+                    f"[CHAT-WS] mark_message_status NEGADO: user={user.id} sem acesso à room={msg.room_id}"
+                )
                 return None
 
             now = timezone.now()

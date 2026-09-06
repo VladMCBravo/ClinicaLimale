@@ -7,7 +7,7 @@ import { Groups as GroupsIcon } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
 
 export default function ChatSidebarEsquerda({ 
-  currentUser, contatoAtivo, setContatoAtivo, naoLidas, setNaoLidas 
+  currentUser, contatoAtivo, setContatoAtivo, naoLidas, setNaoLidas, ultimaAtividade = {}
 }) {
   const [abaAtiva, setAbaAtiva] = useState(0);
   const [equipe, setEquipe] = useState([]);
@@ -32,25 +32,54 @@ export default function ChatSidebarEsquerda({
 
       // Salva Salas
       setSalas(resSalas.data || []);
+
+      console.log(`[CHAT-SIDEBAR] Equipe carregada (${usuariosValidos.length}):`, usuariosValidos.map(u => `${u.id}:${u.nome_exibicao}`));
+      console.log(`[CHAT-SIDEBAR] Salas carregadas (${(resSalas.data || []).length}):`, (resSalas.data || []).map(s => `${s.id}:${s.nome_exibicao}`));
     })
-    .catch(err => console.error("Erro ao buscar dados da sidebar:", err))
+    .catch(err => console.error("[CHAT-SIDEBAR] Erro ao buscar dados da sidebar:", err))
     .finally(() => setLoading(false));
   }, [currentUser]);
 
-  // A MÁGICA DA ORDENAÇÃO: Quem tem mensagem não lida vai pro topo!
+  // A MÁGICA DA ORDENAÇÃO (estilo WhatsApp):
+  // 1º quem trocou mensagem mais recentemente sobe pro topo;
+  // 2º em caso de empate (ex: nenhum dos dois teve atividade ainda), quem tem mais não lidas fica na frente;
+  // 3º por fim, ordem alfabética.
+  //
+  // OBS: "ultimaAtividade" só é preenchida a partir de mensagens trocadas NESTA sessão do socket.
+  // Se quiser que a ordem já venha correta logo ao abrir o chat (antes de qualquer mensagem nova
+  // chegar), o backend precisa passar a devolver a data da última mensagem em /usuarios/usuarios/
+  // e /chat/rooms/ — hoje esses endpoints não trazem esse dado.
   const ordenarLista = (lista, prefixo) => {
-    return [...lista].sort((a, b) => {
-      const naoLidasA = naoLidas[`${prefixo}_${a.id}`] || 0;
-      const naoLidasB = naoLidas[`${prefixo}_${b.id}`] || 0;
-      
-      if (naoLidasA > naoLidasB) return -1;
-      if (naoLidasA < naoLidasB) return 1;
-      
+    const ordenada = [...lista].sort((a, b) => {
+      const chaveA = `${prefixo}_${a.id}`;
+      const chaveB = `${prefixo}_${b.id}`;
+
+      const tempoA = ultimaAtividade[chaveA] ? new Date(ultimaAtividade[chaveA]).getTime() : 0;
+      const tempoB = ultimaAtividade[chaveB] ? new Date(ultimaAtividade[chaveB]).getTime() : 0;
+
+      if (tempoA !== tempoB) return tempoB - tempoA;
+
+      const naoLidasA = naoLidas[chaveA] || 0;
+      const naoLidasB = naoLidas[chaveB] || 0;
+      if (naoLidasA !== naoLidasB) return naoLidasB - naoLidasA;
+
       return (a.nome_exibicao || a.name).localeCompare(b.nome_exibicao || b.name);
     });
+
+    console.log(
+      `[CHAT-SIDEBAR] Ordem final (${prefixo}):`,
+      ordenada.map(i => ({
+        nome: i.nome_exibicao || i.name,
+        naoLidas: naoLidas[`${prefixo}_${i.id}`] || 0,
+        ultimaAtividade: ultimaAtividade[`${prefixo}_${i.id}`] || null,
+      }))
+    );
+
+    return ordenada;
   };
 
   const handleSelecionar = (item, prefixo) => {
+    console.log(`[CHAT-SIDEBAR] Selecionado: ${prefixo}_${item.id} (${item.nome_exibicao || item.name})`);
     setContatoAtivo(item);
     // Zera a bolinha vermelha ao clicar
     setNaoLidas(prev => {
