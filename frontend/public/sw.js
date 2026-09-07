@@ -7,8 +7,9 @@ self.addEventListener('push', function(event) {
     
     const options = {
       body: data.body || "Você tem uma nova notificação.",
-      icon: '/icon-192x192.png', // Adicione o logo da clínica na pasta public
-      badge: '/badge-72x72.png',
+      // 👇 Mude para os caminhos exatos que existem no seu projeto
+      icon: '/ios/192.png', 
+      badge: '/ios/72.png', 
       vibrate: [200, 100, 200],
       data: {
         url: data.url || '/chat-mobile' 
