@@ -5,6 +5,8 @@ from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from .models import Message, ChatRoom, UserPresence
+from push_notifications.services import enviar_notificacao_push
+from asgiref.sync import sync_to_async
 
 User = get_user_model()
 logger = logging.getLogger('chat')
@@ -149,6 +151,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'message': message_data
                     }
                 )
+
+                # ==========================================
+                # NOVA LÓGICA DE NOTIFICAÇÃO PUSH AQUI
+                # ==========================================
+                try:
+                    # Verifica no banco se o destinatário está online
+                    presenca = await database_sync_to_async(UserPresence.objects.filter(user_id=receiver_id).first)()
+                    is_online = presenca.is_online if presenca else False
+
+                    # Se estiver offline, dispara o Push cego (sem dados sensíveis)
+                    if not is_online:
+                        logger.info(f"[CHAT-WS] Usuário {receiver_id} offline. Disparando Push Notification.")
+                        await sync_to_async(enviar_notificacao_push)(
+                            user_id=receiver_id,
+                            titulo="Clínica Limalé",
+                            corpo="Você tem uma nova mensagem no chat interno.",
+                            url="/" # O Service Worker vai abrir o painel principal
+                        )
+                except Exception as e:
+                    logger.error(f"[CHAT-WS] Erro ao tentar enviar Push: {e}")
+                    
             else:
                 logger.warning(
                     f"[CHAT-WS] msg={message.id} NÃO foi roteada: sem room_id e sem receiver_id!"

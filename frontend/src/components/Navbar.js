@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useWebPush } from '../hooks/useWebPush';
 import { useChat } from '../contexts/ChatContext';
 import { 
     FaUserFriends, FaFileInvoiceDollar, FaCog, FaSignOutAlt, 
@@ -18,6 +19,7 @@ import './Navbar.css';
 
 const Navbar = () => {
     const { user, logout, token } = useAuth();
+    useWebPush(user);
     const { showSnackbar } = useSnackbar(); // <-- 2. INICIE O SNACKBAR
     
     // 3. PUXE O SOCKET DO CONTEXTO
