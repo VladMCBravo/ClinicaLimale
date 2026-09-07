@@ -8,7 +8,9 @@ import apiClient from '../../api/axiosConfig';
 
 import PacienteModal from '../../components/PacienteModal'; 
 
-export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnviarPaciente, onEnviarDocumento }) {
+export default function ChatApoioDireita({ 
+  onClose, onEnviarAgendamento, onEnviarPaciente, onEnviarDocumento, width = '25%' 
+}) {
   const [abaDireita, setAbaDireita] = useState(0);
   const [loadingApoio, setLoadingApoio] = useState(false);
   
@@ -95,7 +97,7 @@ export default function ChatApoioDireita({ onClose, onEnviarAgendamento, onEnvia
   };
 
   return (
-    <Box sx={{ width: '25%', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e0e0e0', bgcolor: '#fff' }}>
+    <Box sx={{ width, display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e0e0e0', bgcolor: '#fff' }}>
       
       <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
         <Tabs value={abaDireita} onChange={(e, val) => setAbaDireita(val)} sx={{ minHeight: 36 }}>
