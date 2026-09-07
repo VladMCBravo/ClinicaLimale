@@ -56,14 +56,20 @@ export default function ChatMobilePage() {
         const pertenceAAbaAtual = (incomingChatKey === activeChatKey) || (!msg.room_id && msg.sender_id === currentUser.id);
 
         if (pertenceAAbaAtual) {
-          setMensagens((prev) => [...prev, { ...msg, sender: msg.sender_id === currentUser.id ? 'me' : 'other' }]);
-          if (msg.sender_id !== currentUser.id) {
-             socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'read' }));
+            setMensagens((prev) => [...prev, { ...msg, sender: msg.sender_id === currentUser.id ? 'me' : 'other' }]);
+            if (msg.sender_id !== currentUser.id) {
+               socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'read' }));
+            }
+          } else if (msg.sender_id !== currentUser.id) {
+            
+            // 👇 CORREÇÃO 1: Avisa o PC que a mensagem chegou (Tique duplo cinza) 👇
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'delivered' }));
+            }
+
+            try { new Audio('/notificacao.mp3').play().catch(()=>{}); } catch (e) { }
+            showSnackbar(`Nova mensagem de ${msg.sender_nome || 'Colega'}`, 'info');
           }
-        } else if (msg.sender_id !== currentUser.id) {
-          try { new Audio('/notificacao.mp3').play().catch(()=>{}); } catch (e) { }
-          showSnackbar(`Nova mensagem de ${msg.sender_nome || 'Colega'}`, 'info');
-        }
       } else if (data.type === 'message_status') {
           setMensagens(prev => prev.map(m => {
               if (m.id === data.message_id) {
@@ -76,6 +82,28 @@ export default function ChatMobilePage() {
     socket.addEventListener('message', handleMessage);
     return () => socket.removeEventListener('message', handleMessage);
   }, [socket, currentUser.id, showSnackbar]);
+
+  // 👇 CORREÇÃO 2: Controle de Visibilidade e Acionamento de Push 👇
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // App minimizado: Desconecta o WebSocket na força! 
+        // Isso avisa o Django imediatamente que estamos offline, forçando ele a mandar Push.
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.close(); 
+        }
+      } else if (document.visibilityState === 'visible') {
+        // App voltou pra tela: Se o usuário estava dentro de uma conversa, 
+        // forçamos um recarregamento da mesma para puxar as mensagens perdidas do REST.
+        if (contatoAtivoRef.current) {
+          setContatoAtivoState({ ...contatoAtivoRef.current }); 
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [socket]);
 
   // 2. BUSCAR HISTÓRICO REST
   useEffect(() => {
@@ -128,7 +156,16 @@ export default function ChatMobilePage() {
   };
 
   return (
-    <Box sx={{ height: '100vh', width: '100vw', display: 'flex', overflow: 'hidden', bgcolor: '#fff' }}>
+    <Box sx={{ 
+      height: '100vh', 
+      width: '100vw', 
+      display: 'flex', 
+      overflow: 'hidden', 
+      bgcolor: '#fff',
+      // 👇 CORREÇÃO 3: Respeita as áreas recortadas do celular (câmera no topo e barra no rodapé) 👇
+      pt: 'env(safe-area-inset-top, 20px)', 
+      pb: 'env(safe-area-inset-bottom, 10px)'
+    }}>
       
       {/* SE NÃO HOUVER CONTATO SELECIONADO: MOSTRA A LISTA EM TELA CHEIA */}
       {!contatoAtivo && (
