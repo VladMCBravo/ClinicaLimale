@@ -122,7 +122,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # 4. ROTEAMENTO: Grupo vs P2P
             if room_id:
                 logger.info(f"[CHAT-WS] BROADCAST msg={message.id} -> grupo room_{room_id}")
-                
+                # Dispara o Broadcast para TODOS que estão inscritos na sala
                 await self.channel_layer.group_send(
                     f"room_{room_id}",
                     {
@@ -130,26 +130,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'message': message_data
                     }
                 )
-                
-                # NOVO: Disparo de push para membros offline do grupo
-                room = await database_sync_to_async(ChatRoom.objects.get)(id=room_id)
-                membros = await database_sync_to_async(list)(room.users.all()) # Ajuste para o nome correto da sua relação no model
-                
-                for membro in membros:
-                    if membro.id != self.user.id: # Não notifica o remetente
-                        presenca = await database_sync_to_async(UserPresence.objects.filter(user_id=membro.id).first)()
-                        is_online = presenca.is_online if presenca else False
-                        
-                        if not is_online:
-                            try:
-                                await sync_to_async(enviar_notificacao_push)(
-                                    user_id=membro.id,
-                                    titulo=f"Nova msg em {room.nome}", # Ajuste conforme seu model
-                                    corpo=f"{sender_nome}: {content[:30]}...",
-                                    url="/painel" 
-                                )
-                            except Exception as e:
-                                logger.error(f"[CHAT-WS] Erro Push Grupo: {e}")
+
+                # ==========================================
+                # DISPARO DE PUSH PARA GRUPOS (CORRIGIDO)
+                # ==========================================
+                try:
+                    offline_user_ids, room_name = await self.get_offline_room_members(room_id, self.user.id)
+                    for off_uid in offline_user_ids:
+                        logger.info(f"[CHAT-WS] Enviando push para {off_uid} no grupo {room_name}")
+                        await sync_to_async(enviar_notificacao_push)(
+                            user_id=off_uid,
+                            titulo=f"Grupo: {room_name}",
+                            corpo=f"{sender_nome}: {content[:30]}...",
+                            url="/painel" 
+                        )
+                except Exception as e:
+                    logger.error(f"[CHAT-WS] Erro Push Grupo: {e}")
+
             elif receiver_id:
                 logger.info(
                     f"[CHAT-WS] BROADCAST msg={message.id} -> user_{receiver_id} (destinatário) "
@@ -346,3 +343,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return msg
         except Message.DoesNotExist:
             return None
+
+    @database_sync_to_async
+    def get_offline_room_members(self, room_id, sender_id):
+        """ Retorna os IDs dos usuários offline com acesso à sala e o nome da sala """
+        room = ChatRoom.objects.get(id=room_id)
+        offline_users = []
+        
+        # Avalia todos os usuários ativos do sistema
+        usuarios_ativos = User.objects.filter(is_active=True)
+        
+        for u in usuarios_ativos:
+            if u.id != sender_id and room.user_has_access(u):
+                # Verifica a presença na tabela UserPresence
+                presenca = UserPresence.objects.filter(user_id=u.id).first()
+                if not presenca or not presenca.is_online:
+                    offline_users.append(u.id)
+                    
+        return offline_users, room.name
