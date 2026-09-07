@@ -9,10 +9,15 @@ import apiClient from '../../api/axiosConfig';
 import PacienteModal from '../../components/PacienteModal'; 
 
 export default function ChatApoioDireita({ 
-  onClose, onEnviarAgendamento, onEnviarPaciente, onEnviarDocumento, width = '25%' 
+  onClose, onEnviarAgendamento, onEnviarPaciente, onEnviarDocumento, width = '25%', tabExterna = null // <-- NOVA PROP
 }) {
   const [abaDireita, setAbaDireita] = useState(0);
   const [loadingApoio, setLoadingApoio] = useState(false);
+
+  // 👇 Sincroniza a aba se for controlada pelo Rodapé do Celular
+  useEffect(() => {
+    if (tabExterna !== null) setAbaDireita(tabExterna);
+  }, [tabExterna]);
   
   // --- ESTADOS DA AGENDA ---
   const [agendamentos, setAgendamentos] = useState([]);
@@ -97,17 +102,20 @@ export default function ChatApoioDireita({
   };
 
   return (
-    <Box sx={{ width, display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e0e0e0', bgcolor: '#fff' }}>
+    <Box sx={{ width: width, display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e0e0e0', bgcolor: '#fff' }}>
       
-      <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
-        <Tabs value={abaDireita} onChange={(e, val) => setAbaDireita(val)} sx={{ minHeight: 36 }}>
-          <Tab label="Agenda" sx={{ minHeight: 36, py: 0, fontSize: '0.75rem', fontWeight: 'bold' }} />
-          <Tab label="Pacientes" sx={{ minHeight: 36, py: 0, fontSize: '0.75rem', fontWeight: 'bold' }} />
-        </Tabs>
-        <IconButton size="small" onClick={onClose} sx={{ color: '#d32f2f' }} title="Fechar Chat">
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Box>
+      {/* 👇 ESCONDE ESTE CABEÇALHO SE ESTIVER NO CELULAR (tabExterna !== null) 👇 */}
+      {tabExterna === null && (
+        <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+          <Tabs value={abaDireita} onChange={(e, val) => setAbaDireita(val)} sx={{ minHeight: 36 }}>
+            <Tab label="Agenda" sx={{ minHeight: 36, py: 0, fontSize: '0.75rem', fontWeight: 'bold' }} />
+            <Tab label="Pacientes" sx={{ minHeight: 36, py: 0, fontSize: '0.75rem', fontWeight: 'bold' }} />
+          </Tabs>
+          <IconButton size="small" onClick={onClose} sx={{ color: '#d32f2f' }} title="Fechar Chat">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      )}
 
       <Box sx={{ flex: 1, p: 1.5, overflowY: 'auto', bgcolor: '#f8f9fa' }}>
         {loadingApoio && <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress size={24} /></Box>}

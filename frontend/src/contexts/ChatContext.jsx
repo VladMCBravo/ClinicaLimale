@@ -1,4 +1,3 @@
-// ChatContext.jsx
 import React, { createContext, useState, useEffect, useContext, useRef, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -11,17 +10,8 @@ export const ChatProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // ANTES: só existia um contador global (mensagensNaoLidas) que era zerado
-  // ao abrir o chat, sem guardar de qual conversa vinha a mensagem.
-  // AGORA: guardamos por conversa (chave "user_8" / "room_3"), igual ao que a
-  // sidebar precisa pra badge + ordenação. Isso sobrevive independente do
-  // ChatInterno estar montado ou não, porque mora aqui no Provider (que nunca desmonta).
   const [naoLidas, setNaoLidas] = useState({});
   const [ultimaAtividade, setUltimaAtividade] = useState({});
-
-  // Qual conversa está aberta DENTRO do chat agora (ex: "user_8"). Null se nenhuma
-  // ou se o chat estiver fechado. É isso que evita contar como "não lida" uma
-  // mensagem da conversa que a pessoa já está olhando.
   const [contatoAtivoKey, setContatoAtivoKey] = useState(null);
 
   const isChatOpenRef = useRef(isChatOpen);
@@ -33,15 +23,18 @@ export const ChatProvider = ({ children }) => {
   useEffect(() => { contatoAtivoKeyRef.current = contatoAtivoKey; }, [contatoAtivoKey]);
 
   useEffect(() => {
-    // Fonte correta e única do token
     const tokenSeguro = sessionStorage.getItem('authToken');
-    if (!tokenSeguro || !user) return; // sem token ou sem usuário logado, não conecta
+    if (!tokenSeguro || !user) return;
 
     let ws;
     let reconnectTimeout;
     let manualClose = false;
+    let isIntentionallyClosed = false; // <-- A CHAVE DO NOSSO SUCESSO
 
     const connect = () => {
+      // Se foi fechado de propósito pelo celular, não deixe reconectar!
+      if (isIntentionallyClosed || manualClose) return;
+
       const wsUrl = process.env.NODE_ENV === 'production'
         ? `wss://clinicalimale.onrender.com/ws/chat/?token=${tokenSeguro}`
         : `ws://localhost:8000/ws/chat/?token=${tokenSeguro}`;
@@ -56,8 +49,9 @@ export const ChatProvider = ({ children }) => {
       ws.onclose = () => {
         console.log('⚪ [WEBSOCKET] Conexão encerrada.');
         setSocket(null);
-        if (!manualClose) {
-          reconnectTimeout = setTimeout(connect, 3000); // reconexão automática
+        // SÓ RECONECTA SE NÃO FOI UM FECHAMENTO INTENCIONAL
+        if (!manualClose && !isIntentionallyClosed) {
+          reconnectTimeout = setTimeout(connect, 3000);
         }
       };
 
@@ -74,25 +68,13 @@ export const ChatProvider = ({ children }) => {
           const souEuQueMandei = currentUser && msg.sender_id === currentUser.id;
           const estaOlhandoEssaConversaAgora = chatAberto && contatoAtivoKeyRef.current === chaveConversa;
 
-          console.log(
-            `[CHAT-CTX] chat_message id=${msg.id} de sender_id=${msg.sender_id} (${msg.sender_nome || '?'}) ` +
-            `chave=${chaveConversa} souEuQueMandei=${souEuQueMandei} chatAberto=${chatAberto} ` +
-            `conversaAtiva=${contatoAtivoKeyRef.current} estaOlhandoEssaConversaAgora=${estaOlhandoEssaConversaAgora}`
-          );
-
-          // Guarda o horário da última mensagem SEMPRE, esteja o chat aberto ou não,
-          // é o que a sidebar usa pra ordenar tipo WhatsApp.
           setUltimaAtividade(prev => ({ ...prev, [chaveConversa]: msg.created_at || new Date().toISOString() }));
 
           if (!souEuQueMandei && !estaOlhandoEssaConversaAgora) {
             setNaoLidas(prev => {
-              const atualizado = { ...prev, [chaveConversa]: (prev[chaveConversa] || 0) + 1 };
-              console.log(`[CHAT-CTX] naoLidas[${chaveConversa}] agora = ${atualizado[chaveConversa]}`, atualizado);
-              return atualizado;
+              return { ...prev, [chaveConversa]: (prev[chaveConversa] || 0) + 1 };
             });
 
-            // Avisa o backend que a mensagem chegou no dispositivo (tique cinza duplo),
-            // mesmo com o chat fechado. Antes isso só acontecia se o ChatInterno estivesse montado.
             if (ws.readyState === 1) {
               ws.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'delivered' }));
             }
@@ -103,38 +85,54 @@ export const ChatProvider = ({ children }) => {
 
     connect();
 
+    // ==========================================
+    // CONTROLE DE VISIBILIDADE (O MATADOR DE ZUMBIS CENTRAL)
+    // ==========================================
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        console.log('💤 [WEBSOCKET] App minimizado. Suspendendo reconexão...');
+        isIntentionallyClosed = true; // Avisa o onclose para NÃO reconectar
+        clearTimeout(reconnectTimeout);
+        if (ws && ws.readyState === 1) {
+          ws.close();
+        }
+      } else if (document.visibilityState === 'visible') {
+        console.log('☀️ [WEBSOCKET] App reaberto. Restaurando conexão...');
+        isIntentionallyClosed = false; // Libera a reconexão
+        if (!ws || ws.readyState === 3) {
+          connect();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handleVisibilityChange);
+
     return () => {
       manualClose = true;
+      isIntentionallyClosed = true;
       clearTimeout(reconnectTimeout);
       ws?.close();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handleVisibilityChange);
     };
-  }, [user]); // reconecta quando o usuário loga/desloga
+  }, [user]);
 
-  // Badge global (ex: sininho no header) = soma de todas as conversas não lidas.
   const mensagensNaoLidas = useMemo(
     () => Object.values(naoLidas).reduce((soma, n) => soma + n, 0),
     [naoLidas]
   );
 
-  // Só abre/fecha o painel. NÃO zera mais naoLidas aqui — cada conversa some do
-  // contador quando a pessoa efetivamente clica nela (isso já é feito na sidebar).
   const abrirChat = () => setIsChatOpen(true);
   const fecharChat = () => {
     setIsChatOpen(false);
-    setContatoAtivoKey(null); // ninguém está "olhando" nenhuma conversa agora
+    setContatoAtivoKey(null);
   };
 
   return (
     <ChatContext.Provider value={{
-      socket,
-      isChatOpen,
-      abrirChat,
-      fecharChat,
-      mensagensNaoLidas,
-      naoLidas,
-      setNaoLidas,
-      ultimaAtividade,
-      setContatoAtivoKey,
+      socket, isChatOpen, abrirChat, fecharChat, mensagensNaoLidas,
+      naoLidas, setNaoLidas, ultimaAtividade, setContatoAtivoKey,
     }}>
       {children}
     </ChatContext.Provider>

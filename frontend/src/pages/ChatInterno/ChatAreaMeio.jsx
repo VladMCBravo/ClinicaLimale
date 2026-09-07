@@ -150,11 +150,12 @@ export default function ChatAreaMeio({
         
         {/* BOTÃO ENVIAR (Com flexShrink para não ser espremido) */}
         <IconButton type="submit" color="primary" sx={{ 
-            flexShrink: 0, // Impede que o botão seja esmagado
+            flexShrink: 0, 
+            width: 40, height: 40, // Força a largura fixa e redonda
             bgcolor: '#1976d2', color: '#fff', 
             '&:hover': { bgcolor: '#1565c0' } 
         }}>
-          <SendIcon fontSize="small" />
+          <SendIcon fontSize="small" sx={{ ml: 0.5 }} />
         </IconButton>
       </Box>
     </Box>
