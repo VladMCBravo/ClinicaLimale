@@ -6,6 +6,7 @@ import apiClient from '../api/axiosConfig'; // Usamos sua config existente
 export const PUBLIC_VAPID_KEY = process.env.REACT_APP_PUBLIC_VAPID_KEY;
 
 function urlBase64ToUint8Array(base64String) {
+  if (!base64String) return new Uint8Array(); // Previne o TypeError
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
@@ -18,8 +19,8 @@ function urlBase64ToUint8Array(base64String) {
 
 export function useWebPush(user) {
   useEffect(() => {
-    // Só tenta registrar se tiver usuário logado e suporte no navegador
-    if (user && 'serviceWorker' in navigator && 'PushManager' in window) {
+    // Só tenta registrar se a chave existir no ambiente
+    if (user && 'serviceWorker' in navigator && 'PushManager' in window && PUBLIC_VAPID_KEY) {
       registrarServiceWorkerEInscrever();
     }
   }, [user]);
