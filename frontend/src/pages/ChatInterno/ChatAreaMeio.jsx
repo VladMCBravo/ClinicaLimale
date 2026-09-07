@@ -2,11 +2,12 @@ import React, { useRef, useEffect } from 'react';
 import { Box, Typography, Avatar, TextField, IconButton, Paper, Button } from '@mui/material';
 import { 
   Send as SendIcon, Person as PersonIcon, Event as EventIcon, 
-  Description as DescriptionIcon, Done as DoneIcon, DoneAll as DoneAllIcon, Groups as GroupsIcon
+  Description as DescriptionIcon, Done as DoneIcon, DoneAll as DoneAllIcon, Groups as GroupsIcon, AttachFile as AttachFileIcon
 } from '@mui/icons-material';
 
 export default function ChatAreaMeio({ 
-  contatoAtivo, mensagens, mensagemAtual, setMensagemAtual, onSendMessage, onBaixarDocumento 
+  contatoAtivo, mensagens, mensagemAtual, setMensagemAtual, 
+  onSendMessage, onBaixarDocumento, onOpenApoio // <-- NOVA PROP
 }) {
   const mensagensFimRef = useRef(null);
 
@@ -127,13 +128,32 @@ export default function ChatAreaMeio({
       </Box>
 
       {/* INPUT DE TEXTO */}
-      <Box component="form" onSubmit={onSendMessage} sx={{ p: 2, bgcolor: '#fff', borderTop: '1px solid #e0e0e0', display: 'flex', gap: 1 }}>
+      <Box component="form" onSubmit={onSendMessage} sx={{ 
+          p: 2, 
+          pb: 'max(env(safe-area-inset-bottom), 16px)', // Protege contra a barra do iPhone
+          bgcolor: '#fff', borderTop: '1px solid #e0e0e0', 
+          display: 'flex', gap: 1, alignItems: 'center' 
+      }}>
+        
+        {/* BOTÃO DE ANEXAR (Agenda/Pacientes) */}
+        {onOpenApoio && (
+          <IconButton onClick={onOpenApoio} sx={{ flexShrink: 0, bgcolor: '#f0f2f5' }}>
+            <AttachFileIcon />
+          </IconButton>
+        )}
+
         <TextField 
           value={mensagemAtual} onChange={(e) => setMensagemAtual(e.target.value)}
-          fullWidth size="small" placeholder="Escreva uma mensagem..." variant="outlined"
+          fullWidth size="small" placeholder="Escreva..." variant="outlined"
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 5, bgcolor: '#f8f9fa' } }}
         />
-        <IconButton type="submit" color="primary" sx={{ bgcolor: '#1976d2', color: '#fff', '&:hover': { bgcolor: '#1565c0' } }}>
+        
+        {/* BOTÃO ENVIAR (Com flexShrink para não ser espremido) */}
+        <IconButton type="submit" color="primary" sx={{ 
+            flexShrink: 0, // Impede que o botão seja esmagado
+            bgcolor: '#1976d2', color: '#fff', 
+            '&:hover': { bgcolor: '#1565c0' } 
+        }}>
           <SendIcon fontSize="small" />
         </IconButton>
       </Box>

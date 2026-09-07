@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, IconButton, Typography, Dialog, Slide } from '@mui/material';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useSnackbar } from '../contexts/SnackbarContext';
 import { useChat } from '../contexts/ChatContext';
@@ -8,8 +8,12 @@ import apiClient from '../api/axiosConfig';
 
 import ChatSidebarEsquerda from './ChatInterno/ChatSidebarEsquerda';
 import ChatAreaMeio from './ChatInterno/ChatAreaMeio';
-// Nota: O ChatApoioDireita (agenda/pacientes) foi intencionalmente ocultado 
-// na versão mobile para focar na comunicação rápida estilo WhatsApp.
+import ChatApoioDireita from './ChatInterno/ChatApoioDireita'; // <-- IMPORTAMOS O APOIO
+
+// Efeito de transição do Menu Inferior
+const Transition = React.forwardRef(function Transition(props, ref) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 
 export default function ChatMobilePage() {
   const { user: currentUser } = useAuth();
@@ -19,6 +23,9 @@ export default function ChatMobilePage() {
   const [contatoAtivo, setContatoAtivoState] = useState(null);
   const [mensagens, setMensagens] = useState([]);
   const [mensagemAtual, setMensagemAtual] = useState('');
+  
+  // ESTADO DO MENU INFERIOR
+  const [isApoioOpen, setIsApoioOpen] = useState(false);
 
   const contatoAtivoRef = useRef(contatoAtivo);
 
@@ -33,12 +40,34 @@ export default function ChatMobilePage() {
   };
 
   useEffect(() => { contatoAtivoRef.current = contatoAtivo; }, [contatoAtivo]);
+  useEffect(() => { return () => setContatoAtivoKey(null); }, []);
 
+  // ==========================================
+  // O EXTERMINADOR DE CONEXÕES ZUMBIS (Fix do Push)
+  // ==========================================
   useEffect(() => {
-    return () => setContatoAtivoKey(null);
-  }, []);
+    const matarConexaoZumbi = () => {
+      // Quando o app é minimizado, fechamos o socket na força.
+      // Isso avisa o Django no mesmo segundo que estamos OFFLINE, 
+      // garantindo que a próxima mensagem vire um Push Notification.
+      if (document.visibilityState === 'hidden' && socket?.readyState === 1) {
+        socket.close();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', matarConexaoZumbi);
+    // pagehide é o evento mais confiável no iOS
+    window.addEventListener('pagehide', matarConexaoZumbi); 
+    
+    return () => {
+      document.removeEventListener('visibilitychange', matarConexaoZumbi);
+      window.removeEventListener('pagehide', matarConexaoZumbi);
+    };
+  }, [socket]);
 
-  // 1. OUVINTE DO WEBSOCKET
+  // ==========================================
+  // OUVINTE DO WEBSOCKET
+  // ==========================================
   useEffect(() => {
     if (!socket) return;
     const handleMessage = (event) => {
@@ -53,23 +82,21 @@ export default function ChatMobilePage() {
             activeChatKey = currentContato.is_room ? `room_${currentContato.id}` : `user_${currentContato.id}`;
         }
 
-        const pertenceAAbaAtual = (incomingChatKey === activeChatKey) || (!msg.room_id && msg.sender_id === currentUser.id);
-
-        if (pertenceAAbaAtual) {
-            setMensagens((prev) => [...prev, { ...msg, sender: msg.sender_id === currentUser.id ? 'me' : 'other' }]);
-            if (msg.sender_id !== currentUser.id) {
-               socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'read' }));
-            }
-          } else if (msg.sender_id !== currentUser.id) {
-            
-            // 👇 CORREÇÃO 1: Avisa o PC que a mensagem chegou (Tique duplo cinza) 👇
-            if (socket.readyState === WebSocket.OPEN) {
-              socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'delivered' }));
-            }
-
-            try { new Audio('/notificacao.mp3').play().catch(()=>{}); } catch (e) { }
-            showSnackbar(`Nova mensagem de ${msg.sender_nome || 'Colega'}`, 'info');
+        if (incomingChatKey === activeChatKey || (!msg.room_id && msg.sender_id === currentUser.id)) {
+          setMensagens((prev) => [...prev, { ...msg, sender: msg.sender_id === currentUser.id ? 'me' : 'other' }]);
+          if (msg.sender_id !== currentUser.id && socket.readyState === 1) {
+             socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'read' }));
           }
+        } else if (msg.sender_id !== currentUser.id) {
+          
+          // AVISA O PC DA RECEPÇÃO QUE CHEGOU NO CELULAR (Tique duplo cinza)
+          if (socket.readyState === 1) {
+            socket.send(JSON.stringify({ action: 'update_status', message_id: msg.id, status: 'delivered' }));
+          }
+
+          try { new Audio('/notificacao.mp3').play().catch(()=>{}); } catch (e) { }
+          showSnackbar(`Nova mensagem de ${msg.sender_nome || 'Colega'}`, 'info');
+        }
       } else if (data.type === 'message_status') {
           setMensagens(prev => prev.map(m => {
               if (m.id === data.message_id) {
@@ -83,35 +110,11 @@ export default function ChatMobilePage() {
     return () => socket.removeEventListener('message', handleMessage);
   }, [socket, currentUser.id, showSnackbar]);
 
-  // 👇 CORREÇÃO 2: Controle de Visibilidade e Acionamento de Push 👇
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        // App minimizado: Desconecta o WebSocket na força! 
-        // Isso avisa o Django imediatamente que estamos offline, forçando ele a mandar Push.
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.close(); 
-        }
-      } else if (document.visibilityState === 'visible') {
-        // App voltou pra tela: Se o usuário estava dentro de uma conversa, 
-        // forçamos um recarregamento da mesma para puxar as mensagens perdidas do REST.
-        if (contatoAtivoRef.current) {
-          setContatoAtivoState({ ...contatoAtivoRef.current }); 
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [socket]);
-
-  // 2. BUSCAR HISTÓRICO REST
   useEffect(() => {
     if (contatoAtivo) {
       setMensagens([]);
       const url = contatoAtivo.is_room ? `/chat/history/?room_id=${contatoAtivo.id}` : `/chat/history/?contact_id=${contatoAtivo.id}`;
-      apiClient.get(url)
-        .then(res => {
+      apiClient.get(url).then(res => {
           const lista = Array.isArray(res.data) ? res.data : (res.data.results || []);
           const historicoFormatado = lista.map(msg => {
             if (!msg.is_mine && !msg.is_read && socket && socket.readyState === 1) {
@@ -121,8 +124,7 @@ export default function ChatMobilePage() {
             return { ...msg, sender: msg.is_mine ? 'me' : 'other' };
           });
           setMensagens(historicoFormatado);
-        })
-        .catch(err => console.error("Erro ao carregar histórico:", err));
+        }).catch(err => console.error("Erro ao carregar histórico:", err));
     }
   }, [contatoAtivo, socket]);
 
@@ -148,6 +150,21 @@ export default function ChatMobilePage() {
     }
   };
 
+  const enviarAgendamento = (ag) => {
+    dispararMensagem(`Agendamento: ${ag.paciente_nome} às ${new Date(ag.data_hora_inicio).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`, 'appointment', ag.id, ag);
+    setIsApoioOpen(false); // Fecha o menu
+  };
+
+  const enviarPaciente = (pac) => {
+    dispararMensagem(`👤 ${pac.nome_completo || pac.nome}\n📱 Tel: ${pac.telefone_celular || 'N/I'}`, 'patient', pac.id, pac);
+    setIsApoioOpen(false);
+  };
+
+  const enviarDocumento = (doc, pac) => {
+    dispararMensagem(`📄 ${doc.tipo_atestado || 'Documento'}\n👤 Paciente: ${pac.nome_completo || pac.nome}`, 'document', doc.id, doc);
+    setIsApoioOpen(false);
+  };
+
   const baixarDocumento = async (id) => {
     try {
         const res = await apiClient.get(`/pdf/atestado/${id}/`, { responseType: 'blob' });
@@ -157,35 +174,25 @@ export default function ChatMobilePage() {
 
   return (
     <Box sx={{ 
-      height: '100vh', 
-      width: '100vw', 
-      display: 'flex', 
-      overflow: 'hidden', 
-      bgcolor: '#fff',
-      // 👇 CORREÇÃO 3: Respeita as áreas recortadas do celular (câmera no topo e barra no rodapé) 👇
-      pt: 'env(safe-area-inset-top, 20px)', 
-      pb: 'env(safe-area-inset-bottom, 10px)'
+        height: '100vh', width: '100vw', display: 'flex', overflow: 'hidden', bgcolor: '#fff',
+        // PROTEÇÃO CONTRA O NOTCH/CÂMERA DO CELULAR
+        pt: 'max(env(safe-area-inset-top), 20px)' 
     }}>
       
-      {/* SE NÃO HOUVER CONTATO SELECIONADO: MOSTRA A LISTA EM TELA CHEIA */}
       {!contatoAtivo && (
-        <ChatSidebarEsquerda 
-          width="100%" 
-          currentUser={currentUser}
-          contatoAtivo={contatoAtivo} 
-          setContatoAtivo={setContatoAtivo} 
-          naoLidas={naoLidas} 
-          setNaoLidas={setNaoLidas}
-          ultimaAtividade={ultimaAtividade}
-        />
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <ChatSidebarEsquerda 
+              width="100%" 
+              currentUser={currentUser}
+              contatoAtivo={contatoAtivo} setContatoAtivo={setContatoAtivo} 
+              naoLidas={naoLidas} setNaoLidas={setNaoLidas} ultimaAtividade={ultimaAtividade}
+            />
+        </Box>
       )}
 
-      {/* SE HOUVER CONTATO: MOSTRA O CHAT EM TELA CHEIA */}
       {contatoAtivo && (
         <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-          
-          {/* HEADER MOBILE COM BOTÃO VOLTAR */}
-          <Box sx={{ bgcolor: '#1a233b', color: '#fff', px: 1, py: 0.5, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ bgcolor: '#1a233b', color: '#fff', px: 1, py: 1, display: 'flex', alignItems: 'center' }}>
             <IconButton color="inherit" onClick={() => setContatoAtivo(null)}>
               <ArrowBackIcon />
             </IconButton>
@@ -194,7 +201,6 @@ export default function ChatMobilePage() {
             </Typography>
           </Box>
 
-          {/* O ChatAreaMeio preenche o resto da tela */}
           <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
             <ChatAreaMeio 
               contatoAtivo={contatoAtivo}
@@ -203,11 +209,26 @@ export default function ChatMobilePage() {
               setMensagemAtual={setMensagemAtual}
               onSendMessage={enviarTexto}
               onBaixarDocumento={baixarDocumento}
+              onOpenApoio={() => setIsApoioOpen(true)} // <-- ABRE O MENU 
             />
           </Box>
         </Box>
       )}
 
+      {/* MODAL DO MENU DE ANEXOS (Agenda e Pacientes) */}
+      <Dialog 
+        fullScreen open={isApoioOpen} onClose={() => setIsApoioOpen(false)} 
+        TransitionComponent={Transition}
+        sx={{ '& .MuiDialog-paper': { pt: 'max(env(safe-area-inset-top), 20px)' } }}
+      >
+          <ChatApoioDireita 
+            width="100%"
+            onClose={() => setIsApoioOpen(false)} 
+            onEnviarAgendamento={enviarAgendamento} 
+            onEnviarPaciente={enviarPaciente}
+            onEnviarDocumento={enviarDocumento}
+          />
+      </Dialog>
     </Box>
   );
 }
