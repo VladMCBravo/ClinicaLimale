@@ -45,7 +45,16 @@ export const AuthProvider = ({ children }) => {
                 setUser(getUserFromStorage());
                 setToken(authToken);
 
-                navigate('/');
+                // 👇 NOVA LÓGICA DE DETECÇÃO DE PWA 👇
+                // Verifica se está rodando como app instalado (Android/iOS)
+                const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+                
+                if (isPWA) {
+                    navigate('/chat-mobile'); // Joga direto pro chat
+                } else {
+                    navigate('/'); // Comportamento normal no PC
+                }
+                
                 return true;
             }
             return false;
