@@ -1,7 +1,10 @@
 import pytest
+from unittest.mock import patch
 from rest_framework import status
 from rest_framework.test import APIClient
 from django.urls import reverse
+from push_notifications.models import WebPushSubscription
+from push_notifications.services import enviar_notificacao_push
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from chat.models import Message, ChatRoom
@@ -158,3 +161,58 @@ class TestChatRoomsAPI:
         res_intruso = client.get(url)
         assert res_intruso.status_code == status.HTTP_200_OK
         assert len(res_intruso.data) == 0
+
+@pytest.mark.django_db
+class TestPushNotifications:
+
+    def test_api_inscricao_push_salva_no_banco(self, client, usuario_medico):
+        """Garante que o React consegue salvar a inscrição do celular no banco de dados"""
+        client.force_authenticate(user=usuario_medico)
+        url = reverse('push-subscribe') # O name da sua rota no urls.py do app push
+        
+        payload = {
+            "endpoint": "https://fcm.googleapis.com/fcm/send/meu-celular-fake",
+            "keys": {
+                "p256dh": "chave-publica-falsa",
+                "auth": "chave-auth-falsa"
+            }
+        }
+        
+        response = client.post(url, payload, format='json')
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert WebPushSubscription.objects.filter(user=usuario_medico).count() == 1
+        
+        # Se mandar de novo, não deve duplicar (testando o update_or_create)
+        client.post(url, payload, format='json')
+        assert WebPushSubscription.objects.filter(user=usuario_medico).count() == 1
+
+    @patch('push_notifications.services.webpush')
+    def test_disparo_notificacao_chama_biblioteca_correta(self, mock_webpush, usuario_medico):
+        """
+        Simula o envio de um Push sem bater nos servidores do Google.
+        Usamos @patch para interceptar a biblioteca pywebpush.
+        """
+        # 1. Criamos a inscrição falsa no banco
+        WebPushSubscription.objects.create(
+            user=usuario_medico,
+            endpoint="https://fake-endpoint.com",
+            auth="auth123",
+            p256dh="key123"
+        )
+        
+        # 2. Chamamos a nossa função de disparo
+        sucesso = enviar_notificacao_push(
+            user_id=usuario_medico.id,
+            titulo="Nova Mensagem",
+            corpo="Teste de Push"
+        )
+        
+        # 3. Verificamos se deu tudo certo e se a biblioteca interceptada foi chamada
+        assert sucesso is True
+        mock_webpush.assert_called_once()
+        
+        # 4. Verificamos se enviamos os dados corretos para o Google/Apple
+        args, kwargs = mock_webpush.call_args
+        assert kwargs['subscription_info']['endpoint'] == "https://fake-endpoint.com"
+        assert '"title": "Nova Mensagem"' in kwargs['data']

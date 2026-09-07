@@ -35,7 +35,7 @@ export function useWebPush(user) {
       // 3. Pede permissão e se inscreve no servidor de Push (Google/Apple)
       const subscription = await sw.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+        applicationServerKey: urlBase64ToUint8Array(PUBLIC_VAPID_KEY) 
       });
 
       // 4. Envia a inscrição para o nosso Django
