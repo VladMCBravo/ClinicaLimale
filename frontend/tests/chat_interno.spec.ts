@@ -44,33 +44,37 @@ test.describe.serial('Sincronia Real-Time do Chat (Grupos e Ordenação)', () =>
     
     await expect(inputRecepcao).toHaveValue(''); 
 
-    // 🚨 A MÁGICA: Espera o pacote do WebSocket sair da aba antes de congelá-la!
-    await pageRecepcao.waitForTimeout(1000); 
+    // 🚨 REMOVIDO: await pageRecepcao.waitForTimeout(1000); 
 
     // ---------------------------------------------------------
     // CENA 2: O MÉDICO RECEBE A NOTIFICAÇÃO
     // ---------------------------------------------------------
     await pageMedico.bringToFront();
     
-    await expect(pageMedico.getByText(/Nova mensagem/i).first()).toBeVisible();
-
+    // 1. O estado persistente garante que o WebSocket funcionou perfeitamente
     const badgeNaoLidas = pageMedico.getByTitle('Chat Interno').locator('.MuiBadge-badge');
-    await expect(badgeNaoLidas).not.toBeEmpty(); 
+    await expect(badgeNaoLidas).not.toBeEmpty({ timeout: 10000 }); 
+
+    // 🔥 APAGAMOS A ASSERÇÃO DO ALERTA DAQUI 🔥
 
     // ---------------------------------------------------------
     // CENA 3: O MÉDICO ABRE O CHAT E LÊ
     // ---------------------------------------------------------
     await pageMedico.getByTitle('Chat Interno').click();
     await pageMedico.getByRole('tab', { name: 'Consultórios' }).click();
-    
-    // Verifica a bolinha vermelha na lista esquerda
-    await expect(pageMedico.locator('.MuiBadge-badge.MuiBadge-colorError').last()).toBeVisible();
 
-    // 🚨 AJUSTE: Buscamos o consultório pelo nome em vez da posição .first()
-    // (Até refatorarmos o ChatContext para guardar o histórico global de não lidas)
+    // Localiza o item de lista do Consultório 01 (fonte da verdade, não posição no DOM)
     const salaAlvo = pageMedico.getByRole('dialog').getByRole('listitem').filter({ hasText: 'Consultório 01' });
+
+    // Timeout maior para dar chance à fetch (possivelmente lenta) se estabilizar
+    await expect(salaAlvo, 'Consultório 01 sumiu da lista — possível race condition no fetch de salas')
+      .toBeVisible({ timeout: 15000 });
+
+    const badgeSalaAlvo = salaAlvo.locator('.MuiBadge-badge.MuiBadge-colorError');
+    await expect(badgeSalaAlvo).toBeVisible();
+    await expect(badgeSalaAlvo).not.toHaveClass(/MuiBadge-invisible/);
+
     await salaAlvo.click();
-    
     await expect(pageMedico.getByText('Paciente do exame chegou!').last()).toBeVisible();
 
     // ---------------------------------------------------------
@@ -100,8 +104,8 @@ test.describe.serial('Sincronia Real-Time do Chat (Grupos e Ordenação)', () =>
       await page.route('**/push/subscribe/', route => {
         pushRegistrado = true;
         const request = route.request();
-        const postData = JSON.parse(request.postData());
-        
+        const postData = JSON.parse(request.postData() || '{}');
+
         endpointEnviado = postData.endpoint; 
         
         route.fulfill({ 

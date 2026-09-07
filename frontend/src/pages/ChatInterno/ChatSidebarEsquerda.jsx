@@ -7,7 +7,7 @@ import { Groups as GroupsIcon } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
 
 export default function ChatSidebarEsquerda({ 
-  currentUser, contatoAtivo, setContatoAtivo, naoLidas, setNaoLidas, ultimaAtividade = {}
+  currentUser, contatoAtivo, setContatoAtivo, naoLidas, setNaoLidas, ultimaAtividade = {}, width = '25%'
 }) {
   const [abaAtiva, setAbaAtiva] = useState(0);
   const [equipe, setEquipe] = useState([]);
@@ -93,7 +93,7 @@ export default function ChatSidebarEsquerda({
   const prefixoAtivo = abaAtiva === 0 ? 'user' : 'room';
 
   return (
-    <Box sx={{ width: '25%', display: 'flex', flexDirection: 'column', borderRight: '1px solid #e0e0e0', bgcolor: '#fff' }}>
+    <Box sx={{ width: width, display: 'flex', flexDirection: 'column', borderRight: '1px solid #e0e0e0', bgcolor: '#fff' }}>
       <Box sx={{ p: 2, bgcolor: '#1a233b', color: '#fff', display: 'flex', flexDirection: 'column' }}>
         <Typography variant="subtitle1" fontWeight="bold">Comunicação</Typography>
       </Box>

@@ -32,6 +32,7 @@ import ConfiguracoesPage from './pages/ConfiguracoesPage';
 
 import CRMPageBase from './pages/CRM/CRMPageBase';
 import ProntuarioWorkspace from './pages/PainelMedico/ProntuarioWorkspace';
+import ChatMobilePage from './pages/ChatMobilePage';
 
 const RotaInicialDinamica = () => {
   const { user } = useAuth();
@@ -68,8 +69,11 @@ function App() {
                   <Route path="/ponto" element={<PontoKioskPage />} />
                   
                   <Route element={<ProtectedRoute />}>
-                    <Route element={<MainLayout />}>
-                      
+
+                    {/* 👇 ROTA EXCLUSIVA DO PWA MOBILE 👇 */}
+                    <Route path="/chat-mobile" element={<ChatMobilePage />} />
+
+                    <Route element={<MainLayout />}>  
                       <Route path="/" element={<RotaInicialDinamica />} />
                       <Route path="/painel" element={<PainelRecepcaoPage />} />
                       <Route path="/laudos" element={<LaudosPage />} />
