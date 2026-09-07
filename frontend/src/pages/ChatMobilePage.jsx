@@ -166,8 +166,15 @@ export default function ChatMobilePage() {
 
             <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
               <ChatAreaMeio 
-                contatoAtivo={contatoAtivo} mensagens={mensagens} mensagemAtual={mensagemAtual}
-                setMensagemAtual={setMensagemAtual} onSendMessage={enviarTexto} onBaixarDocumento={baixarDocumento}
+                contatoAtivo={contatoAtivo} 
+                mensagens={mensagens} 
+                mensagemAtual={mensagemAtual}
+                setMensagemAtual={setMensagemAtual} 
+                onSendMessage={enviarTexto} 
+                onBaixarDocumento={baixarDocumento}
+
+                // 👇 O CLIPE VOLTOU! Ele vai mudar para a Aba da Agenda (Aba 1)
+                onOpenApoio={() => setAbaMobile(1)} 
               />
             </Box>
           </Box>
