@@ -83,4 +83,49 @@ test.describe.serial('Sincronia Real-Time do Chat (Grupos e Ordenação)', () =>
     await expect(tiqueDuplo).toHaveCSS('color', 'rgb(33, 150, 243)');
     
   });
+
+  test.describe.serial('Testes de Web Push e Service Worker', () => {
+
+    test('O frontend deve pedir permissão de notificação e enviar a chave ao backend', async ({ browser }) => {
+      
+      const context = await browser.newContext();
+      await context.grantPermissions(['notifications']); 
+      
+      const page = await context.newPage();
+
+      let pushRegistrado = false;
+      // 1. INICIALIZAMOS COMO STRING VAZIA PARA AGRADAR O TYPESCRIPT
+      let endpointEnviado = ''; 
+      
+      await page.route('**/push/subscribe/', route => {
+        pushRegistrado = true;
+        const request = route.request();
+        const postData = JSON.parse(request.postData());
+        
+        endpointEnviado = postData.endpoint; 
+        
+        route.fulfill({ 
+          status: 201, 
+          contentType: 'application/json',
+          body: JSON.stringify({ status: 'Inscrito com sucesso no teste!' }) 
+        });
+      });
+
+      await page.goto(`${BASE_URL}/login`);
+      await page.locator('input[name="username"], input[type="text"]').first().fill('Teste'); 
+      await page.locator('input[name="password"], input[type="password"]').first().fill('Teste@123');  
+      await page.getByRole('button', { name: 'Entrar' }).click();
+
+      await page.waitForTimeout(3000); 
+
+      expect(pushRegistrado).toBeTruthy();
+      
+      // 2. MUDAMOS A VALIDAÇÃO PARA GARANTIR QUE A STRING NÃO ESTÁ VAZIA
+      expect(endpointEnviado).not.toBe('');
+      
+      // 3. AGORA O TYPESCRIPT SABE QUE É SEGURO USAR O .toContain()
+      expect(endpointEnviado).toContain('fcm.googleapis.com');
+    });
+
+  });
 });

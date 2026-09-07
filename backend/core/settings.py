@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     'dashboard',
     'chatbot',
     'chat',
+    'push_notifications',
     'channels',
     'integracao_dicom',
     'laudos',
@@ -247,3 +248,5 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 # Opcional: define um limite de tempo para a tarefa não travar a fila eternamente (ex: 5 minutos)
 CELERY_TASK_TIME_LIMIT = 300
+
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY')
