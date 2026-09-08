@@ -53,7 +53,8 @@ export default function JornadasTab() {
         setIsLoading(true);
         try {
             const response = await configuracoesService.getJornadas(filtroMedico);
-            setJornadas(response.data);
+            // 👇 TRAVA ANTIBUG APLICADA AQUI 👇
+            setJornadas(response.data.results || response.data || []);
         } catch (error) { showSnackbar('Erro ao carregar jornadas.', 'error'); } 
         finally { setIsLoading(false); }
     }, [showSnackbar, filtroMedico]);
@@ -61,7 +62,8 @@ export default function JornadasTab() {
     const fetchMedicos = useCallback(async () => {
         try {
             const response = await configuracoesService.getMedicos();
-            setMedicos(response.data);
+            // 👇 TRAVA ANTIBUG APLICADA AQUI 👇
+            setMedicos(response.data.results || response.data || []);
         } catch (error) { showSnackbar('Erro ao carregar médicos.', 'error'); }
     }, [showSnackbar]);
 
