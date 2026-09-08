@@ -7,7 +7,7 @@ import {
 
 export default function ChatAreaMeio({ 
   contatoAtivo, mensagens, mensagemAtual, setMensagemAtual, 
-  onSendMessage, onBaixarDocumento, onOpenApoio // <-- NOVA PROP
+  onSendMessage, onBaixarDocumento, onOpenApoio 
 }) {
   const mensagensFimRef = useRef(null);
 
@@ -65,16 +65,27 @@ export default function ChatAreaMeio({
 
           return (
             <Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-              {/* Exibe o nome do remetente se for em Grupo e não for minha a mensagem */}
-              {!isMe && contatoAtivo.is_room && msg.sender_nome && (
-                 <Typography variant="caption" sx={{ color: '#ef6c00', fontWeight: 'bold', mb: 0.5, ml: 1 }}>
-                   {msg.sender_nome}
-                 </Typography>
-              )}
+              {/* Box que agrupa Nome, Balão de Mensagem e Tiques, para parecer com WhatsApp */}
+              <Box sx={{ maxWidth: '85%', display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
+                
+                {/* Nome aparece DENTRO do conceito visual do balão (ou grudado nele) */}
+                {!isMe && contatoAtivo.is_room && msg.sender_nome && (
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      display: 'block', 
+                      color: '#075e54', // Tom esverdeado WhatsApp para dar constraste
+                      fontWeight: 'bold', 
+                      mb: 0.2, 
+                      ml: 0.5 
+                    }}
+                  >
+                    {msg.sender_nome}
+                  </Typography>
+                )}
               
-              <Box sx={{ maxWidth: '75%' }}>
                 {msg.attachment_type === 'appointment' ? (
-                  <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #90caf9' }}>
+                  <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #90caf9', width: '100%' }}>
                     <Box sx={{ bgcolor: '#e3f2fd', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                       <EventIcon color="primary" fontSize="small" />
                       <Typography variant="caption" fontWeight="bold" color="primary">FICHA DE AGENDAMENTO</Typography>
@@ -85,7 +96,7 @@ export default function ChatAreaMeio({
                     </Box>
                   </Paper>
                 ) : msg.attachment_type === 'document' ? (
-                  <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #ff9800' }}>
+                  <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #ff9800', width: '100%' }}>
                     <Box sx={{ bgcolor: '#fff3e0', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                       <DescriptionIcon color="warning" fontSize="small" />
                       <Typography variant="caption" fontWeight="bold" color="warning.dark">DOCUMENTO MÉDICO</Typography>
@@ -99,7 +110,7 @@ export default function ChatAreaMeio({
                     </Box>
                   </Paper>
                 ) : msg.attachment_type === 'patient' ? (
-                  <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #ce93d8' }}>
+                  <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: 2, border: '1px solid #ce93d8', width: '100%' }}>
                     <Box sx={{ bgcolor: '#f3e5f5', px: 2, py: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
                       <PersonIcon color="secondary" fontSize="small" />
                       <Typography variant="caption" fontWeight="bold" color="secondary">CONTATO DE PACIENTE</Typography>
@@ -111,12 +122,15 @@ export default function ChatAreaMeio({
                   </Paper>
                 ) : (
                   <Paper elevation={0} sx={{ 
-                    p: 1.5, px: 2, borderRadius: 2, 
+                    p: 1, px: 1.5, borderRadius: 2.5,  // Arredondamento mais orgânico (WhatsApp style)
                     bgcolor: isMe ? '#dcf8c6' : '#fff', 
                     border: '1px solid', borderColor: isMe ? '#c8e6c9' : '#e0e0e0',
-                    borderTopRightRadius: isMe ? 0 : 8, borderTopLeftRadius: !isMe ? 0 : 8,
+                    borderTopRightRadius: isMe ? 0 : 12, borderTopLeftRadius: !isMe ? 0 : 12,
+                    boxShadow: '0px 1px 1px rgba(0,0,0,0.1)' // Sombrinha suave do balão
                   }}>
-                    <Typography variant="body2" sx={{ color: '#222', whiteSpace: 'pre-wrap' }}>{msg.content}</Typography>
+                    <Typography variant="body2" sx={{ color: '#111', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+                       {msg.content}
+                    </Typography>
                     {renderHorarioETiques()}
                   </Paper>
                 )}
