@@ -62,8 +62,18 @@ export default function ChatSidebarEsquerda({
   return (
     <Box sx={{ width: width, display: 'flex', flexDirection: 'column', height: '100%', borderRight: '1px solid #e0e0e0', bgcolor: '#fff' }}>
       
-      {/* CABEÇALHO FIXO COM BOTÕES DE AÇÃO */}
-      <Box sx={{ p: 2, pb: 1.5, bgcolor: '#1a233b', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+      {/* CABEÇALHO FIXO COM BOTÕES DE AÇÃO - AZUL ATÉ O TOPO DO IPHONE */}
+      <Box sx={{ 
+        px: 2, 
+        pb: 1.5, 
+        pt: 'max(env(safe-area-inset-top), 16px)', // <-- A Mágica do Topo: Absorve o Notch com a cor de fundo Azul!
+        bgcolor: '#1a233b', 
+        color: '#fff', 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        flexShrink: 0 
+      }}>
         <Box>
           <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>Clínica Limalé</Typography>
           <Typography variant="caption" color="rgba(255,255,255,0.7)">Grupos de Atendimento</Typography>
