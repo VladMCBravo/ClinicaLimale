@@ -138,7 +138,9 @@ export default function ChatMobilePage() {
         width: '100vw', 
         display: 'flex', 
         flexDirection: 'column', 
-        overflow: 'hidden', 
+        overflow: 'hidden', // Importante para travar o body
+        position: 'fixed',  // <--- FIX: Prende a aplicação inteira no lugar
+        top: 0, left: 0, right: 0, bottom: 0,
         bgcolor: '#fff',
         pt: 'max(env(safe-area-inset-top), 16px)' 
     }}>
