@@ -177,10 +177,7 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
-    ],
-    # 👇 ADICIONE ESTAS DUAS LINHAS 👇
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10, # Tamanho padrão da página
+    ]
 }
 
 # --- Configurações de Cookies ---
