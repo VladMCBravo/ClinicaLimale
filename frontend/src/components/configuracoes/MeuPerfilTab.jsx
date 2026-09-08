@@ -84,7 +84,7 @@ export default function MeuPerfilTab() {
                         <Tab icon={<Person sx={{mr:1, mb:0}}/>} iconPosition="start" label="Pessoais" sx={{ minHeight: 40, fontSize: '13px' }} />
                         <Tab icon={<LocationOn sx={{mr:1, mb:0}}/>} iconPosition="start" label="Endereço" sx={{ minHeight: 40, fontSize: '13px' }} />
                         <Tab icon={<Lock sx={{mr:1, mb:0}}/>} iconPosition="start" label="Acesso" sx={{ minHeight: 40, fontSize: '13px' }} />
-                        {perfil.cargo === 'medico' && <Tab icon={<Security sx={{mr:1, mb:0}}/>} iconPosition="start" label="Assinatura" sx={{ minHeight: 40, fontSize: '13px' }} />}
+                        {['medico', 'admin_medico'].includes(perfil.cargo) && <Tab icon={<Security sx={{mr:1, mb:0}}/>} iconPosition="start" label="Assinatura" sx={{ minHeight: 40, fontSize: '13px' }} />}
                     </Tabs>
                 </Box>
 
@@ -97,7 +97,7 @@ export default function MeuPerfilTab() {
                                 <Grid item xs={12} sm={6}><TextField className="tasy-compact-input" fullWidth label="Sobrenome" name="last_name" value={perfil.last_name || ''} onChange={handleChange} required /></Grid>
                                 <Grid item xs={12} sm={4}><TextField className="tasy-compact-input" fullWidth label="Telefone" name="telefone" value={perfil.telefone || ''} onChange={handleChange} /></Grid>
                                 <Grid item xs={12} sm={4}><TextField className="tasy-compact-input" fullWidth label="Cargo" value={(perfil.cargo || '').toUpperCase()} disabled /></Grid>
-                                {perfil.cargo === 'medico' && <Grid item xs={12} sm={4}><TextField className="tasy-compact-input" fullWidth label="CRM" value={perfil.crm || 'Não informado'} disabled /></Grid>}
+                                {['medico', 'admin_medico'].includes(perfil.cargo) && <Grid item xs={12} sm={4}><TextField className="tasy-compact-input" fullWidth label="CRM" value={perfil.crm || 'Não informado'} disabled /></Grid>}
                             </Grid>
                             <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
                                 <Button type="submit" variant="contained" disableElevation size="small" sx={{bgcolor: '#1c7ed6'}} disabled={savingInfo}>{savingInfo ? 'Salvando...' : 'Salvar Dados'}</Button>
@@ -156,7 +156,7 @@ export default function MeuPerfilTab() {
                     </TabPanel>
 
                     {/* ABA 3: ASSINATURA OMITIDA PARA ENCURTAR A RESPOSTA (Mas continua igual a anterior) */}
-                    {perfil.cargo === 'medico' && (
+                    {['medico', 'admin_medico'].includes(perfil.cargo) && (
                         <TabPanel value={tab} index={3}>
                            {/* ... Código da assinatura mantido ... */}
                         </TabPanel>

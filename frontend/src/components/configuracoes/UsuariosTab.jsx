@@ -41,6 +41,16 @@ export default function UsuariosTab() {
         } catch (error) { showSnackbar('Erro ao atualizar.', 'error'); }
     };
 
+    const formatarCargo = (cargo) => {
+        const cargos = {
+            'admin': 'Administrador',
+            'admin_medico': 'Médico Sócio',
+            'medico': 'Médico',
+            'recepcao': 'Recepção'
+        };
+        return cargos[cargo] || cargo;
+    };
+
     return (
         <Box className="tasy-workspace">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
@@ -49,6 +59,7 @@ export default function UsuariosTab() {
                     <Select value={filtroCargo} label="Filtrar por Cargo" onChange={(e) => setFiltroCargo(e.target.value)}>
                         <MenuItem value="">Todos</MenuItem>
                         <MenuItem value="admin">Administrador</MenuItem>
+                        <MenuItem value="admin_medico">Médico Sócio</MenuItem> {/* <-- ADICIONADO */}
                         <MenuItem value="medico">Médico</MenuItem>
                         <MenuItem value="recepcao">Recepção</MenuItem>
                     </Select>
@@ -81,7 +92,7 @@ export default function UsuariosTab() {
                             <TableRow key={user.id} hover>
                                 <TableCell>{user.first_name} {user.last_name}</TableCell>
                                 <TableCell>{user.username}</TableCell>
-                                <TableCell sx={{ textTransform: 'capitalize' }}>{user.cargo}</TableCell>
+                                <TableCell sx={{ textTransform: 'capitalize' }}>{formatarCargo(user.cargo)}</TableCell>
                                 <TableCell align="center">
                                     <Switch checked={user.is_active} onChange={() => handleToggleActive(user)} color="success" size="small" />
                                 </TableCell>

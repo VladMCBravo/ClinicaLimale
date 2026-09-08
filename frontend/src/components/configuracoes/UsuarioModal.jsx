@@ -202,6 +202,7 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                                 <Select name="cargo" value={formData.cargo} label="Cargo" onChange={handleChange}>
                                                     <MenuItem value="recepcao">Recepção</MenuItem>
                                                     <MenuItem value="medico">Médico(a)</MenuItem>
+                                                    <MenuItem value="admin_medico">Médico Sócio (Admin/Médico)</MenuItem> {/* <-- ADICIONADO */}
                                                     <MenuItem value="admin">Administrador</MenuItem>
                                                 </Select>
                                             </FormControl>

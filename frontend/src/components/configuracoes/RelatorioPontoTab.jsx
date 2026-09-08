@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { Refresh, GpsFixed, ErrorOutline, CheckCircle, Edit, Delete, Add, Block, Print } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
+import dayjs from 'dayjs';
 
 export default function RelatorioPontoTab() {
     const [abaAtual, setAbaAtual] = useState(0); // 0 = Auditoria, 1 = Espelho Mensal
@@ -57,15 +58,25 @@ export default function RelatorioPontoTab() {
     // --- FUNÇÕES DE CRUD DO RH (Aba 0) ---
     const handleOpenModal = (log = null) => {
         if (log) {
-            const dateObj = new Date(log.data_hora);
-            const tzOffset = dateObj.getTimezoneOffset() * 60000;
-            const localISOTime = (new Date(dateObj - tzOffset)).toISOString().slice(0, 16);
-            setFormData({ id: log.id, usuario: log.usuario, data_hora: localISOTime, tipo: log.tipo, observacao: '' });
+            // Conversão segura e limpa usando dayjs
+            const localISOTime = dayjs(log.data_hora).format('YYYY-MM-DDTHH:mm');
+            setFormData({ 
+                id: log.id, 
+                usuario: log.usuario, 
+                data_hora: localISOTime, 
+                tipo: log.tipo, 
+                observacao: '' 
+            });
         } else {
-            const now = new Date();
-            const tzOffset = now.getTimezoneOffset() * 60000;
-            const localISOTime = (new Date(now - tzOffset)).toISOString().slice(0, 16);
-            setFormData({ id: null, usuario: '', data_hora: localISOTime, tipo: 'entrada', observacao: '' });
+            // Pega a data e hora atual do sistema local
+            const localISOTime = dayjs().format('YYYY-MM-DDTHH:mm');
+            setFormData({ 
+                id: null, 
+                usuario: '', 
+                data_hora: localISOTime, 
+                tipo: 'entrada, 
+                observacao: '' 
+            });
         }
         setModalOpen(true);
     };
