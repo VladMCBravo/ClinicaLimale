@@ -60,14 +60,17 @@ const Navbar = () => {
     }, [socket, isChatOpen, user, showSnackbar]);
 
     const renderPrincipalLink = () => {
-        if (user.isRecepcao || user.isAdmin) {
-            return (<NavLink to="/painel"><FaTachometerAlt /> <span>Painel</span></NavLink>);
-        }
-        if (user.isMedico) {
-            return (<NavLink to="/" end><FaStethoscope /> <span>Atendimento</span></NavLink>);
-        }
-        return null;
-    };
+    return (
+        <>
+            {(user.isRecepcao || user.isAdmin) && (
+                <NavLink to="/painel"><FaTachometerAlt /> <span>Painel</span></NavLink>
+            )}
+            {user.isMedico && (
+                <NavLink to="/atendimento"><FaStethoscope /> <span>Atendimento</span></NavLink>
+            )}
+        </>
+    );
+};
 
     const formatarSaudacao = (user) => {
         if (user.isMedico) return user.genero === 'F' ? 'Dra.' : 'Dr.';

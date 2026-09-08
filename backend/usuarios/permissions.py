@@ -10,7 +10,7 @@ from .models import ConfiguracaoClinica
 class IsAdminUser(permissions.BasePermission):
     def has_permission(self, request, view):
         print(f"[DEBUG] Checking IsAdminUser for user: {request.user.username} on path: {request.path}")
-        return request.user and request.user.is_authenticated and request.user.cargo == 'admin'
+        return request.user and request.user.is_authenticated and request.user.cargo in ['admin', 'admin_medico']
 
 class IsRecepcaoUser(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -20,20 +20,20 @@ class IsRecepcaoUser(permissions.BasePermission):
 class IsMedicoUser(permissions.BasePermission):
     def has_permission(self, request, view):
         print(f"[DEBUG] Checking IsMedicoUser for user: {request.user.username} on path: {request.path}")
-        return request.user and request.user.is_authenticated and request.user.cargo == 'medico'
+        return request.user and request.user.is_authenticated and request.user.cargo in ['medico', 'admin_medico']
 
 class IsRecepcaoOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         print(f"[DEBUG] Checking IsRecepcaoOrAdmin for user: {request.user.username} on path: {request.path}")
         if not request.user or not request.user.is_authenticated:
             return False
-        return request.user.cargo in ['admin', 'recepcao']
+        return request.user.cargo in ['admin', 'recepcao', 'admin_medico']
 
 # ESTA CLASSE É ESSENCIAL PARA OUTROS APPS E FOI RESTAURADA
 class IsMedicoResponsavelOrAdmin(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         print(f"[DEBUG] Checking IsMedicoResponsavelOrAdmin for user: {request.user.username} on path: {request.path}")
-        if request.user.cargo == 'admin':
+        if request.user.cargo in ['admin', 'admin_medico']:
             return True
         if request.user.cargo == 'medico':
             paciente = None
@@ -54,7 +54,7 @@ class AllowRead_WriteRecepcaoAdmin(BasePermission):
             return False
         if request.method in SAFE_METHODS:
             return True
-        return request.user.cargo in ['admin', 'recepcao']
+        return request.user.cargo in ['admin', 'recepcao', 'admin_medico']
 
 
 # --- NOVA PERMISSÃO, SEGURA E APLICADA APENAS AO PRONTUÁRIO (LGPD) ---
@@ -64,11 +64,11 @@ class CanViewProntuario(permissions.BasePermission):
         print(f"[DEBUG] Checking CanViewProntuario for user: {request.user.username} on path: {request.path}")
         if not request.user or not request.user.is_authenticated:
             return False
-        return request.user.cargo == 'medico'
+        return request.user.cargo in ['medico', 'admin_medico']
 
     def has_object_permission(self, request, view, obj):
         print(f"[DEBUG] Checking CanViewProntuario (object-level) for user: {request.user.username}")
-        return request.user.cargo == 'medico'
+        return request.user.cargo in ['medico', 'admin_medico']
 
 
 # Atestados/Declarações: médico pode listar e criar qualquer tipo. Recepção/admin só
@@ -81,7 +81,7 @@ class CanCreateAtestado(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        if request.user.cargo == 'medico':
+        if request.user.cargo in ['medico', 'admin_medico']:
             return True
         if request.method == 'POST':
             return request.data.get('tipo_atestado') == 'Comparecimento'
@@ -97,7 +97,7 @@ class IsAdminOrRecepcaoTemporario(permissions.BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
             
-        if request.user.cargo == 'admin':
+        if request.user.cargo in ['admin', 'admin_medico']:
             return True
             
         if request.user.cargo == 'recepcao':
