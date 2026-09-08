@@ -32,7 +32,9 @@ class ChatRoom(models.Model):
         """
         Verifica se o usuário tem permissão para ler e enviar mensagens neste grupo.
         """
-        cargos_globais = ['admin', 'medico_admin', 'recepcao', 'diretoria'] 
+        # 👇 A CORREÇÃO ESTÁ AQUI: Trocamos 'medico_admin' por 'admin_medico' 👇
+        cargos_globais = ['admin', 'admin_medico', 'recepcao', 'diretoria'] 
+        
         if hasattr(user, 'cargo') and user.cargo in cargos_globais:
             return True
         
