@@ -8,6 +8,8 @@ import {
     Person, LocationOn, Security, Visibility, VisibilityOff, CloudUpload, CheckCircle, Lock, Fingerprint
 } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
+// 👇 ADICIONE ESTE IMPORT 👇
+import { TextMaskCEP, TextMaskTelefone } from '../common/MaskedInput';
 
 function TabPanel({ children, value, index, ...other }) {
     return (
@@ -56,6 +58,32 @@ export default function MeuPerfilTab() {
     const mostrarFeedback = (message, type = 'success') => {
         setFeedback({ show: true, message, type });
         setTimeout(() => setFeedback({ show: false, message: '', type: 'success' }), 5000);
+    };
+
+    const handleCepBlur = async (e) => {
+        const cepDigitado = e.target.value.replace(/\D/g, ''); // Limpa a máscara para buscar
+        
+        if (cepDigitado.length === 8) {
+            try {
+                const response = await fetch(`https://viacep.com.br/ws/${cepDigitado}/json/`);
+                const data = await response.json();
+                
+                if (!data.erro) {
+                    setPerfil(prev => ({
+                        ...prev,
+                        logradouro: data.logradouro || prev.logradouro,
+                        bairro: data.bairro || prev.bairro,
+                        cidade: data.localidade || prev.cidade,
+                        uf: data.uf || prev.uf
+                    }));
+                    mostrarFeedback('Endereço preenchido automaticamente!', 'info');
+                } else {
+                    mostrarFeedback('CEP não encontrado.', 'warning');
+                }
+            } catch (error) {
+                mostrarFeedback('Erro ao buscar o CEP.', 'error');
+            }
+        }
     };
 
     const handleSalvarPerfil = async (e) => {
@@ -108,7 +136,18 @@ export default function MeuPerfilTab() {
                     <TabPanel value={tab} index={1}>
                         <form onSubmit={handleSalvarPerfil}>
                             <Grid container spacing={2}>
-                                <Grid item xs={12} sm={3}><TextField className="tasy-compact-input" fullWidth label="CEP" name="cep" value={perfil.cep || ''} onChange={handleChange} /></Grid>
+                                <Grid item xs={12} sm={3}>
+                                    <TextField 
+                                        className="tasy-compact-input" 
+                                        fullWidth 
+                                        label="CEP" 
+                                        name="cep" 
+                                        value={perfil.cep || ''} 
+                                        onChange={handleChange} 
+                                        onBlur={handleCepBlur} // Gatilho do ViaCEP
+                                        InputProps={{ inputComponent: TextMaskCEP }} // Máscara visual
+                                    />
+                                </Grid>
                                 <Grid item xs={12} sm={7}><TextField className="tasy-compact-input" fullWidth label="Logradouro" name="logradouro" value={perfil.logradouro || ''} onChange={handleChange} /></Grid>
                                 <Grid item xs={12} sm={2}><TextField className="tasy-compact-input" fullWidth label="Número" name="numero" value={perfil.numero || ''} onChange={handleChange} /></Grid>
                                 <Grid item xs={12} sm={6}><TextField className="tasy-compact-input" fullWidth label="Complemento" name="complemento" value={perfil.complemento || ''} onChange={handleChange} /></Grid>

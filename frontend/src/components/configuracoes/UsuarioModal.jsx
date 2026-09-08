@@ -13,7 +13,7 @@ import ErrorIcon from '@mui/icons-material/Error';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { configuracoesService } from '../../services/configuracoesService';
-import { TextMaskCPF, TextMaskTelefone } from '../common/MaskedInput';
+import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from '../common/MaskedInput'; // ADICIONE AQUI
 
 const initialState = {
     username: '', password: '', first_name: '', last_name: '',
@@ -115,6 +115,32 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
         }
     };
 
+    const handleCepBlur = async (e) => {
+        const cepDigitado = e.target.value.replace(/\D/g, '');
+        
+        if (cepDigitado.length === 8) {
+            try {
+                const response = await fetch(`https://viacep.com.br/ws/${cepDigitado}/json/`);
+                const data = await response.json();
+                
+                if (!data.erro) {
+                    setFormData(prev => ({
+                        ...prev,
+                        logradouro: data.logradouro || prev.logradouro,
+                        bairro: data.bairro || prev.bairro,
+                        cidade: data.localidade || prev.cidade,
+                        uf: data.uf || prev.uf
+                    }));
+                    showSnackbar('Endereço preenchido automaticamente!', 'info'); // Usa o showSnackbar aqui
+                } else {
+                    showSnackbar('CEP não encontrado.', 'warning');
+                }
+            } catch (error) {
+                showSnackbar('Erro ao buscar o CEP.', 'error');
+            }
+        }
+    };
+
     const handleSalvarBiometriaNuvem = async () => {
         if (!bioTemplateTemp || !usuarioParaEditar?.id) return;
         setIsCapturingDigital(true);
@@ -207,6 +233,40 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                                 </Select>
                                             </FormControl>
                                         </Grid>
+                                        {/* PAINEL DE ENDEREÇO (Novo) */}
+                                        <div className="tasy-panel theme-blue">
+                                            <div className="tasy-panel-body">
+                                                <div className="tasy-section-header">Endereço</div>
+                                                <Grid container spacing={2}>
+                                                    <Grid item xs={12} sm={3}>
+                                                        <TextField 
+                                                            className="tasy-compact-input" name="cep" label="CEP" 
+                                                            value={formData.cep || ''} onChange={handleMaskedChange} 
+                                                            onBlur={handleCepBlur} fullWidth 
+                                                            InputProps={{ inputComponent: TextMaskCEP }} 
+                                                        />
+                                                    </Grid>
+                                                    <Grid item xs={12} sm={7}>
+                                                        <TextField className="tasy-compact-input" name="logradouro" label="Logradouro" value={formData.logradouro || ''} onChange={handleChange} fullWidth />
+                                                    </Grid>
+                                                    <Grid item xs={12} sm={2}>
+                                                        <TextField className="tasy-compact-input" name="numero" label="Número" value={formData.numero || ''} onChange={handleChange} fullWidth />
+                                                    </Grid>
+                                                    <Grid item xs={12} sm={6}>
+                                                        <TextField className="tasy-compact-input" name="complemento" label="Complemento" value={formData.complemento || ''} onChange={handleChange} fullWidth />
+                                                    </Grid>
+                                                    <Grid item xs={12} sm={6}>
+                                                        <TextField className="tasy-compact-input" name="bairro" label="Bairro" value={formData.bairro || ''} onChange={handleChange} fullWidth />
+                                                    </Grid>
+                                                    <Grid item xs={12} sm={9}>
+                                                        <TextField className="tasy-compact-input" name="cidade" label="Cidade" value={formData.cidade || ''} onChange={handleChange} fullWidth />
+                                                    </Grid>
+                                                    <Grid item xs={12} sm={3}>
+                                                        <TextField className="tasy-compact-input" name="uf" label="UF" value={formData.uf || ''} onChange={handleChange} fullWidth />
+                                                    </Grid>
+                                                </Grid>
+                                            </div>
+                                        </div>
 
                                         {/* SEÇÃO DA BIOMETRIA REVISADA */}
                                         <Grid item xs={12} sm={6}>
