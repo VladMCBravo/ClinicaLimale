@@ -112,7 +112,11 @@ class AgendamentoSerializer(serializers.ModelSerializer):
 # --- Serializer para ESCRITA (POST, PUT, PATCH) ---
 class AgendamentoWriteSerializer(serializers.ModelSerializer):
     paciente = serializers.PrimaryKeyRelatedField(queryset=Paciente.objects.all())
-    medico = serializers.PrimaryKeyRelatedField(queryset=CustomUser.objects.filter(cargo='medico'), required=False, allow_null=True)
+    medico = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.filter(cargo__in=['medico', 'admin_medico']), # <-- A CORREÇÃO ESTÁ AQUI
+        required=False, 
+        allow_null=True
+    )
     especialidade = serializers.PrimaryKeyRelatedField(queryset=Especialidade.objects.all(), required=False, allow_null=True)
     procedimento = serializers.PrimaryKeyRelatedField(queryset=Procedimento.objects.all(), required=False, allow_null=True)
     sala = serializers.PrimaryKeyRelatedField(queryset=Sala.objects.all(), required=False, allow_null=True)
@@ -160,8 +164,8 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         limite_tolerancia_passado = agora - timedelta(hours=48)
         
         if inicio < limite_tolerancia_passado:
-            # Se NÃO for admin, exibe a instrução inteligente. Se FOR admin, passa direto.
-            if not usuario_logado or getattr(usuario_logado, 'cargo', '') != 'admin':
+            # 👇 CORREÇÃO 1: Adicionado o admin_medico na permissão de voltar no tempo 👇
+            if not usuario_logado or getattr(usuario_logado, 'cargo', '') not in ['admin', 'admin_medico']:
                 raise serializers.ValidationError({
                     "data_hora_inicio": "⚠️ Limite de Data Retroativa excedido (48 horas).\n👉 O que fazer: Corrija a data selecionada ou, se for um registro antigo necessário, solicite a um usuário Administrador para realizar este lançamento."
                 })
@@ -173,7 +177,8 @@ class AgendamentoWriteSerializer(serializers.ModelSerializer):
         is_encaixe_req = self.initial_data.get('is_encaixe', False)
         is_encaixe = str(is_encaixe_req).lower() in ['true', '1', 't']
 
-        if usuario_logado and getattr(usuario_logado, 'cargo', '') == 'admin':
+        # 👇 CORREÇÃO 2: Adicionado o admin_medico no superpoder de forçar encaixe 👇
+        if usuario_logado and getattr(usuario_logado, 'cargo', '') in ['admin', 'admin_medico']:
             is_encaixe = True
 
         # 2. Validação Básica de Campos
