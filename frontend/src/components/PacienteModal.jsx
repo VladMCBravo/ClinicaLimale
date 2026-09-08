@@ -64,8 +64,9 @@ export default function PacienteModal({ open, onClose, onSave, pacienteParaEdita
         apiClient.get('/usuarios/usuarios/?cargo=medico&apenas_ativos=true'),
         apiClient.get('/faturamento/convenios/')
       ]).then(([medicosRes, conveniosRes]) => {
-        setMedicos(medicosRes.data);
-        setConvenios(conveniosRes.data);
+        // 👇 ADICIONE O TRATAMENTO AQUI 👇
+        setMedicos(medicosRes.data.results || medicosRes.data || []);
+        setConvenios(conveniosRes.data.results || conveniosRes.data || []);
       }).catch(err => console.error('Erro ao carregar auxiliares', err));
     }
   }, [open]);

@@ -71,12 +71,16 @@ export default function PacientesPage() {
     try {
       const response = await apiClient.get('/pacientes/');
       
-      const dadosOrdenados = response.data.sort((a, b) => 
+      // 👇 EXTRAIA A ARRAY AQUI 👇
+      const dados = response.data.results || response.data || [];
+      
+      // 👇 USE A NOVA VARIÁVEL NO LUGAR DO response.data 👇
+      const dadosOrdenados = dados.sort((a, b) => 
         a.nome_completo.localeCompare(b.nome_completo, 'pt-BR', { sensitivity: 'base' })
       );
 
       setPacientes(dadosOrdenados);
-      setFilteredPacientes(dadosOrdenados); 
+      setFilteredPacientes(dadosOrdenados);
     } catch (error) {
       console.error("Erro ao buscar pacientes:", error);
     } finally {
