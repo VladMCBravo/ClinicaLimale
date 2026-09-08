@@ -145,9 +145,11 @@ export default function ChatApoioDireita({
   return (
     <Box sx={{ width: width, display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e0e0e0', bgcolor: '#fff', height: '100%' }}>
       
-      {/* CABEÇALHO UNIFICADO: Seta de Voltar + Abas */}
+      {/* CABEÇALHO UNIFICADO: Seta de Voltar + Abas (COM SAFE AREA TOP) */}
       <Box sx={{ 
-          p: 1, 
+          px: 1, 
+          pb: 1,
+          pt: tabExterna !== null ? 'max(env(safe-area-inset-top), 10px)' : 1, // Se for mobile, o azul sobe até a câmera
           bgcolor: tabExterna !== null ? '#1a233b' : '#fff', 
           color: tabExterna !== null ? '#fff' : 'inherit', 
           display: 'flex', 

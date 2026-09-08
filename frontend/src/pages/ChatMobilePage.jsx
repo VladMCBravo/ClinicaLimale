@@ -145,14 +145,18 @@ export default function ChatMobilePage() {
         display: 'flex', 
         flexDirection: 'column', 
         overflow: 'hidden', 
-        position: 'fixed', // Evita o "bounce" de overscroll no iOS
+        position: 'fixed',
         top: 0, left: 0, right: 0, bottom: 0,
-        bgcolor: '#fff',
-        pt: 'max(env(safe-area-inset-top), 16px)' 
+        bgcolor: abaMobile === 0 && !contatoAtivo ? '#1a233b' : '#fff' // Muda o fundo raiz para esconder "brancos" se o layout quicar
     }}>
       
-      {/* Margem inferior fixa para o navbar não cobrir o conteúdo */}
-      <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', mb: !contatoAtivo ? '60px' : 0 }}>
+      {/* Box principal da página (mb dinâmico modificado) */}
+      {/* 
+        Atenção ao cálculo do mb: 
+        56px é a altura padrão da BottomNavigation. 
+        env(safe-area-inset-bottom) é o espaço da linha do iPhone. 
+      */}
+      <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', mb: !contatoAtivo ? 'calc(56px + env(safe-area-inset-bottom))' : 0 }}>
         
         {abaMobile === 0 && !contatoAtivo && (
             <ChatSidebarEsquerda 
@@ -163,7 +167,13 @@ export default function ChatMobilePage() {
 
         {abaMobile === 0 && contatoAtivo && (
           <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ bgcolor: '#1a233b', color: '#fff', px: 1, py: 1, display: 'flex', alignItems: 'center' }}>
+            
+            {/* CABEÇALHO DO CHAT INTERNO COM SAFE AREA */}
+            <Box sx={{ 
+                bgcolor: '#1a233b', color: '#fff', px: 1, pb: 1, 
+                pt: 'max(env(safe-area-inset-top), 10px)', // O Azul avança até a câmera
+                display: 'flex', alignItems: 'center' 
+            }}>
               <IconButton color="inherit" onClick={() => setContatoAtivo(null)}>
                 <ArrowBackIcon />
               </IconButton>
@@ -198,23 +208,25 @@ export default function ChatMobilePage() {
         )}
       </Box>
 
+      {/* RODAPÉ E SAFE AREA INFERIOR */}
       {!contatoAtivo && (
         <Paper 
           elevation={12}
           sx={{ 
-            position: 'fixed', // Rodapé blindado no fim da tela
-            bottom: 0,
-            left: 0,
-            right: 0,
-            pb: 'env(safe-area-inset-bottom)', // Respeita a barra de gesto do iOS
-            zIndex: 1000 
+            position: 'fixed', 
+            bottom: 0, left: 0, right: 0, zIndex: 1000,
+            
+            // A mágica: Em vez de aplicar PADDING no BottomNavigation (que deixa o fundo branco),
+            // Nós pintamos a Paper mãe de cinza-claro igual ao Nav e aplicamos o padding nela!
+            bgcolor: '#f8f9fa',
+            pb: 'env(safe-area-inset-bottom)' 
           }}
         >
           <BottomNavigation
             showLabels
             value={abaMobile}
             onChange={(event, newValue) => setAbaMobile(newValue)}
-            sx={{ bgcolor: '#f8f9fa' }}
+            sx={{ bgcolor: 'transparent', height: 56 }}
           >
             <BottomNavigationAction label="Chats" icon={<ChatIcon />} />
             <BottomNavigationAction label="Agenda" icon={<CalendarIcon />} />
