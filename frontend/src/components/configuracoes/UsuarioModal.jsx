@@ -13,7 +13,7 @@ import ErrorIcon from '@mui/icons-material/Error';
 import apiClient from '../../api/axiosConfig';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { configuracoesService } from '../../services/configuracoesService';
-import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from '../common/MaskedInput'; // ADICIONE AQUI
+import { TextMaskCPF, TextMaskTelefone, TextMaskCEP } from '../common/MaskedInput'; 
 
 const initialState = {
     username: '', password: '', first_name: '', last_name: '',
@@ -45,7 +45,6 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
         if (open) {
             configuracoesService.getEspecialidades()
                 .then(response => {
-                    // 👇 TRAVA ANTIBUG APLICADA AQUI 👇
                     const dadosLimpos = response.data.results || response.data || [];
                     setEspecialidadesDisponiveis(dadosLimpos);
                 })
@@ -86,7 +85,6 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
         setMedicoEspecialidades(prev => prev.filter((_, i) => i !== index));
     };
 
-    // --- FUNÇÕES DA INTERFACE BIOMÉTRICA ---
     const handleAbrirCaptura = () => {
         setModalBioOpen(true);
         executarCapturaLocal();
@@ -135,7 +133,7 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                         cidade: data.localidade || prev.cidade,
                         uf: data.uf || prev.uf
                     }));
-                    showSnackbar('Endereço preenchido automaticamente!', 'info'); // Usa o showSnackbar aqui
+                    showSnackbar('Endereço preenchido automaticamente!', 'info'); 
                 } else {
                     showSnackbar('CEP não encontrado.', 'warning');
                 }
@@ -185,6 +183,9 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
         } finally { setIsSubmitting(false); }
     };
 
+    // 👇 VARIAVEL MAGICA: Libera o painel de especialidades para médicos E admins-médicos 👇
+    const isMedico = ['medico', 'admin_medico'].includes(formData.cargo);
+
     return (
         <>
             <Dialog open={open} onClose={handleClose} fullWidth maxWidth="lg" PaperProps={{ sx: { borderRadius: 0 } }}>
@@ -232,47 +233,12 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                                 <Select name="cargo" value={formData.cargo} label="Cargo" onChange={handleChange}>
                                                     <MenuItem value="recepcao">Recepção</MenuItem>
                                                     <MenuItem value="medico">Médico(a)</MenuItem>
-                                                    <MenuItem value="admin_medico">Médico Sócio (Admin/Médico)</MenuItem> {/* <-- ADICIONADO */}
+                                                    <MenuItem value="admin_medico">Médico Sócio (Admin/Médico)</MenuItem>
                                                     <MenuItem value="admin">Administrador</MenuItem>
                                                 </Select>
                                             </FormControl>
                                         </Grid>
-                                        {/* PAINEL DE ENDEREÇO (Novo) */}
-                                        <div className="tasy-panel theme-blue">
-                                            <div className="tasy-panel-body">
-                                                <div className="tasy-section-header">Endereço</div>
-                                                <Grid container spacing={2}>
-                                                    <Grid item xs={12} sm={3}>
-                                                        <TextField 
-                                                            className="tasy-compact-input" name="cep" label="CEP" 
-                                                            value={formData.cep || ''} onChange={handleMaskedChange} 
-                                                            onBlur={handleCepBlur} fullWidth 
-                                                            InputProps={{ inputComponent: TextMaskCEP }} 
-                                                        />
-                                                    </Grid>
-                                                    <Grid item xs={12} sm={7}>
-                                                        <TextField className="tasy-compact-input" name="logradouro" label="Logradouro" value={formData.logradouro || ''} onChange={handleChange} fullWidth />
-                                                    </Grid>
-                                                    <Grid item xs={12} sm={2}>
-                                                        <TextField className="tasy-compact-input" name="numero" label="Número" value={formData.numero || ''} onChange={handleChange} fullWidth />
-                                                    </Grid>
-                                                    <Grid item xs={12} sm={6}>
-                                                        <TextField className="tasy-compact-input" name="complemento" label="Complemento" value={formData.complemento || ''} onChange={handleChange} fullWidth />
-                                                    </Grid>
-                                                    <Grid item xs={12} sm={6}>
-                                                        <TextField className="tasy-compact-input" name="bairro" label="Bairro" value={formData.bairro || ''} onChange={handleChange} fullWidth />
-                                                    </Grid>
-                                                    <Grid item xs={12} sm={9}>
-                                                        <TextField className="tasy-compact-input" name="cidade" label="Cidade" value={formData.cidade || ''} onChange={handleChange} fullWidth />
-                                                    </Grid>
-                                                    <Grid item xs={12} sm={3}>
-                                                        <TextField className="tasy-compact-input" name="uf" label="UF" value={formData.uf || ''} onChange={handleChange} fullWidth />
-                                                    </Grid>
-                                                </Grid>
-                                            </div>
-                                        </div>
 
-                                        {/* SEÇÃO DA BIOMETRIA REVISADA */}
                                         <Grid item xs={12} sm={6}>
                                             {usuarioParaEditar ? (
                                                 <Box sx={{ border: '1px solid #1c7ed6', bgcolor: '#e7f5ff', p: 1, textAlign: 'center' }}>
@@ -295,6 +261,104 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                                 </div>
                             </div>
 
+                            <div className="tasy-panel theme-blue">
+                                <div className="tasy-panel-body">
+                                    <div className="tasy-section-header">Endereço</div>
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={12} sm={3}>
+                                            <TextField 
+                                                className="tasy-compact-input" name="cep" label="CEP" 
+                                                value={formData.cep || ''} onChange={handleMaskedChange} 
+                                                onBlur={handleCepBlur} fullWidth 
+                                                InputProps={{ inputComponent: TextMaskCEP }} 
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} sm={7}>
+                                            <TextField className="tasy-compact-input" name="logradouro" label="Logradouro" value={formData.logradouro || ''} onChange={handleChange} fullWidth />
+                                        </Grid>
+                                        <Grid item xs={12} sm={2}>
+                                            <TextField className="tasy-compact-input" name="numero" label="Número" value={formData.numero || ''} onChange={handleChange} fullWidth />
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField className="tasy-compact-input" name="complemento" label="Complemento" value={formData.complemento || ''} onChange={handleChange} fullWidth />
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField className="tasy-compact-input" name="bairro" label="Bairro" value={formData.bairro || ''} onChange={handleChange} fullWidth />
+                                        </Grid>
+                                        <Grid item xs={12} sm={9}>
+                                            <TextField className="tasy-compact-input" name="cidade" label="Cidade" value={formData.cidade || ''} onChange={handleChange} fullWidth />
+                                        </Grid>
+                                        <Grid item xs={12} sm={3}>
+                                            <TextField className="tasy-compact-input" name="uf" label="UF" value={formData.uf || ''} onChange={handleChange} fullWidth />
+                                        </Grid>
+                                    </Grid>
+                                </div>
+                            </div>
+
+                            {/* 👇 PAINEL DE DADOS MÉDICOS RESTAURADO 👇 */}
+                            {isMedico && (
+                                <div className="tasy-panel theme-blue">
+                                    <div className="tasy-panel-body">
+                                        <div className="tasy-section-header">Dados Profissionais (Médico)</div>
+                                        <Grid container spacing={2}>
+                                            <Grid item xs={12} sm={4}>
+                                                <TextField 
+                                                    className="tasy-compact-input" 
+                                                    name="crm" 
+                                                    label="CRM" 
+                                                    value={formData.crm || ''} 
+                                                    onChange={handleChange} 
+                                                    fullWidth 
+                                                />
+                                            </Grid>
+                                            <Grid item xs={12} sm={8}>
+                                                <Box sx={{ p: 1.5, border: '1px solid #e0e0e0', borderRadius: 1, bgcolor: '#fff' }}>
+                                                    <Typography variant="subtitle2" sx={{ mb: 1, color: '#495057' }}>Adicionar Especialidade</Typography>
+                                                    <Grid container spacing={1} alignItems="center">
+                                                        <Grid item xs={12} sm={5}>
+                                                            <FormControl fullWidth size="small" className="tasy-compact-input">
+                                                                <InputLabel>Especialidade</InputLabel>
+                                                                <Select value={novaEsp} label="Especialidade" onChange={(e) => setNovaEsp(e.target.value)}>
+                                                                    {especialidadesDisponiveis.map(esp => (
+                                                                        <MenuItem key={esp.id} value={esp.id}>{esp.nome}</MenuItem>
+                                                                    ))}
+                                                                </Select>
+                                                            </FormControl>
+                                                        </Grid>
+                                                        <Grid item xs={12} sm={4}>
+                                                            <TextField size="small" className="tasy-compact-input" label="RQE (Opcional)" value={novoRqe} onChange={(e) => setNovoRqe(e.target.value)} fullWidth />
+                                                        </Grid>
+                                                        <Grid item xs={12} sm={3}>
+                                                            <Button variant="outlined" color="primary" onClick={handleAddEspecialidade} fullWidth size="small">Adicionar</Button>
+                                                        </Grid>
+                                                    </Grid>
+
+                                                    {medicoEspecialidades.length > 0 && (
+                                                        <List dense sx={{ mt: 2, bgcolor: '#f8f9fa', borderRadius: 1, border: '1px solid #e9ecef' }}>
+                                                            {medicoEspecialidades.map((item, index) => {
+                                                                const espNome = especialidadesDisponiveis.find(e => e.id === item.especialidade)?.nome || item.especialidade;
+                                                                return (
+                                                                    <ListItem key={index} divider secondaryAction={
+                                                                        <IconButton edge="end" color="error" size="small" onClick={() => handleRemoveEspecialidade(index)}>
+                                                                            <DeleteIcon fontSize="small" />
+                                                                        </IconButton>
+                                                                    }>
+                                                                        <ListItemText 
+                                                                            primary={<Typography variant="body2" fontWeight="bold">{espNome}</Typography>} 
+                                                                            secondary={<Typography variant="caption" color="text.secondary">{item.rqe ? `RQE: ${item.rqe}` : 'Sem RQE vinculado'}</Typography>} 
+                                                                        />
+                                                                    </ListItem>
+                                                                );
+                                                            })}
+                                                        </List>
+                                                    )}
+                                                </Box>
+                                            </Grid>
+                                        </Grid>
+                                    </div>
+                                </div>
+                            )}
+
                             <FormControlLabel control={<Switch checked={formData.is_active} onChange={handleSwitchChange} color="primary" />} label="Permitir acesso ao sistema (Usuário Ativo)" />
                         </Box>
                     </DialogContent>
@@ -307,13 +371,12 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                 </form>
             </Dialog>
 
-            {/* --- SUB-MODAL DE CAPTURA BIOMÉTRICA (UX) --- */}
             <Dialog open={modalBioOpen} onClose={() => !isCapturingDigital && setModalBioOpen(false)} maxWidth="xs" fullWidth>
+                {/* ... (mantido biometria) ... */}
                 <DialogTitle sx={{ textAlign: 'center', bgcolor: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
                     Leitura de Biometria
                 </DialogTitle>
                 <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 4 }}>
-                    
                     {isCapturingDigital && !bioImage ? (
                         <Box sx={{ textAlign: 'center', py: 3 }}>
                             <CircularProgress size={60} thickness={3} sx={{ mb: 2, color: '#ff4b4b' }} />
@@ -322,40 +385,20 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
                         </Box>
                     ) : bioImage ? (
                         <Box sx={{ textAlign: 'center', py: 1 }}>
-                            <img 
-                                src={`data:image/png;base64,${bioImage}`} 
-                                alt="Digital" 
-                                style={{ 
-                                    maxWidth: '150px', 
-                                    border: `3px solid ${bioQualityGood ? '#40c057' : '#fa5252'}`, 
-                                    borderRadius: '8px',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                                }} 
-                            />
+                            <img src={`data:image/png;base64,${bioImage}`} alt="Digital" style={{ maxWidth: '150px', border: `3px solid ${bioQualityGood ? '#40c057' : '#fa5252'}`, borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 2, gap: 1 }}>
                                 {bioQualityGood ? <CheckCircleIcon color="success" /> : <ErrorIcon color="error" />}
-                                <Typography fontWeight="bold" color={bioQualityGood ? 'success.main' : 'error.main'}>
-                                    {bioQualityText}
-                                </Typography>
+                                <Typography fontWeight="bold" color={bioQualityGood ? 'success.main' : 'error.main'}>{bioQualityText}</Typography>
                             </Box>
                         </Box>
                     ) : (
-                        <Typography color="error.main" sx={{ py: 3, textAlign: 'center' }}>
-                            {bioQualityText}
-                        </Typography>
+                        <Typography color="error.main" sx={{ py: 3, textAlign: 'center' }}>{bioQualityText}</Typography>
                     )}
-
                 </DialogContent>
                 <DialogActions sx={{ p: 2, justifyContent: 'center', gap: 1, borderTop: '1px solid #dee2e6' }}>
-                    <Button onClick={() => setModalBioOpen(false)} disabled={isCapturingDigital} color="inherit">
-                        Cancelar
-                    </Button>
-                    <Button onClick={executarCapturaLocal} disabled={isCapturingDigital} variant="outlined">
-                        Tentar Novamente
-                    </Button>
-                    <Button onClick={handleSalvarBiometriaNuvem} disabled={!bioQualityGood || isCapturingDigital} variant="contained" color="success" disableElevation>
-                        Aprovar e Salvar
-                    </Button>
+                    <Button onClick={() => setModalBioOpen(false)} disabled={isCapturingDigital} color="inherit">Cancelar</Button>
+                    <Button onClick={executarCapturaLocal} disabled={isCapturingDigital} variant="outlined">Tentar Novamente</Button>
+                    <Button onClick={handleSalvarBiometriaNuvem} disabled={!bioQualityGood || isCapturingDigital} variant="contained" color="success" disableElevation>Aprovar e Salvar</Button>
                 </DialogActions>
             </Dialog>
         </>
