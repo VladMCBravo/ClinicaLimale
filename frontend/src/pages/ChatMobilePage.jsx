@@ -25,7 +25,6 @@ export default function ChatMobilePage() {
   const [mensagens, setMensagens] = useState([]);
   const [mensagemAtual, setMensagemAtual] = useState('');
   
-  // ESTADO DO MENU DO RODAPÉ (0: Chats, 1: Agenda, 2: Pacientes)
   const [abaMobile, setAbaMobile] = useState(0);
 
   const contatoAtivoRef = useRef(contatoAtivo);
@@ -42,7 +41,7 @@ export default function ChatMobilePage() {
   useEffect(() => { contatoAtivoRef.current = contatoAtivo; }, [contatoAtivo]);
   useEffect(() => { return () => setContatoAtivoKey(null); }, []);
 
-  // OUVINTE DO WEBSOCKET (Mantido igual)
+  // ... (Seus dois useEffects originais do WebSocket e REST permanecem intocados aqui)
   useEffect(() => {
     if (!socket) return;
     const handleMessage = (event) => {
@@ -78,7 +77,6 @@ export default function ChatMobilePage() {
     return () => socket.removeEventListener('message', handleMessage);
   }, [socket, currentUser.id, showSnackbar]);
 
-  // BUSCAR HISTÓRICO REST (Mantido igual)
   useEffect(() => {
     if (contatoAtivo) {
       setMensagens([]);
@@ -97,7 +95,6 @@ export default function ChatMobilePage() {
     }
   }, [contatoAtivo, socket]);
 
-  // FUNÇÕES DE ENVIO GENÉRICAS
   const dispararMensagem = (conteudo, tipo, idAnexo = null, dadosAnexo = null) => {
     if (!socket || socket.readyState !== 1 || !contatoAtivo) return;
     const payload = {
@@ -114,7 +111,7 @@ export default function ChatMobilePage() {
 
   const enviarAgendamento = (ag) => {
     dispararMensagem(`Agendamento: ${ag.paciente_nome} às ${new Date(ag.data_hora_inicio).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`, 'appointment', ag.id, ag);
-    setAbaMobile(0); // Volta pro chat após enviar
+    setAbaMobile(0);
   };
 
   const enviarPaciente = (pac) => {
@@ -135,15 +132,20 @@ export default function ChatMobilePage() {
   };
 
   return (
+    // FIX 2: Substituímos '100vh' por '100dvh' e definimos o paddingTop no Notch da câmera
     <Box sx={{ 
-        height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: '#fff',
-        pt: 'env(safe-area-inset-top, 20px)' // Puxa o layout pra baixo do Notch da câmera
+        height: '100dvh', 
+        width: '100vw', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        overflow: 'hidden', 
+        bgcolor: '#fff',
+        pt: 'max(env(safe-area-inset-top), 16px)' 
     }}>
       
-      {/* ÁREA PRINCIPAL (Preenche o centro da tela) */}
-      <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Container flexível onde renderiza as listas. Adicionamos mb se tiver navbar */}
+      <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', mb: !contatoAtivo ? '56px' : 0 }}>
         
-        {/* ABA 0: LISTA DE CHATS (Se não houver chat aberto) */}
         {abaMobile === 0 && !contatoAtivo && (
             <ChatSidebarEsquerda 
               width="100%" currentUser={currentUser} contatoAtivo={contatoAtivo} setContatoAtivo={setContatoAtivo} 
@@ -151,10 +153,8 @@ export default function ChatMobilePage() {
             />
         )}
 
-        {/* ABA 0: CONVERSA ABERTA (Oculta o rodapé e ocupa tudo) */}
         {abaMobile === 0 && contatoAtivo && (
           <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            
             <Box sx={{ bgcolor: '#1a233b', color: '#fff', px: 1, py: 1, display: 'flex', alignItems: 'center' }}>
               <IconButton color="inherit" onClick={() => setContatoAtivo(null)}>
                 <ArrowBackIcon />
@@ -172,15 +172,13 @@ export default function ChatMobilePage() {
                 setMensagemAtual={setMensagemAtual} 
                 onSendMessage={enviarTexto} 
                 onBaixarDocumento={baixarDocumento}
-
-                // 👇 O CLIPE VOLTOU! Ele vai mudar para a Aba da Agenda (Aba 1)
                 onOpenApoio={() => setAbaMobile(1)} 
               />
             </Box>
           </Box>
         )}
 
-        {/* ABA 1 e 2: AGENDA E PACIENTES (Com a nova prop controlando) */}
+        {/* FIX 4: No mobile, garantimos que OnClose da área direita VOLTE para Aba 0 */}
         {(abaMobile === 1 || abaMobile === 2) && (
            <ChatApoioDireita 
              width="100%"
@@ -193,9 +191,19 @@ export default function ChatMobilePage() {
         )}
       </Box>
 
-      {/* RODAPÉ NATÍVO (Escondido se houver uma conversa aberta) */}
+      {/* FIX 3: Rodapé com position FIXED na base */}
       {!contatoAtivo && (
-        <Paper sx={{ pb: 'env(safe-area-inset-bottom, 10px)' }} elevation={8}>
+        <Paper 
+          elevation={8}
+          sx={{ 
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            pb: 'env(safe-area-inset-bottom)', // Impede que cubra a barra Home do iOS
+            zIndex: 1000 
+          }}
+        >
           <BottomNavigation
             showLabels
             value={abaMobile}
