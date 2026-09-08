@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.pagination import PageNumberPagination
 from .models import CustomUser, Especialidade, JornadaDeTrabalho, CertificadoMedico, ValorEspecialidadeConvenio, RegistroPonto, ConfiguracaoClinica
 from .serializers import UserSerializer, EspecialidadeSerializer, JornadaDeTrabalhoSerializer, UserMeUpdateSerializer, ConfiguracaoClinicaSerializer, RegistroPontoSerializer, RegistroPontoAdminSerializer   
 from cryptography.hazmat.primitives.serialization import pkcs12
@@ -34,8 +35,16 @@ class LogoutView(APIView):
             return Response({"detail": "Token não encontrado ou usuário não autenticado."}, status=status.HTTP_400_BAD_REQUEST)
 
 # --- VIEWSET DE USUÁRIOS UNIFICADA E CORRIGIDA ---
+# 👇 NOVA CLASSE DE PAGINAÇÃO 👇
+class UsuariosPagination(PageNumberPagination):
+    page_size = 10 # Quantidade de itens por página
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+# 👇 APLIQUE NA SUA VIEW DE USUÁRIOS 👇
 class CustomUserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
+    pagination_class = UsuariosPagination
     
     def get_queryset(self):
         """
