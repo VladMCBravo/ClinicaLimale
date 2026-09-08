@@ -145,28 +145,41 @@ export default function ChatApoioDireita({
   return (
     <Box sx={{ width: width, display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e0e0e0', bgcolor: '#fff', height: '100%' }}>
       
-      {/* CABEÇALHO UNIFICADO: Agora tem abas tanto no Desktop quanto no Mobile! */}
-      <Box sx={{ p: 1, bgcolor: tabExterna !== null ? '#1a233b' : '#fff', color: tabExterna !== null ? '#fff' : 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+      {/* CABEÇALHO UNIFICADO: Seta de Voltar + Abas */}
+      <Box sx={{ 
+          p: 1, 
+          bgcolor: tabExterna !== null ? '#1a233b' : '#fff', 
+          color: tabExterna !== null ? '#fff' : 'inherit', 
+          display: 'flex', 
+          alignItems: 'center', 
+          borderBottom: '1px solid #e0e0e0' 
+      }}>
           
-          {tabExterna !== null && (
-            <IconButton color="inherit" onClick={onClose} sx={{ mr: 1, flexShrink: 0 }}>
-              <ArrowBackIcon />
-            </IconButton>
-          )}
+        {/* SETA PARA VOLTAR AO CHAT (Apenas no Mobile/Rodapé) */}
+        {tabExterna !== null && (
+          <IconButton color="inherit" onClick={onClose} sx={{ mr: 1, flexShrink: 0 }}>
+            <ArrowBackIcon />
+          </IconButton>
+        )}
 
-          <Tabs 
-            value={abaDireita} 
-            onChange={(e, val) => setAbaDireita(val)} 
-            sx={{ minHeight: 36, '& .MuiTab-root': { color: tabExterna !== null ? '#rgba(255,255,255,0.7)' : 'inherit' }, '& .Mui-selected': { color: tabExterna !== null ? '#fff !important' : 'primary.main' } }}
-          >
-            <Tab label="Agenda" sx={{ minHeight: 36, py: 0, fontSize: '0.75rem', fontWeight: 'bold' }} />
-            <Tab label="Pacientes" sx={{ minHeight: 36, py: 0, fontSize: '0.75rem', fontWeight: 'bold' }} />
-          </Tabs>
-        </Box>
+        {/* AS DUAS ABAS: Devem sempre aparecer juntas */}
+        <Tabs 
+          value={abaDireita} 
+          onChange={(e, val) => setAbaDireita(val)} 
+          sx={{ 
+              minHeight: 36, 
+              flex: 1, // Faz as abas ocuparem o espaço restante
+              '& .MuiTab-root': { color: tabExterna !== null ? 'rgba(255,255,255,0.6)' : 'text.secondary' }, 
+              '& .Mui-selected': { color: tabExterna !== null ? '#fff !important' : 'primary.main !important' } 
+          }}
+        >
+          <Tab label="Agenda" sx={{ minHeight: 36, py: 0, fontSize: '0.85rem', fontWeight: 'bold' }} />
+          <Tab label="Pacientes" sx={{ minHeight: 36, py: 0, fontSize: '0.85rem', fontWeight: 'bold' }} />
+        </Tabs>
 
+        {/* BOTÃO X PARA FECHAR (Apenas Desktop) */}
         {tabExterna === null && (
-          <IconButton size="small" onClick={onClose} sx={{ color: '#d32f2f' }} title="Fechar Chat">
+          <IconButton size="small" onClick={onClose} sx={{ color: '#d32f2f', ml: 1 }} title="Fechar Chat">
             <CloseIcon fontSize="small" />
           </IconButton>
         )}
