@@ -313,7 +313,7 @@ class FinanceiroDashboardAPIView(APIView):
 
             # --- 4. MÉDICOS (Apenas os que produziram no período) ---
             User = get_user_model()
-            medicos_ativos = User.objects.filter(cargo='medico', is_active=True).order_by('first_name')
+            medicos_ativos = User.objects.filter(cargo__in=['medico', 'admin_medico'], is_active=True).order_by('first_name')
             grafico_medicos = []
 
             for medico in medicos_ativos:

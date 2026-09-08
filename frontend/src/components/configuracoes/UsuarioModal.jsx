@@ -44,7 +44,11 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
     useEffect(() => {
         if (open) {
             configuracoesService.getEspecialidades()
-                .then(response => setEspecialidadesDisponiveis(response.data))
+                .then(response => {
+                    // 👇 TRAVA ANTIBUG APLICADA AQUI 👇
+                    const dadosLimpos = response.data.results || response.data || [];
+                    setEspecialidadesDisponiveis(dadosLimpos);
+                })
                 .catch(() => showSnackbar('Erro ao carregar especialidades.', 'error'));
         }
     }, [open, showSnackbar]);
