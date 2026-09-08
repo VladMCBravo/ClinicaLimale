@@ -22,9 +22,12 @@ export default function SecaoDadosClinicos({
     // Filtro seguro dos médicos pela especialidade selecionada
     const medicosFiltrados = React.useMemo(() => {
         if (!Array.isArray(medicos)) return [];
+        // 👇 SE FOR CONSULTA, ELE FILTRA PELA ESPECIALIDADE SELECIONADA 👇
         if (tipoAgendamento === 'Consulta' && formData?.especialidade?.id) {
             return medicos.filter(m => m.especialidades && Array.isArray(m.especialidades) && m.especialidades.includes(formData.especialidade.id));
         }
+        
+        // 👇 SE FOR PROCEDIMENTO, ELE MOSTRA TODOS 👇
         return medicos;
     }, [medicos, formData?.especialidade?.id, tipoAgendamento]);
 
