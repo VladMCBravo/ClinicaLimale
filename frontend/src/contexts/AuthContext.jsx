@@ -45,14 +45,19 @@ export const AuthProvider = ({ children }) => {
                 setUser(getUserFromStorage());
                 setToken(authToken);
 
-                // 👇 NOVA LÓGICA DE DETECÇÃO DE PWA 👇
-                // Verifica se está rodando como app instalado (Android/iOS)
+                // 👇 NOVA LÓGICA DE DETECÇÃO DE PWA MOBILE 👇
+                
+                // 1. Verifica se está rodando como app instalado (PWA)
                 const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
                 
-                if (isPWA) {
-                    navigate('/chat-mobile'); // Joga direto pro chat
+                // 2. Verifica se o dispositivo é mobile (celular/tablet) baseando-se no User-Agent
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                
+                // 3. Redireciona para o chat mobile APENAS se for PWA E for celular
+                if (isPWA && isMobile) {
+                    navigate('/chat-mobile'); 
                 } else {
-                    navigate('/'); // Comportamento normal no PC
+                    navigate('/'); // Comportamento normal no PC (instalado ou web) e web mobile
                 }
                 
                 return true;
