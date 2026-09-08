@@ -65,16 +65,16 @@ export default function ChatAreaMeio({
 
           return (
             <Box key={idx} sx={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-              {/* Box que agrupa Nome, Balão de Mensagem e Tiques, para parecer com WhatsApp */}
               <Box sx={{ maxWidth: '85%', display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
                 
-                {/* Nome aparece DENTRO do conceito visual do balão (ou grudado nele) */}
-                {!isMe && contatoAtivo.is_room && msg.sender_nome && (
+                {/* Correção: Se não for minha a mensagem, E vier um nome do backend, exibe SEMPRE, 
+                    independentemente de checar is_room (já que agora só operamos com grupos na prática) */}
+                {!isMe && msg.sender_nome && (
                   <Typography 
                     variant="caption" 
                     sx={{ 
                       display: 'block', 
-                      color: '#075e54', // Tom esverdeado WhatsApp para dar constraste
+                      color: '#075e54', // Tom esverdeado WhatsApp
                       fontWeight: 'bold', 
                       mb: 0.2, 
                       ml: 0.5 
