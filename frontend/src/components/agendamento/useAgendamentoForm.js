@@ -72,16 +72,23 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
             agendamentoService.getModalData()
                 .then(([pacientesRes, procedimentosRes, medicosRes, especialidadesRes]) => {
                     if (!isMounted) return;
-                    const rawPacientes = pacientesRes.data || [];
+                    
+                    // 👇 CORREÇÃO: Extraindo o .results caso venha paginado
+                    const rawPacientes = pacientesRes.data.results || pacientesRes.data || [];
                     const pacientesUnicosMap = new Map();
                     rawPacientes.forEach(p => pacientesUnicosMap.set(p.id, p));
                     const pacientesOrdenados = Array.from(pacientesUnicosMap.values()).sort((a, b) =>
                         a.nome_completo.localeCompare(b.nome_completo)
                     );
+                    
                     setPacientes(pacientesOrdenados);
-                    setProcedimentos(procedimentosRes.data.filter(p => p.descricao.toLowerCase() !== 'consulta'));
-                    setMedicos(medicosRes.data);
-                    setEspecialidades(especialidadesRes.data);
+                    
+                    const rawProcedimentos = procedimentosRes.data.results || procedimentosRes.data || [];
+                    setProcedimentos(rawProcedimentos.filter(p => p.descricao.toLowerCase() !== 'consulta'));
+                    
+                    // 👇 CORREÇÃO: Puxando a array de médicos corretamente
+                    setMedicos(medicosRes.data.results || medicosRes.data || []);
+                    setEspecialidades(especialidadesRes.data.results || especialidadesRes.data || []);
                 }).catch(error => { showSnackbar("Erro ao carregar dados.", 'error'); });
 
             agendamentoService.getSalas()
@@ -100,7 +107,8 @@ export function useAgendamentoForm({ open, editingEvent, initialData, refreshTri
     useEffect(() => {
         if (open && refreshTrigger > 0) {
             agendamentoService.getModalData().then(([pacientesRes]) => {
-                const rawPacientes = pacientesRes.data || [];
+                // 👇 CORREÇÃO: Aplicado aqui também
+                const rawPacientes = pacientesRes.data.results || pacientesRes.data || [];
                 const pacientesUnicosMap = new Map();
                 rawPacientes.forEach(p => pacientesUnicosMap.set(p.id, p));
                 const pacientesOrdenados = Array.from(pacientesUnicosMap.values()).sort((a, b) =>
