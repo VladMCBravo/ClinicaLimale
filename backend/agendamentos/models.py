@@ -97,10 +97,12 @@ class Agendamento(models.Model):
     sala = models.ForeignKey(Sala, on_delete=models.SET_NULL, null=True, blank=True, related_name='agendamentos')
     
     tipo_agendamento = models.CharField(max_length=20, choices=TIPO_AGENDAMENTO_CHOICES, default='Consulta')
+    # 👇 CORREÇÃO: O limit_choices_to deve ficar AQUI no Agendamento 👇
     medico = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='agendamentos_como_medico'
+        related_name='agendamentos_como_medico',
+        limit_choices_to={'cargo__in': ['medico', 'admin_medico']} 
     )
     especialidade = models.ForeignKey('usuarios.Especialidade', on_delete=models.SET_NULL, null=True, blank=True)
     tipo_visita = models.CharField(max_length=20, choices=TIPO_VISITA_CHOICES, default='Primeira Consulta', blank=True, null=True)
@@ -198,10 +200,10 @@ class Agendamento(models.Model):
 class BloqueioAgenda(models.Model):
     """Representa um período de bloqueio na agenda de um médico."""
     medico = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='bloqueios',
-        limit_choices_to={'cargo': 'medico'}
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='agendamentos',
+        limit_choices_to={'cargo__in': ['medico', 'admin_medico']} # <-- A CORREÇÃO ESTÁ AQUI
     )
     data_inicio = models.DateTimeField(verbose_name="Início do Bloqueio")
     data_fim = models.DateTimeField(verbose_name="Fim do Bloqueio")

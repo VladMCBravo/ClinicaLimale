@@ -214,12 +214,12 @@ class AtestadoListCreateAPIView(generics.ListCreateAPIView):
 
         # Busca o paciente e salva
         paciente = Paciente.objects.get(id=paciente_id)
-        # Quem não é médico só chega aqui com tipo_atestado 'Comparecimento' (checado em
-        # CanCreateAtestado) — nesse caso o documento é assinado institucionalmente.
+        
         serializer.save(
             medico=self.request.user,
             paciente=paciente,
-            assinatura_institucional=self.request.user.cargo != 'medico'
+            # 👇 A CORREÇÃO ESTÁ AQUI: Evita que o atestado do sócio saia sem o carimbo médico 👇
+            assinatura_institucional=self.request.user.cargo not in ['medico', 'admin_medico']
         )
 
 # --- ★★★ CORREÇÃO DO ERRO 500 ESTÁ AQUI ★★★ ---
@@ -1562,7 +1562,8 @@ class LaudoCreateAsyncView(generics.CreateAPIView):
         if not senha_enviada:
             raise ValidationError({"detail": "A senha do médico é obrigatória para assinar o laudo."})
             
-        medico_assinante = CustomUser.objects.filter(crm=crm_enviado, cargo='medico').first()
+        # 👇 A CORREÇÃO ESTÁ AQUI: Trocamos cargo='medico' por cargo__in=['medico', 'admin_medico'] 👇
+        medico_assinante = CustomUser.objects.filter(crm=crm_enviado, cargo__in=['medico', 'admin_medico']).first()
         
         if not medico_assinante:
             raise ValidationError({"detail": f"Nenhum médico encontrado com o CRM '{crm_enviado}' no sistema."})

@@ -153,7 +153,9 @@ const LaudosPage = () => {
         try {
             const res = await apiClient.get('/usuarios/me/'); 
             if (res.data.tem_certificado_valido) setUsuarioTemCertificado(true);
-            if (res.data.cargo === 'medico') setMedicoLogadoObj(res.data);
+            
+            // 👇 A CORREÇÃO ESTÁ AQUI: O React agora reconhece o admin_medico para preencher o CRM 👇
+            if (['medico', 'admin_medico'].includes(res.data.cargo)) setMedicoLogadoObj(res.data);
         } catch (e) { console.error("Erro ao verificar certificado", e); }
     };
     checarUsuario();
