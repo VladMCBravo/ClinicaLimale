@@ -123,7 +123,7 @@ class JornadaDeTrabalhoSerializer(serializers.ModelSerializer):
     dia_da_semana_display = serializers.CharField(source='get_dia_da_semana_display', read_only=True)
 
     medico = serializers.PrimaryKeyRelatedField(
-        queryset=CustomUser.objects.filter(cargo='medico')
+        queryset=CustomUser.objects.filter(cargo__in=['medico', 'admin_medico']) 
     )
     
     class Meta:

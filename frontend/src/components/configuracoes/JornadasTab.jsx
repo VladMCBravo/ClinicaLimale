@@ -101,6 +101,16 @@ export default function JornadasTab() {
                  setIsSubmitting(false); return;
             }
 
+            // 👇 NOVA VALIDAÇÃO LÓGICA DE HORÁRIO 👇
+            if (formData.hora_inicio && formData.hora_fim) {
+                if (formData.hora_fim.isBefore(formData.hora_inicio) || formData.hora_fim.isSame(formData.hora_inicio)) {
+                    showSnackbar('A hora final deve ser maior que a hora inicial.', 'warning');
+                    setIsSubmitting(false); 
+                    return;
+                }
+            }
+            // 👆 FIM DA VALIDAÇÃO 👆
+
             if (itemParaEditar) {
                 await configuracoesService.updateJornada(itemParaEditar.id, dataToSend);
             } else {

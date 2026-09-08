@@ -164,7 +164,7 @@ class CertificadoUploadView(APIView):
 
     def post(self, request):
         user = request.user
-        if user.cargo != 'medico':
+        if user.cargo not in ['medico', 'admin_medico']: 
             return Response(
                 {"detail": "Apenas médicos podem fazer upload de certificado digital."}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -261,7 +261,7 @@ class MedicosComJornadaListView(generics.ListAPIView):
     serializer_class = UserSerializer
     def get_queryset(self):
         # Retorna apenas usuários médicos que têm pelo menos 1 jornada cadastrada
-        return CustomUser.objects.filter(cargo='medico').annotate(
+        return CustomUser.objects.filter(cargo__in=['medico', 'admin_medico']).annotate( 
             num_jornadas=Count('jornadas_de_trabalho')
         ).filter(num_jornadas__gt=0)
 
@@ -497,7 +497,7 @@ class CadastrarBiometriaView(APIView):
 
     def post(self, request, user_id):
         # 2. A NOSSA TRAVA DE SEGURANÇA INTELIGENTE
-        cargos_permitidos = ['admin', 'medico_admin']
+        cargos_permitidos = ['admin', 'admin_medico']
         
         # Avalia: Se o cargo não for admin/medico_admin E ele não for superuser, bloqueia!
         if request.user.cargo not in cargos_permitidos and not request.user.is_staff:

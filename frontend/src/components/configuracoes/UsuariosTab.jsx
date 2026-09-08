@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
-    Button, IconButton, Switch, FormControl, InputLabel, Select, MenuItem 
+    Button, IconButton, Switch, FormControl, InputLabel, Select, MenuItem,
+    TablePagination // <-- ADICIONADO
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import apiClient from '../../api/axiosConfig'; 
@@ -17,19 +18,54 @@ export default function UsuariosTab() {
     const [editingUser, setEditingUser] = useState(null);
     const [filtroCargo, setFiltroCargo] = useState('');
 
+    // 👇 NOVOS ESTADOS PARA PAGINAÇÃO 👇
+    const [page, setPage] = useState(0); // MUI usa base 0 para páginas
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [totalUsers, setTotalUsers] = useState(0);
+
     const fetchUsers = useCallback(async () => {
         setIsLoading(true);
         try {
             const response = await apiClient.get('/usuarios/usuarios/', {
-                params: { cargo: filtroCargo }
+                params: { 
+                    cargo: filtroCargo,
+                    // Django DRF usa base 1 para páginas, então somamos 1
+                    page: page + 1, 
+                    page_size: rowsPerPage 
+                }
             });
-            setUsers(response.data);
+            
+            // Verifica se a resposta está paginada (tem o count e results) ou se é uma lista plana
+            if (response.data.results) {
+                setUsers(response.data.results);
+                setTotalUsers(response.data.count);
+            } else {
+                // Fallback caso o backend ainda não esteja paginando
+                setUsers(response.data);
+                setTotalUsers(response.data.length);
+            }
         } catch (error) { 
             showSnackbar('Erro ao carregar usuários.', 'error');
         } finally { 
             setIsLoading(false); 
         }
-    }, [filtroCargo, showSnackbar]);
+    }, [filtroCargo, page, rowsPerPage, showSnackbar]);
+
+    // Quando o usuário muda de página
+    const handleChangePage = (event, newPage) => {
+        setPage(newPage);
+    };
+
+    // Quando o usuário muda a quantidade de itens por página
+    const handleChangeRowsPerPage = (event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0); // Volta para a página 1 sempre que mudar o tamanho
+    };
+
+    // Quando mudar o filtro de cargo, devemos voltar para a página 0
+    useEffect(() => {
+        setPage(0);
+    }, [filtroCargo]);
 
     useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
@@ -41,6 +77,16 @@ export default function UsuariosTab() {
         } catch (error) { showSnackbar('Erro ao atualizar.', 'error'); }
     };
 
+    const formatarCargo = (cargo) => {
+        const cargos = {
+            'admin': 'Administrador',
+            'admin_medico': 'Médico Sócio',
+            'medico': 'Médico',
+            'recepcao': 'Recepção'
+        };
+        return cargos[cargo] || cargo;
+    };
+
     return (
         <Box className="tasy-workspace">
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
@@ -49,6 +95,7 @@ export default function UsuariosTab() {
                     <Select value={filtroCargo} label="Filtrar por Cargo" onChange={(e) => setFiltroCargo(e.target.value)}>
                         <MenuItem value="">Todos</MenuItem>
                         <MenuItem value="admin">Administrador</MenuItem>
+                        <MenuItem value="admin_medico">Médico Sócio</MenuItem> {/* <-- ADICIONADO */}
                         <MenuItem value="medico">Médico</MenuItem>
                         <MenuItem value="recepcao">Recepção</MenuItem>
                     </Select>
@@ -81,7 +128,7 @@ export default function UsuariosTab() {
                             <TableRow key={user.id} hover>
                                 <TableCell>{user.first_name} {user.last_name}</TableCell>
                                 <TableCell>{user.username}</TableCell>
-                                <TableCell sx={{ textTransform: 'capitalize' }}>{user.cargo}</TableCell>
+                                <TableCell sx={{ textTransform: 'capitalize' }}>{formatarCargo(user.cargo)}</TableCell>
                                 <TableCell align="center">
                                     <Switch checked={user.is_active} onChange={() => handleToggleActive(user)} color="success" size="small" />
                                 </TableCell>
@@ -96,6 +143,19 @@ export default function UsuariosTab() {
                 </Table>
             </TableContainer>
             
+            {/* 👇 ADICIONADO O CONTROLE DE PAGINAÇÃO AQUI 👇 */}
+            <TablePagination
+                component="div"
+                count={totalUsers} // Total real de usuários no banco
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                labelRowsPerPage="Usuários por página:"
+                labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count !== -1 ? count : `mais de ${to}`}`}
+            />
+            {/* 👆 FIM DO CONTROLE DE PAGINAÇÃO 👆 */}
             <UsuarioModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={fetchUsers} usuarioParaEditar={editingUser} />
         </Box>
     );

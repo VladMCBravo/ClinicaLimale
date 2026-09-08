@@ -210,7 +210,7 @@ class JornadaDeTrabalho(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='jornadas_de_trabalho',
-        limit_choices_to={'cargo': 'medico'}
+        limit_choices_to={'cargo__in': ['medico', 'admin_medico']} # <-- CORRIGIDO
     )
     dia_da_semana = models.IntegerField(choices=DiaSemana.choices)
     hora_inicio = models.TimeField()
