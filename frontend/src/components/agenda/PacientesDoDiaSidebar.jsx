@@ -83,8 +83,11 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
         try {
             const response = await agendamentoService.getAgendamentosHoje(medicoFiltro, dataExibicao);
             const agrupadosMap = new Map();
+            // 👇 EXTRAIA A ARRAY AQUI 👇
+            const dados = response.data.results || response.data || [];
             
-            response.data.forEach(ag => {
+            // 👇 USE A NOVA VARIÁVEL AQUI 👇
+            dados.forEach(ag => {
                 const chave = `${ag.paciente_id || ag.paciente}_${ag.data_hora_inicio}`;
                 const procAtual = ag.procedimento_descricao || ag.especialidade_nome || ag.procedimento || 'Consulta';
                 
@@ -122,9 +125,15 @@ function PacientesDoDiaSidebar({ refreshTrigger, medicoFiltro, dataSelecionada }
         setPrintLoading(true);
         try {
             const response = await agendamentoService.getAgendamentosHoje(null, dataExibicao);
-            setAgendamentosPrint(response.data);
+            
+            // 👇 EXTRAIA A ARRAY AQUI 👇
+            const dados = response.data.results || response.data || [];
+            
+            setAgendamentosPrint(dados);
             const mapMedicos = new Map();
-            response.data.forEach(ag => {
+            
+            // 👇 USE A NOVA VARIÁVEL AQUI 👇
+            dados.forEach(ag => {
                 if (ag.medico) mapMedicos.set(ag.medico, ag.medico_nome_com_prefixo || ag.medico_nome);
             });
             setMedicosPrint(Array.from(mapMedicos.entries()).map(([id, nome]) => ({id, nome})));

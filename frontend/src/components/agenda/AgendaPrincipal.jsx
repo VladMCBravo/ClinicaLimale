@@ -260,10 +260,14 @@ export default function AgendaPrincipal({
         agendamentoService.getAgendamentos(medicoFiltro, especialidadeFiltro, startStr, endStr)
             .then(response => {
                 const agrupadosMap = new Map();
-                
-                response.data.forEach(ag => {
-                    if (!ag.sala) return;
 
+                // 👇 EXTRAIA A ARRAY AQUI 👇
+                const dados = response.data.results || response.data || [];
+                
+                // 👇 E TROQUE O response.data.forEach POR dados.forEach 👇
+                dados.forEach(ag => {
+                    if (!ag.sala) return;
+                
                     const chave = `${ag.paciente}_${ag.data_hora_inicio}`;
                     // Consultas normais não têm procedimento_descricao/tipo_exame — cai pra especialidade
                     // (ex: "Cardiologia") em vez do texto genérico "Procedimento" que não dizia nada.
