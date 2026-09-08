@@ -75,6 +75,7 @@ function App() {
 
                     <Route element={<MainLayout />}>  
                       <Route path="/" element={<RotaInicialDinamica />} />
+                      <Route path="/atendimento" element={<ProntuarioWorkspace />} /> {/* <-- NOVA ROTA FIXA */}
                       <Route path="/painel" element={<PainelRecepcaoPage />} />
                       <Route path="/laudos" element={<LaudosPage />} />
                       <Route path="/laudos-v2" element={<LaudosPageV2 />} />

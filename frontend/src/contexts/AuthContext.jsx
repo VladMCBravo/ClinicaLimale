@@ -11,9 +11,12 @@ const getUserFromStorage = () => {
         const userDataString = sessionStorage.getItem('userData');
         if (userDataString && userDataString !== 'undefined') {
             const userData = JSON.parse(userDataString);
-            userData.isAdmin = userData.cargo === 'admin';
+            
+            // 👇 MÁGICA AQUI: admin_medico valida as duas propriedades!
+            userData.isAdmin = ['admin', 'admin_medico'].includes(userData.cargo);
+            userData.isMedico = ['medico', 'admin_medico'].includes(userData.cargo);
             userData.isRecepcao = userData.cargo === 'recepcao';
-            userData.isMedico = userData.cargo === 'medico';
+            
             return userData;
         }
     } catch (error) {

@@ -136,9 +136,9 @@ class CustomUser(AbstractUser):
     CARGO_CHOICES = [
         ('admin', 'Administrador'),
         ('medico', 'Médico'),
-        ('recepcao', 'Recepção'),
+        ('admin_medico', 'Médico Sócio (Admin/Médico)'), # <-- Adicionado
     ]
-    cargo = models.CharField(max_length=10, choices=CARGO_CHOICES, default='recepcao')
+    cargo = models.CharField(max_length=15, choices=CARGO_CHOICES, default='recepcao') # Aumente o max_length para 15
     crm = models.CharField(max_length=20, blank=True, null=True, unique=True, verbose_name="CRM")
     
     # --- NOVOS: CAMPOS DE ENDEREÇO ---
