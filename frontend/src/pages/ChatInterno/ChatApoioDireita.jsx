@@ -3,7 +3,7 @@ import {
   Box, Typography, IconButton, TextField, Button, 
   CircularProgress, Tabs, Tab, Paper, MenuItem, Select, FormControl, Dialog, List
 } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Close as CloseIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
 
 import PacienteModal from '../../components/PacienteModal'; 
@@ -104,8 +104,18 @@ export default function ChatApoioDireita({
   return (
     <Box sx={{ width: width, display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e0e0e0', bgcolor: '#fff' }}>
       
-      {/* 👇 ESCONDE ESTE CABEÇALHO SE ESTIVER NO CELULAR (tabExterna !== null) 👇 */}
-      {tabExterna === null && (
+      {/* FIX 4: Mostrar Navbar com botão "Seta" para voltar se acionado pelo Mobile */}
+      {tabExterna !== null ? (
+        <Box sx={{ p: 1, bgcolor: '#1a233b', color: '#fff', display: 'flex', alignItems: 'center' }}>
+          <IconButton color="inherit" onClick={onClose}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="subtitle1" fontWeight="bold" sx={{ ml: 1 }}>
+            {abaDireita === 0 ? 'Anexar da Agenda' : 'Anexar Paciente'}
+          </Typography>
+        </Box>
+      ) : (
+        /* Original para o Desktop */
         <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
           <Tabs value={abaDireita} onChange={(e, val) => setAbaDireita(val)} sx={{ minHeight: 36 }}>
             <Tab label="Agenda" sx={{ minHeight: 36, py: 0, fontSize: '0.75rem', fontWeight: 'bold' }} />
