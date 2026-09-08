@@ -74,7 +74,7 @@ export default function RelatorioPontoTab() {
                 id: null, 
                 usuario: '', 
                 data_hora: localISOTime, 
-                tipo: 'entrada, 
+                tipo: 'entrada', 
                 observacao: '' 
             });
         }
