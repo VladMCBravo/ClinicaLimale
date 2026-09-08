@@ -33,6 +33,8 @@ export default function ChatMobilePage() {
     setContatoAtivoState(item);
     if (item) {
       setContatoAtivoKey(item.is_room ? `room_${item.id}` : `user_${item.id}`);
+      // Ao selecionar o chat, garantimos que a aba volte para 0 para exibir a conversa
+      setAbaMobile(0);
     } else {
       setContatoAtivoKey(null);
     }
@@ -41,7 +43,6 @@ export default function ChatMobilePage() {
   useEffect(() => { contatoAtivoRef.current = contatoAtivo; }, [contatoAtivo]);
   useEffect(() => { return () => setContatoAtivoKey(null); }, []);
 
-  // ... (Seus dois useEffects originais do WebSocket e REST permanecem intocados aqui)
   useEffect(() => {
     if (!socket) return;
     const handleMessage = (event) => {
@@ -96,7 +97,10 @@ export default function ChatMobilePage() {
   }, [contatoAtivo, socket]);
 
   const dispararMensagem = (conteudo, tipo, idAnexo = null, dadosAnexo = null) => {
-    if (!socket || socket.readyState !== 1 || !contatoAtivo) return;
+    if (!socket || socket.readyState !== 1 || !contatoAtivo) {
+        showSnackbar("Abra uma conversa primeiro para enviar anexos.", "warning");
+        return;
+    }
     const payload = {
       action: 'send_message', content: conteudo, attachment_type: tipo, attachment_id: idAnexo, attachment_data: dadosAnexo,
       room_id: contatoAtivo.is_room ? contatoAtivo.id : undefined, receiver_id: !contatoAtivo.is_room ? contatoAtivo.id : undefined,
@@ -110,16 +114,19 @@ export default function ChatMobilePage() {
   };
 
   const enviarAgendamento = (ag) => {
+    if (!contatoAtivo) return showSnackbar("Abra uma conversa primeiro para enviar um agendamento.", "warning");
     dispararMensagem(`Agendamento: ${ag.paciente_nome} às ${new Date(ag.data_hora_inicio).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`, 'appointment', ag.id, ag);
     setAbaMobile(0);
   };
 
   const enviarPaciente = (pac) => {
+    if (!contatoAtivo) return showSnackbar("Abra uma conversa primeiro para enviar um paciente.", "warning");
     dispararMensagem(`👤 ${pac.nome_completo || pac.nome}\n📱 Tel: ${pac.telefone_celular || 'N/I'}`, 'patient', pac.id, pac);
     setAbaMobile(0);
   };
 
   const enviarDocumento = (doc, pac) => {
+    if (!contatoAtivo) return showSnackbar("Abra uma conversa primeiro para enviar um documento.", "warning");
     dispararMensagem(`📄 ${doc.tipo_atestado || 'Documento'}\n👤 Paciente: ${pac.nome_completo || pac.nome}`, 'document', doc.id, doc);
     setAbaMobile(0);
   };
@@ -132,21 +139,20 @@ export default function ChatMobilePage() {
   };
 
   return (
-    // FIX 2: Substituímos '100vh' por '100dvh' e definimos o paddingTop no Notch da câmera
     <Box sx={{ 
         height: '100dvh', 
         width: '100vw', 
         display: 'flex', 
         flexDirection: 'column', 
-        overflow: 'hidden', // Importante para travar o body
-        position: 'fixed',  // <--- FIX: Prende a aplicação inteira no lugar
+        overflow: 'hidden', 
+        position: 'fixed', // Evita o "bounce" de overscroll no iOS
         top: 0, left: 0, right: 0, bottom: 0,
         bgcolor: '#fff',
         pt: 'max(env(safe-area-inset-top), 16px)' 
     }}>
       
-      {/* Container flexível onde renderiza as listas. Adicionamos mb se tiver navbar */}
-      <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', mb: !contatoAtivo ? '56px' : 0 }}>
+      {/* Margem inferior fixa para o navbar não cobrir o conteúdo */}
+      <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', mb: !contatoAtivo ? '60px' : 0 }}>
         
         {abaMobile === 0 && !contatoAtivo && (
             <ChatSidebarEsquerda 
@@ -180,7 +186,6 @@ export default function ChatMobilePage() {
           </Box>
         )}
 
-        {/* FIX 4: No mobile, garantimos que OnClose da área direita VOLTE para Aba 0 */}
         {(abaMobile === 1 || abaMobile === 2) && (
            <ChatApoioDireita 
              width="100%"
@@ -193,16 +198,15 @@ export default function ChatMobilePage() {
         )}
       </Box>
 
-      {/* FIX 3: Rodapé com position FIXED na base */}
       {!contatoAtivo && (
         <Paper 
-          elevation={8}
+          elevation={12}
           sx={{ 
-            position: 'fixed',
+            position: 'fixed', // Rodapé blindado no fim da tela
             bottom: 0,
             left: 0,
             right: 0,
-            pb: 'env(safe-area-inset-bottom)', // Impede que cubra a barra Home do iOS
+            pb: 'env(safe-area-inset-bottom)', // Respeita a barra de gesto do iOS
             zIndex: 1000 
           }}
         >
