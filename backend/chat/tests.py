@@ -85,6 +85,17 @@ class TestChatModelsIntegridade:
             msg.clean()
         assert "deve ter um destinatário" in str(erro.value)
 
+    def test_regras_de_acesso_a_sala_admin_medico(self, sala_teste):
+        """
+        O médico sócio (admin_medico) deve ter acesso global a todas as salas do chat,
+        mesmo que ele não tenha sido adicionado explicitamente como membro daquele consultório.
+        """
+        usuario_socio = User.objects.create_user(username='dr_chefe', password='123', cargo='admin_medico')
+        
+        # Ele NÃO foi adicionado ao sala_teste.membros, mas a trava global deve liberá-lo
+        assert sala_teste.user_has_access(usuario_socio) is True, \
+            "FALHA DE COMUNICAÇÃO: O admin_medico está sendo bloqueado das salas de chat!"
+
 
 # ==========================================
 # 2. TESTES DE API (ISOLAMENTO E HISTÓRICO)

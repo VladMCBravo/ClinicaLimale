@@ -140,6 +140,29 @@ class AgendamentoRegrasNegocioTests(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
+    def test_admin_medico_pode_agendar_no_passado(self):
+        """
+        Cenário: O médico sócio (admin_medico) precisa registrar uma consulta de 3 dias atrás.
+        Resultado Esperado: Sucesso (201 Created), ele herda os superpoderes do admin para ignorar a trava.
+        """
+        user_admin_medico = User.objects.create_user(username='dr_socio', password='123', cargo='admin_medico')
+        self.client.force_authenticate(user=user_admin_medico)
+        
+        dados_passado = {
+            "paciente": self.paciente.id,
+            "medico": user_admin_medico.id, # Ele agenda para ele mesmo
+            "tipo_agendamento": "Consulta",
+            "data_hora_inicio": self.data_retroativa.isoformat(),
+            "data_hora_fim": (self.data_retroativa + timedelta(minutes=30)).isoformat()
+        }
+        
+        response = self.client.post(self.url, dados_passado)
+        self.assertEqual(
+            response.status_code, 
+            status.HTTP_201_CREATED,
+            "FALHA: O admin_medico perdeu o superpoder de ignorar a trava de 48h no agendamento!"
+        )
+
 class AgendamentoPrivacidadeTests(APITestCase):
     
     def setUp(self):

@@ -10,18 +10,18 @@ test.describe('Fluxo de Atendimento Pediátrico', () => {
     await page.goto(`${BASE_URL}/login`);
     
     // Substitua 'SEU_USUARIO_AQUI' pelo login de um médico que existe no seu banco local (ex: 'daniel')
-    await page.getByRole('textbox', { name: 'Nome de Usuário' }).fill('Daniel'); 
+    await page.getByRole('textbox', { name: 'Nome de Usuário' }).fill('Teste'); 
     
     // Substitua 'SUA_SENHA_AQUI' pela senha real desse usuário (ex: '123456')
-    await page.getByRole('textbox', { name: 'Senha' }).fill('Med@123');
+    await page.getByRole('textbox', { name: 'Senha' }).fill('Teste@123');
     
     await page.getByRole('button', { name: 'Entrar' }).click();
 
     // 2. Aguarda a página carregar verificando um elemento real da tela (Best Practice)
-    await expect(page.getByText('Olá, Dr. Limberg')).toBeVisible();
+    await expect(page.getByText('Olá, Dr. Ambrosio')).toBeVisible();
     
-    // 3. Seleciona o paciente real que apareceu na sua lista da coluna esquerda
-    await page.getByRole('button', { name: /Joao Eduardo Pereira da Silva/i }).click();
+    // 3. Seleciona dinamicamente o primeiro paciente disponível na lista de consultas
+    await page.getByRole('listitem').first().getByRole('button').first().click();
 
     // 4. Interação com o Histórico Pediátrico
     // PRIMEIRO: Clica na aba Histórico para revelar o conteúdo

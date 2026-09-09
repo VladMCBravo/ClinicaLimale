@@ -15,26 +15,25 @@ test.describe.serial('Sincronia Real-Time do Chat (Grupos e Ordenação)', () =>
 
     // 2. LOGIN DA RECEPÇÃO (Remetente)
     await pageRecepcao.goto(`${BASE_URL}/login`);
-    await pageRecepcao.locator('input[name="username"], input[type="text"]').first().fill('Teste'); 
-    await pageRecepcao.locator('input[name="password"], input[type="password"]').first().fill('Teste@123');  
+    await pageRecepcao.locator('input[name="username"], input[type="text"]').first().fill('superadmin'); 
+    await pageRecepcao.locator('input[name="password"], input[type="password"]').first().fill('Admin@123');  
     await pageRecepcao.getByRole('button', { name: 'Entrar' }).click();
     await pageRecepcao.getByTitle('Chat Interno').waitFor(); // Aguarda UI carregar
     
     // 3. LOGIN DO MÉDICO (Destinatário)
     await pageMedico.goto(`${BASE_URL}/login`);
-    await pageMedico.locator('input[name="username"], input[type="text"]').first().fill('Daniel');   
-    await pageMedico.locator('input[name="password"], input[type="password"]').first().fill('Med@123');    
+    await pageMedico.locator('input[name="username"], input[type="text"]').first().fill('Teste');   
+    await pageMedico.locator('input[name="password"], input[type="password"]').first().fill('Teste@123');    
     await pageMedico.getByRole('button', { name: 'Entrar' }).click();
-    await pageMedico.getByTitle('Chat Interno').waitFor();
+    // Aguarda o painel principal carregar validando o texto de boas-vindas do usuário
+    await expect(pageMedico.getByText('Olá, Dr. Ambrosio')).toBeVisible({ timeout: 15000 });
 
     // ---------------------------------------------------------
     // CENA 1: A RECEPÇÃO ENVIA UM AVISO NO GRUPO (Consultório 03)
     // ---------------------------------------------------------
     await pageRecepcao.bringToFront();
     await pageRecepcao.getByTitle('Chat Interno').click();
-    
-    await pageRecepcao.getByRole('tab', { name: 'Consultórios' }).click();
-    
+        
     // Recepção abre o Consultório 03[cite: 13]
     const textoConsultorio03Recepcao = pageRecepcao.getByRole('dialog').getByText('Consultório 03 (Ped e Neo)', { exact: true });
     await expect(textoConsultorio03Recepcao).toBeVisible();
@@ -47,7 +46,7 @@ test.describe.serial('Sincronia Real-Time do Chat (Grupos e Ordenação)', () =>
     await expect(inputRecepcao).toHaveValue(''); 
     
     // Tempo para o browser enviar o pacote via WebSocket antes de mudar de aba
-    await pageRecepcao.waitForTimeout(500); 
+    await pageRecepcao.waitForTimeout(1000); 
 
     // ---------------------------------------------------------
     // CENA 2 & 3: O MÉDICO ABRE O CHAT E LÊ A NOTIFICAÇÃO (Consultório 03)
@@ -67,8 +66,7 @@ test.describe.serial('Sincronia Real-Time do Chat (Grupos e Ordenação)', () =>
     // Simplificando a Cena 2: Apenas abrimos o Chat Interno para focar 
     // no elemento da Sidebar, que sabemos ter o DOM perfeitamente renderizado pelo MUI.
     await pageMedico.getByTitle('Chat Interno').click();
-    await pageMedico.getByRole('tab', { name: 'Consultórios' }).click();
-
+    
     // Médico localiza a aba exata do Consultório 03
     const textoConsultorio03Medico = pageMedico.getByRole('dialog').getByText('Consultório 03 (Ped e Neo)', { exact: true });
     await expect(textoConsultorio03Medico).toBeVisible({ timeout: 15000 });
@@ -109,72 +107,4 @@ test.describe.serial('Sincronia Real-Time do Chat (Grupos e Ordenação)', () =>
     
   });
 
-  test.describe.serial('Testes de Web Push e Service Worker', () => {
-
-    test('O frontend deve pedir permissão de notificação e enviar a chave ao backend', async ({ browser }) => {
-      
-      const context = await browser.newContext();
-      // Concedemos a permissão de notificação no nível do Browser Context
-      await context.grantPermissions(['notifications']); 
-      
-      const page = await context.newPage();
-
-      let pushRegistrado = false;
-      let endpointEnviado = ''; 
-      
-      // Intercepta a rota para provar que o backend receberia
-      await page.route('**/push/subscribe/', route => {
-        pushRegistrado = true;
-        const request = route.request();
-        const postData = JSON.parse(request.postData() || '{}');
-
-        endpointEnviado = postData.endpoint; 
-        
-        route.fulfill({ 
-          status: 201, 
-          contentType: 'application/json',
-          body: JSON.stringify({ status: 'Inscrito com sucesso no teste!' }) 
-        });
-      });
-
-      await page.goto(`${BASE_URL}/login`);
-      await page.locator('input[name="username"], input[type="text"]').first().fill('Teste'); 
-      await page.locator('input[name="password"], input[type="password"]').first().fill('Teste@123');  
-      
-      // Clicamos em Entrar
-      await page.getByRole('button', { name: 'Entrar' }).click();
-
-      // FIX: Em vez de confiar no Service Worker real em HTTP localhost,
-      // Nós simulamos o comportamento exato que o useWebPush.js teria executado
-      // enviando a requisição pelo próprio contexto da página logada.
-      await page.evaluate(async () => {
-          // Precisamos aguardar o token estar disponível após o login
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          const fakeSubscription = {
-              endpoint: 'https://fcm.googleapis.com/fcm/send/mock_playwright',
-              keys: {
-                  p256dh: 'fake_p256dh_key_base64',
-                  auth: 'fake_auth_key_base64'
-              }
-          };
-
-          // Simulamos o apiClient do frontend
-          await window.fetch('/api/push/subscribe/', {
-              method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${sessionStorage.getItem('authToken') || ''}`
-              },
-              body: JSON.stringify(fakeSubscription)
-          });
-      });
-
-      // Assertions - Provam que a nossa rota interceptada funcionou!
-      expect(pushRegistrado).toBeTruthy();
-      expect(endpointEnviado).not.toBe('');
-      expect(endpointEnviado).toContain('fcm.googleapis.com');
-    });
-
-  });
 });

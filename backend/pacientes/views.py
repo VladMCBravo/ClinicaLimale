@@ -23,7 +23,8 @@ class PacienteListCreateAPIView(generics.ListCreateAPIView):
         # 🛡️ TRAVA 1: Puxa APENAS os pacientes ativos!
         base_queryset = Paciente.objects.filter(ativo=True)
 
-        if user.cargo in ['admin', 'recepcao', 'medico']:
+        # 👇 CORREÇÃO: 'admin_medico' adicionado na lista de permissões 👇
+        if user.cargo in ['admin', 'recepcao', 'medico', 'admin_medico']:
             qs = base_queryset 
         else:
             qs = Paciente.objects.none()
@@ -49,7 +50,7 @@ class PacienteDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         # 🛡️ TRAVA 2: Evita que o detalhe de um paciente inativo seja acessado/editado pela URL
         base_queryset = Paciente.objects.filter(ativo=True).annotate(total_consultas=Count('agendamentos', distinct=True))
         
-        if user.cargo in ['admin', 'recepcao', 'medico']:
+        if user.cargo in ['admin', 'recepcao', 'medico', 'admin_medico']:
             return base_queryset
             
         return Paciente.objects.none()
