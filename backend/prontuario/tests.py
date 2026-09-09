@@ -32,6 +32,15 @@ def medico_titular(db):
     )
 
 @pytest.fixture
+def medico_socio(db):
+    return User.objects.create_user(
+        username='dr_dono', 
+        password='123', 
+        cargo='admin_medico', 
+        crm='999999'
+    )
+
+@pytest.fixture
 def medico_intruso(db):
     return User.objects.create_user(
         username='dr_intruso', 
@@ -327,6 +336,27 @@ class TestLaudoAsyncView:
         laudo_salvo = Laudo.objects.get(paciente=paciente_padrao)
         assert laudo_salvo.codigo_acesso == credenciais['codigo']
         assert laudo_salvo.senha_acesso == credenciais['senha']
+
+    @patch('django.db.transaction.on_commit') 
+    @patch('prontuario.utils.gerar_pdf_laudo_backend')
+    def test_admin_medico_tem_permissao_para_assinar_laudo(self, mock_gerar_pdf, mock_on_commit, client, medico_socio, paciente_padrao):
+        """Garante que a trava de assinatura aceite a senha e o CRM do admin_medico."""
+        mock_gerar_pdf.return_value = b"PDF_FALSO"
+        
+        client.force_authenticate(user=medico_socio)
+        url = reverse('laudo-create-async')
+        
+        payload = {
+            'paciente': paciente_padrao.id,
+            'titulo': 'USG Geral',
+            'crm_medico': '999999',  # CRM do socio
+            'senha_medico': '123'    # Senha do socio
+        }
+        
+        response = client.post(url, payload, format='multipart')
+        
+        assert response.status_code == status.HTTP_202_ACCEPTED, \
+            f"FALHA DE ASSINATURA: O backend rejeitou a assinatura do médico sócio! Motivo: {response.data}"
     
 @pytest.mark.django_db
 class TestAtualizacaoAutomaticaPaciente:

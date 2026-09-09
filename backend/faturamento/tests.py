@@ -138,6 +138,30 @@ class FinanceiroIntegridadeTests(APITestCase):
             "FALHA FINANCEIRA: O paciente cancelou, mas a dívida continuou ativa no Contas a Receber!"
         )
 
+    def test_agendamento_de_admin_medico_gera_faturamento_correto(self):
+        """O faturamento deve ser gerado normalmente para atendimentos feitos por médicos sócios."""
+        user_socio = User.objects.create_user(username='dr_socio_fin', password='123', cargo='admin_medico')
+        self.client.force_authenticate(user=self.user_admin)
+        
+        dados = {
+            "paciente": self.paciente.id,
+            "medico": user_socio.id, # Agendado para o sócio
+            "sala": self.sala.id,
+            "tipo_agendamento": "Consulta",
+            "especialidade": self.esp.id,
+            "data_hora_inicio": (timezone.now() + timedelta(days=6)).isoformat(),
+            "data_hora_fim": (timezone.now() + timedelta(days=6, minutes=30)).isoformat()
+        }
+        
+        response = self.client.post(self.url_agenda, dados)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        agendamento = Agendamento.objects.filter(medico=user_socio).last()
+        pagamento = Pagamento.objects.get(agendamento=agendamento)
+        
+        self.assertEqual(float(pagamento.valor), 250.00)
+        self.assertEqual(pagamento.status, 'Pendente')
+
 
 class FaturamentoConsolidacaoTests(APITestCase):
     """

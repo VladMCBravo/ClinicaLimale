@@ -10,11 +10,11 @@ test.describe('Fluxo de Atendimento Neonatal e Documentos', () => {
     // 1. SETUP E NAVEGAÇÃO INICIAL
     // ==========================================
     await page.goto(`${BASE_URL}/login`);
-    await page.getByRole('textbox', { name: 'Nome de Usuário' }).fill('Daniel'); 
-    await page.getByRole('textbox', { name: 'Senha' }).fill('Med@123');
+    await page.getByRole('textbox', { name: 'Nome de Usuário' }).fill('Teste'); 
+    await page.getByRole('textbox', { name: 'Senha' }).fill('Teste@123');
     await page.getByRole('button', { name: 'Entrar' }).click();
 
-    await expect(page.getByText('Olá, Dr. Limberg')).toBeVisible();
+    await expect(page.getByText('Olá, Dr. Ambrosio')).toBeVisible();
     
     // ✅ BOA PRÁTICA E2E: Seleciona dinamicamente o PRIMEIRO paciente da lista
     // Ele procura pela lista na tela e clica no primeiro botão/item disponível.

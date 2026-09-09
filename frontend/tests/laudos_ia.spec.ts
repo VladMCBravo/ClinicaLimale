@@ -9,8 +9,8 @@ test.describe('Fluxo do Copiloto de Laudos (IA Claude)', () => {
     
     // 1. Setup Inicial e Login
     await page.goto(`${BASE_URL}/login`);
-    await page.getByRole('textbox', { name: 'Nome de Usuário' }).fill('Daniel'); 
-    await page.getByRole('textbox', { name: 'Senha' }).fill('Med@123');
+    await page.getByRole('textbox', { name: 'Nome de Usuário' }).fill('Teste'); 
+    await page.getByRole('textbox', { name: 'Senha' }).fill('Teste@123');
     await page.getByRole('button', { name: 'Entrar' }).click();
     await expect(page.getByText('Olá, Dr.')).toBeVisible();
 
