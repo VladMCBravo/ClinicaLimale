@@ -133,6 +133,10 @@ export default function RelatorioPontoTab() {
         return { linhas: relatorioFinal, totalHorasText: formatarHorasMinutos(totalMensalMs) };
     };
 
+    const handlePrint = () => {
+        window.print();
+    };
+
     const renderStatus = (status, observacao) => {
         if (status === 'aprovado') return <Chip icon={<CheckCircle />} label="Aprovado" sx={{ bgcolor: '#e7f5ff', color: '#1c7ed6', fontWeight: 600, height: 22, fontSize: '10px' }} />;
         if (status === 'rejeitado') return <Tooltip title={observacao || 'Bloqueado'}><Chip icon={<ErrorOutline />} label="Bloqueado" sx={{ bgcolor: '#fff0f6', color: '#c2255c', fontWeight: 600, height: 22, fontSize: '10px' }} /></Tooltip>;
