@@ -155,7 +155,7 @@ export default function ConfiguracoesPage() {
                 <Box sx={{ p: 2 }}>
                     
                     {/* Seção: Conta */}
-                    <Typography className="tasy-section-header" sx={{ mx: -2, mt: -2 }}>Minha Conta</Typography>
+                    <Typography className="tasy-section-header" sx={{ mx: -2, mt: -2 }}>Configurações</Typography>
                     <List component="nav" sx={{ p: 0, mb: 2 }}>
                         <MenuItem id="perfil" icon={<AccountCircle />} label="Meu Perfil" />
                     </List>

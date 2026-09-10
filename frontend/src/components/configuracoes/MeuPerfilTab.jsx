@@ -5,12 +5,12 @@ import {
     CircularProgress, Alert, InputAdornment, IconButton, Typography
 } from '@mui/material';
 import { 
-    Person, LocationOn, Security, Visibility, VisibilityOff, Lock, Fingerprint
+    Person, LocationOn, Security, Visibility, VisibilityOff, Lock, Fingerprint, CloudUpload
 } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig';
 import { TextMaskCEP, TextMaskTelefone } from '../common/MaskedInput';
 
-// Importante: certifique-se de que o atendimento.css está importado no app ou no arquivo pai
+// Importante: certifique-se de que o atendimento.css está importado no app
 import '../../atendimento.css';
 
 function TabPanel({ children, value, index, ...other }) {
@@ -35,6 +35,12 @@ export default function MeuPerfilTab() {
 
     const [showSenha, setShowSenha] = useState(false);
 
+    // Estados do Certificado Digital
+    const [certStatus, setCertStatus] = useState(false);
+    const [certFile, setCertFile] = useState(null);
+    const [certSenha, setCertSenha] = useState('');
+    const [uploadingCert, setUploadingCert] = useState(false);
+
     useEffect(() => { carregarDadosPerfil(); }, []);
 
     const carregarDadosPerfil = async () => {
@@ -46,6 +52,7 @@ export default function MeuPerfilTab() {
                 password: '',
                 medico_especialidades: res.data.medico_especialidades || [] 
             });
+            setCertStatus(res.data.tem_certificado_valido || false); 
         } catch (error) { mostrarFeedback('Erro ao carregar perfil.', 'error'); } 
         finally { setLoading(false); }
     };
@@ -57,14 +64,36 @@ export default function MeuPerfilTab() {
         setTimeout(() => setFeedback({ show: false, message: '', type: 'success' }), 5000);
     };
 
+    // BUSCA DE CEP APRIMORADA (ViaCEP + BrasilAPI Fallback)
     const handleCepBlur = async (e) => {
         const cepDigitado = e.target.value.replace(/\D/g, ''); 
         if (cepDigitado.length === 8) {
             try {
-                const response = await fetch(`https://viacep.com.br/ws/${cepDigitado}/json/`);
-                const data = await response.json();
-                
-                if (!data.erro) {
+                let data = null;
+                try {
+                    // Tenta o ViaCEP primeiro
+                    const response = await fetch(`https://viacep.com.br/ws/${cepDigitado}/json/`);
+                    data = await response.json();
+                } catch (errViaCep) {
+                    console.warn("ViaCEP falhou/bloqueado. Tentando BrasilAPI...", errViaCep);
+                    // Fallback para BrasilAPI em caso de falha de DNS ou AdBlock
+                    const response = await fetch(`https://brasilapi.com.br/api/cep/v1/${cepDigitado}`);
+                    const brasilApiData = await response.json();
+                    
+                    if (brasilApiData && !brasilApiData.errors) {
+                        data = {
+                            logradouro: brasilApiData.street,
+                            bairro: brasilApiData.neighborhood,
+                            localidade: brasilApiData.city,
+                            uf: brasilApiData.state,
+                            erro: false
+                        };
+                    } else {
+                        data = { erro: true };
+                    }
+                }
+
+                if (data && !data.erro) {
                     setPerfil(prev => ({
                         ...prev,
                         logradouro: data.logradouro || prev.logradouro,
@@ -77,7 +106,7 @@ export default function MeuPerfilTab() {
                     mostrarFeedback('CEP não encontrado.', 'warning');
                 }
             } catch (error) {
-                mostrarFeedback('Erro ao buscar o CEP.', 'error');
+                mostrarFeedback('Erro na conexão ao buscar o CEP.', 'error');
             }
         }
     };
@@ -94,6 +123,29 @@ export default function MeuPerfilTab() {
             setPerfil(prev => ({ ...prev, password: '' }));
         } catch (error) { mostrarFeedback('Erro ao atualizar perfil.', 'error'); } 
         finally { setSavingInfo(false); }
+    };
+
+    const handleUploadCertificado = async () => {
+        if (!certFile || !certSenha) return mostrarFeedback('Selecione o arquivo e digite a senha.', 'warning');
+        setUploadingCert(true);
+        const formData = new FormData();
+        formData.append('certificado', certFile);
+        formData.append('senha', certSenha);
+        
+        try {
+            // Ajuste a URL do endpoint conforme configurado no seu backend (Django)
+            await apiClient.post('/usuarios/me/certificado/', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            mostrarFeedback('Certificado validado e salvo com sucesso!', 'success');
+            setCertStatus(true);
+            setCertFile(null);
+            setCertSenha('');
+        } catch (error) {
+            mostrarFeedback('Erro ao enviar certificado. Verifique a senha ou validade.', 'error');
+        } finally {
+            setUploadingCert(false);
+        }
     };
 
     if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
@@ -188,11 +240,80 @@ export default function MeuPerfilTab() {
                         </form>
                     </TabPanel>
 
-                    {/* ABA 3: ASSINATURA */}
+                    {/* ABA 3: CERTIFICADO DIGITAL RECONSTRUÍDA */}
                     {['medico', 'admin_medico'].includes(perfil.cargo) && (
                         <TabPanel value={tab} index={3}>
-                            <div className="tasy-section-header">Certificado Digital</div>
-                           {/* ... Código da assinatura da clínica vai aqui, recomendo encapsular num tasy-panel se houver cards */}
+                            <div className="tasy-panel theme-blue">
+                                <div className="tasy-panel-body">
+                                    <div className="tasy-section-header">Certificado Digital (A1)</div>
+                                    
+                                    {certStatus ? (
+                                        <Alert severity="success" sx={{ mb: 3 }}>
+                                            Você possui um certificado digital <strong>Válido</strong> e configurado em sua conta.
+                                        </Alert>
+                                    ) : (
+                                        <Alert severity="warning" sx={{ mb: 3 }}>
+                                            Nenhum certificado digital configurado. O envio de receitas e laudos assinados poderá ser bloqueado ou rejeitado.
+                                        </Alert>
+                                    )}
+
+                                    <Typography variant="body2" sx={{ color: '#6c757d', mb: 2 }}>
+                                        Selecione o arquivo do seu certificado digital (extensão .pfx ou .p12) e informe a senha de instalação para vinculá-lo à sua assinatura médica no sistema.
+                                    </Typography>
+
+                                    <Grid container spacing={2} alignItems="center">
+                                        <Grid item xs={12} sm={6}>
+                                            <Button
+                                                variant="outlined"
+                                                component="label"
+                                                fullWidth
+                                                startIcon={<CloudUpload />}
+                                                sx={{ height: '40px', textTransform: 'none', color: '#495057', borderColor: '#ced4da' }}
+                                            >
+                                                {certFile ? certFile.name : 'Selecionar Arquivo .PFX / .P12'}
+                                                <input 
+                                                    type="file" 
+                                                    hidden 
+                                                    accept=".pfx,.p12" 
+                                                    onChange={(e) => setCertFile(e.target.files[0])} 
+                                                />
+                                            </Button>
+                                        </Grid>
+                                        <Grid item xs={12} sm={4}>
+                                            <TextField 
+                                                className="tasy-compact-input" 
+                                                fullWidth 
+                                                type={showSenha ? "text" : "password"}
+                                                label="Senha do Certificado" 
+                                                value={certSenha} 
+                                                onChange={(e) => setCertSenha(e.target.value)}
+                                                InputProps={{
+                                                    endAdornment: (
+                                                        <InputAdornment position="end">
+                                                            <IconButton onClick={() => setShowSenha(!showSenha)} edge="end" size="small">
+                                                                {showSenha ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                                                            </IconButton>
+                                                        </InputAdornment>
+                                                    )
+                                                }}
+                                            />
+                                        </Grid>
+                                        <Grid item xs={12} sm={2}>
+                                            <Button 
+                                                variant="contained" 
+                                                fullWidth 
+                                                disableElevation
+                                                color="primary"
+                                                onClick={handleUploadCertificado}
+                                                disabled={!certFile || !certSenha || uploadingCert}
+                                                sx={{ height: '40px', bgcolor: '#1c7ed6' }}
+                                            >
+                                                {uploadingCert ? <CircularProgress size={20} color="inherit" /> : 'Enviar Certificado'}
+                                            </Button>
+                                        </Grid>
+                                    </Grid>
+                                </div>
+                            </div>
                         </TabPanel>
                     )}
                 </Box>
