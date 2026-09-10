@@ -10,7 +10,7 @@ import FinanceiroDashboardView from '../components/financeiro/FinanceiroDashboar
 import ContasReceberView from '../components/financeiro/ContasReceberView';
 import DespesasView from '../components/financeiro/DespesasView';
 import FaturamentoConveniosView from '../components/financeiro/FaturamentoConveniosView';
-import ProcedimentosView from '../components/financeiro/ProcedimentosView';
+import ProcedimentosView from '../components/configuracoes/ProcedimentosView';
 
 function a11yProps(index) {
     return { id: `financeiro-tab-${index}`, 'aria-controls': `financeiro-tabpanel-${index}` };

@@ -7,6 +7,8 @@ import {
 } from '@mui/material';
 import apiClient from '../../api/axiosConfig';
 
+import '../../atendimento.css';
+
 export default function CategoriaDespesaModal({ open, onClose, onSave, categoriaParaEditar }) {
     const [formData, setFormData] = useState({
         nome: '',
@@ -46,34 +48,38 @@ export default function CategoriaDespesaModal({ open, onClose, onSave, categoria
     };
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-            <DialogTitle sx={{ fontWeight: 'bold', color: '#1a233b' }}>
+        <Dialog 
+            open={open} 
+            onClose={onClose} 
+            fullWidth 
+            maxWidth="xs"
+            PaperProps={{ className: 'tasy-flat-panel' }} // Remove bordas e shadows nativas do MUI
+        >
+            <DialogTitle sx={{ fontWeight: 'bold', color: '#495057', fontSize: '13px', textTransform: 'uppercase', borderBottom: '1px solid #e9ecef', bgcolor: '#f8f9fa', py: 1.5 }}>
                 {categoriaParaEditar ? 'Editar Categoria' : 'Nova Categoria'}
             </DialogTitle>
             <form onSubmit={handleSubmit}>
-                <DialogContent>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                <DialogContent sx={{ p: 3 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
                         
                         <TextField 
+                            className="tasy-compact-input"
                             label="Nome da Categoria" 
                             fullWidth 
-                            variant="outlined" 
-                            size="small"
                             value={formData.nome} 
                             onChange={(e) => setFormData({...formData, nome: e.target.value})} 
                             required 
                         />
 
                         <TextField 
+                            className="tasy-compact-input"
                             label="Descrição (Opcional)" 
                             fullWidth 
-                            variant="outlined" 
-                            size="small"
                             value={formData.descricao} 
                             onChange={(e) => setFormData({...formData, descricao: e.target.value})} 
                         />
 
-                        <FormControl fullWidth size="small">
+                        <FormControl fullWidth className="tasy-compact-input">
                             <InputLabel>Tipo Financeiro</InputLabel>
                             <Select 
                                 value={formData.tipo} 
@@ -82,14 +88,14 @@ export default function CategoriaDespesaModal({ open, onClose, onSave, categoria
                             >
                                 <MenuItem value="Fixa">
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                                        <span>Fixa</span>
-                                        <Chip label="Estrutura" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: '#e3f2fd', color: '#1565c0', fontWeight: 'bold' }} />
+                                        <span style={{ fontSize: '13px' }}>Fixa</span>
+                                        <Chip label="Estrutura" size="small" sx={{ height: 18, fontSize: '10px', bgcolor: '#e7f5ff', color: '#1c7ed6', fontWeight: 'bold', borderRadius: '4px' }} />
                                     </Box>
                                 </MenuItem>
                                 <MenuItem value="Variavel">
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                                        <span>Variável</span>
-                                        <Chip label="Consumo" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: '#fff3e0', color: '#e65100', fontWeight: 'bold' }} />
+                                        <span style={{ fontSize: '13px' }}>Variável</span>
+                                        <Chip label="Consumo" size="small" sx={{ height: 18, fontSize: '10px', bgcolor: '#fff4e6', color: '#e8590c', fontWeight: 'bold', borderRadius: '4px' }} />
                                     </Box>
                                 </MenuItem>
                             </Select>
@@ -97,10 +103,10 @@ export default function CategoriaDespesaModal({ open, onClose, onSave, categoria
 
                     </Box>
                 </DialogContent>
-                <DialogActions sx={{ p: 2, bgcolor: '#fafafa' }}>
-                    <Button onClick={onClose} color="inherit">Cancelar</Button>
-                    <Button type="submit" variant="contained" disabled={isSubmitting} sx={{ bgcolor: '#1a233b' }}>
-                        {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Salvar'}
+                <DialogActions sx={{ p: 1.5, borderTop: '1px solid #e9ecef', bgcolor: '#f8f9fa' }}>
+                    <Button onClick={onClose} sx={{ color: '#868e96', fontSize: '12px', fontWeight: 600 }}>Cancelar</Button>
+                    <Button type="submit" variant="contained" disableElevation disabled={isSubmitting} sx={{ bgcolor: '#1c7ed6', fontSize: '12px', fontWeight: 600 }}>
+                        {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Salvar Categoria'}
                     </Button>
                 </DialogActions>
             </form>

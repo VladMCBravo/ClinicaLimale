@@ -3,12 +3,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
     Button, IconButton, Switch, FormControl, InputLabel, Select, MenuItem,
-    TablePagination // <-- ADICIONADO
+    TablePagination, Typography
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
+import { Edit, Add } from '@mui/icons-material';
 import apiClient from '../../api/axiosConfig'; 
 import { useSnackbar } from '../../contexts/SnackbarContext'; 
 import UsuarioModal from './UsuarioModal'; 
+
+import '../../atendimento.css'; 
 
 export default function UsuariosTab() {
     const [users, setUsers] = useState([]);
@@ -18,8 +20,7 @@ export default function UsuariosTab() {
     const [editingUser, setEditingUser] = useState(null);
     const [filtroCargo, setFiltroCargo] = useState('');
 
-    // 👇 NOVOS ESTADOS PARA PAGINAÇÃO 👇
-    const [page, setPage] = useState(0); // MUI usa base 0 para páginas
+    const [page, setPage] = useState(0); 
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalUsers, setTotalUsers] = useState(0);
 
@@ -29,18 +30,15 @@ export default function UsuariosTab() {
             const response = await apiClient.get('/usuarios/usuarios/', {
                 params: { 
                     cargo: filtroCargo,
-                    // Django DRF usa base 1 para páginas, então somamos 1
                     page: page + 1, 
                     page_size: rowsPerPage 
                 }
             });
             
-            // Verifica se a resposta está paginada (tem o count e results) ou se é uma lista plana
             if (response.data.results) {
                 setUsers(response.data.results);
                 setTotalUsers(response.data.count);
             } else {
-                // Fallback caso o backend ainda não esteja paginando
                 setUsers(response.data);
                 setTotalUsers(response.data.length);
             }
@@ -51,18 +49,15 @@ export default function UsuariosTab() {
         }
     }, [filtroCargo, page, rowsPerPage, showSnackbar]);
 
-    // Quando o usuário muda de página
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
     };
 
-    // Quando o usuário muda a quantidade de itens por página
     const handleChangeRowsPerPage = (event) => {
         setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0); // Volta para a página 1 sempre que mudar o tamanho
+        setPage(0); 
     };
 
-    // Quando mudar o filtro de cargo, devemos voltar para a página 0
     useEffect(() => {
         setPage(0);
     }, [filtroCargo]);
@@ -88,53 +83,60 @@ export default function UsuariosTab() {
     };
 
     return (
-        <Box className="tasy-workspace">
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                <FormControl size="small" sx={{ minWidth: 200 }} className="tasy-compact-input">
-                    <InputLabel>Filtrar por Cargo</InputLabel>
-                    <Select value={filtroCargo} label="Filtrar por Cargo" onChange={(e) => setFiltroCargo(e.target.value)}>
-                        <MenuItem value="">Todos</MenuItem>
-                        <MenuItem value="admin">Administrador</MenuItem>
-                        <MenuItem value="admin_medico">Médico Sócio</MenuItem> {/* <-- ADICIONADO */}
-                        <MenuItem value="medico">Médico</MenuItem>
-                        <MenuItem value="recepcao">Recepção</MenuItem>
-                    </Select>
-                </FormControl>
-                <Button 
-                    variant="contained" 
-                    disableElevation 
-                    size="small" 
-                    onClick={() => { setEditingUser(null); setIsModalOpen(true); }} 
-                    sx={{bgcolor: '#1c7ed6', borderRadius: 0}}
-                >
-                    Novo Usuário
-                </Button>
+        <Box className="tasy-flat-panel tasy-workspace" sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            
+            {/* Header Padronizado */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderBottom: '1px solid #e9ecef', bgcolor: '#f8f9fa' }}>
+                <Typography sx={{ fontWeight: 600, color: '#495057', fontSize: '13px', textTransform: 'uppercase' }}>
+                    Gestão de Equipe
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <FormControl size="small" sx={{ minWidth: 200 }} className="tasy-compact-input">
+                        <InputLabel>Filtrar por Cargo</InputLabel>
+                        <Select value={filtroCargo} label="Filtrar por Cargo" onChange={(e) => setFiltroCargo(e.target.value)}>
+                            <MenuItem value="">Todos</MenuItem>
+                            <MenuItem value="admin">Administrador</MenuItem>
+                            <MenuItem value="admin_medico">Médico Sócio</MenuItem> 
+                            <MenuItem value="medico">Médico</MenuItem>
+                            <MenuItem value="recepcao">Recepção</MenuItem>
+                        </Select>
+                    </FormControl>
+                    <Button 
+                        variant="contained" 
+                        disableElevation 
+                        size="small" 
+                        startIcon={<Add sx={{ fontSize: '16px' }} />}
+                        onClick={() => { setEditingUser(null); setIsModalOpen(true); }} 
+                        sx={{ bgcolor: '#1c7ed6', fontSize: '12px' }}
+                    >
+                        Novo Usuário
+                    </Button>
+                </Box>
             </Box>
             
-            {/* Uso do flat panel ao invés do Paper com sombra */}
-            <TableContainer className="tasy-flat-panel" sx={{ maxHeight: 'calc(100vh - 200px)' }}>
+            <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
                 <Table size="small" stickyHeader>
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 'bold' }}>Nome</TableCell>
-                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 'bold' }}>Login</TableCell>
-                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 'bold' }}>Cargo</TableCell>
-                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 'bold' }} align="center">Status</TableCell>
-                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 'bold' }} align="right">Ações</TableCell>
+                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 600, color: '#495057', borderBottom: '1px solid #e9ecef' }}>Nome</TableCell>
+                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 600, color: '#495057', borderBottom: '1px solid #e9ecef' }}>Login</TableCell>
+                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 600, color: '#495057', borderBottom: '1px solid #e9ecef' }}>Cargo</TableCell>
+                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 600, color: '#495057', borderBottom: '1px solid #e9ecef' }} align="center">Acesso</TableCell>
+                            <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 600, color: '#495057', borderBottom: '1px solid #e9ecef' }} align="right">Ações</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {users.map((user) => (
-                            <TableRow key={user.id} hover>
-                                <TableCell>{user.first_name} {user.last_name}</TableCell>
-                                <TableCell>{user.username}</TableCell>
-                                <TableCell sx={{ textTransform: 'capitalize' }}>{formatarCargo(user.cargo)}</TableCell>
+                            <TableRow key={user.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                <TableCell sx={{ color: '#343a40', fontWeight: 500 }}>{user.first_name} {user.last_name}</TableCell>
+                                <TableCell sx={{ color: '#6c757d' }}>{user.username}</TableCell>
+                                <TableCell sx={{ color: '#495057', textTransform: 'capitalize' }}>{formatarCargo(user.cargo)}</TableCell>
                                 <TableCell align="center">
                                     <Switch checked={user.is_active} onChange={() => handleToggleActive(user)} color="success" size="small" />
                                 </TableCell>
                                 <TableCell align="right">
-                                    <IconButton onClick={() => { setEditingUser(user); setIsModalOpen(true); }} size="small" color="primary">
-                                        <EditIcon fontSize="small" />
+                                    <IconButton onClick={() => { setEditingUser(user); setIsModalOpen(true); }} size="small" sx={{ color: '#868e96', '&:hover': { color: '#1c7ed6' } }}>
+                                        <Edit fontSize="small" />
                                     </IconButton>
                                 </TableCell>
                             </TableRow>
@@ -143,19 +145,21 @@ export default function UsuariosTab() {
                 </Table>
             </TableContainer>
             
-            {/* 👇 ADICIONADO O CONTROLE DE PAGINAÇÃO AQUI 👇 */}
-            <TablePagination
-                component="div"
-                count={totalUsers} // Total real de usuários no banco
-                page={page}
-                onPageChange={handleChangePage}
-                rowsPerPage={rowsPerPage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                rowsPerPageOptions={[5, 10, 25, 50]}
-                labelRowsPerPage="Usuários por página:"
-                labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count !== -1 ? count : `mais de ${to}`}`}
-            />
-            {/* 👆 FIM DO CONTROLE DE PAGINAÇÃO 👆 */}
+            <Box sx={{ borderTop: '1px solid #e9ecef', bgcolor: '#fff' }}>
+                <TablePagination
+                    component="div"
+                    count={totalUsers} 
+                    page={page}
+                    onPageChange={handleChangePage}
+                    rowsPerPage={rowsPerPage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    rowsPerPageOptions={[5, 10, 25, 50]}
+                    labelRowsPerPage="Usuários por página:"
+                    labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count !== -1 ? count : `mais de ${to}`}`}
+                    sx={{ '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': { fontSize: '13px', color: '#495057' } }}
+                />
+            </Box>
+
             <UsuarioModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={fetchUsers} usuarioParaEditar={editingUser} />
         </Box>
     );

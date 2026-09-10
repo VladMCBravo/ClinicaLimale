@@ -1,7 +1,7 @@
 // src/components/financeiro/ProcedimentosView.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
-    Box, Paper, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+    Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
     CircularProgress, IconButton, Button, TextField, InputAdornment, Chip, Tooltip, Stack,
     Dialog, DialogTitle, DialogContent, DialogActions, FormControlLabel, Checkbox, TableSortLabel,
     MenuItem
@@ -15,11 +15,11 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 import ProcedimentoModal from './ProcedimentoModal';
 import { gerarPdfProcedimentos } from '../../utils/tabelaValoresPdfGenerator'; 
-import './Financeiro.css';
+import '../../atendimento.css';
 
 const CAT_COLORS = {
-    'US_GERAL': '#1565c0', 'MED_FETAL': '#7b1fa2', 'ECOCARDIOGRAMA': '#c62828',
-    'MUSCULO': '#e65100', 'DOPPLER': '#00838f', 'OUTROS': '#6c757d'
+    'US_GERAL': '#1c7ed6', 'MED_FETAL': '#7048e8', 'ECOCARDIOGRAMA': '#e03131',
+    'MUSCULO': '#e8590c', 'DOPPLER': '#0b7285', 'OUTROS': '#868e96'
 };
 
 const CAT_LABELS = {
@@ -61,17 +61,9 @@ export default function ProcedimentosView() {
 
     const fetchProcedimentos = useCallback(async () => {
         setIsLoading(true);
-        const startTime = performance.now();
-        console.log('[DEBUG-PERFORMANCE] ⏳ Iniciando busca de Procedimentos na API...');
-
         try {
             const response = await faturamentoService.getProcedimentos();
-            const endTime = performance.now();
-            console.log(`[DEBUG-PERFORMANCE] ✅ API respondeu com ${response.data.length} itens em ${(endTime - startTime).toFixed(2)}ms.`);
-            
-            const renderStart = performance.now();
             setProcedimentos(response.data);
-            console.log(`[DEBUG-PERFORMANCE] 🎨 Tempo processamento React: ${(performance.now() - renderStart).toFixed(2)}ms.`);
         } catch (error) { 
             showSnackbar('Erro ao carregar procedimentos.', 'error'); 
         } finally { 
@@ -222,47 +214,47 @@ export default function ProcedimentosView() {
         });
     };
 
-    const thStyle = { fontWeight: 700, bgcolor: '#f8f9fa', color: '#495057', fontSize: '0.75rem', textTransform: 'uppercase', borderBottom: '1px solid #dee2e6' };
+    const thStyle = { fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', fontSize: '12px', textTransform: 'uppercase', borderBottom: '1px solid #e9ecef' };
 
     return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 1, backgroundColor: '#f1f3f5', overflow: 'hidden' }}>
+        <Box className="tasy-workspace" sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 0, backgroundColor: '#f1f3f5', overflow: 'hidden' }}>
             
-            <Paper className="tasy-flat-panel" sx={{ p: 1, mb: 1, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+            <Box className="tasy-flat-panel" sx={{ p: 2, mb: 1.5, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexShrink: 0, bgcolor: '#fff' }}>
                 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#495057', textTransform: 'uppercase' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+                    <Typography sx={{ fontWeight: 600, color: '#495057', fontSize: '13px', textTransform: 'uppercase' }}>
                         Catálogo de Procedimentos
                     </Typography>
                     
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <Chip size="small" icon={<FormatListNumbered />} label={`Cadastrados: ${kpis.total}`} sx={{ borderRadius: 1, fontWeight: 'bold' }} />
-                        <Chip size="small" icon={<MonetizationOn />} label={`Com Preço: ${kpis.comValor}`} sx={{ borderRadius: 1, fontWeight: 'bold' }} color="success" variant="outlined" />
-                        <Chip size="small" icon={<LocalHospital />} label={`Com TUSS: ${kpis.tuss}`} sx={{ borderRadius: 1, fontWeight: 'bold' }} color="warning" variant="outlined" />
+                        <Chip size="small" icon={<FormatListNumbered />} label={`Cadastrados: ${kpis.total}`} sx={{ borderRadius: '4px', fontWeight: 600, bgcolor: '#f1f3f5', color: '#495057' }} />
+                        <Chip size="small" icon={<MonetizationOn />} label={`Com Preço: ${kpis.comValor}`} sx={{ borderRadius: '4px', fontWeight: 600, bgcolor: '#e7f5ff', color: '#1c7ed6' }} />
+                        <Chip size="small" icon={<LocalHospital />} label={`Com TUSS: ${kpis.tuss}`} sx={{ borderRadius: '4px', fontWeight: 600, bgcolor: '#fff4e6', color: '#e8590c' }} />
                     </Box>
                 </Box>
 
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
                     <TextField 
                         size="small" className="tasy-compact-input" placeholder="Buscar exame ou código..." 
                         value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} 
                         InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
                         sx={{ width: 220 }} 
                     />
-                    <Button variant="outlined" component="label" size="small" startIcon={isUploading ? <CircularProgress size={16} color="inherit" /> : <CloudUpload />} disabled={isUploading} sx={{ textTransform: 'none', borderRadius: 1, color: '#495057', borderColor: '#ced4da' }}>
+                    <Button variant="outlined" component="label" size="small" startIcon={isUploading ? <CircularProgress size={16} color="inherit" /> : <CloudUpload />} disabled={isUploading} sx={{ textTransform: 'none', borderRadius: '4px', color: '#495057', borderColor: '#ced4da', fontSize: '12px', fontWeight: 600 }}>
                         {isUploading ? 'Processando...' : 'Importar'}
                         <input type="file" accept=".csv, .txt" hidden onChange={handleFileUpload} />
                     </Button>
-                    <Button variant="outlined" color="error" size="small" startIcon={<PictureAsPdf />} onClick={() => setIsPdfModalOpen(true)} sx={{ textTransform: 'none', borderRadius: 1 }}>
+                    <Button variant="outlined" color="error" size="small" startIcon={<PictureAsPdf />} onClick={() => setIsPdfModalOpen(true)} sx={{ textTransform: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
                         Exportar
                     </Button>
-                    <Button variant="contained" color="primary" size="small" startIcon={<Add />} onClick={() => handleOpenModal(null)} sx={{ textTransform: 'none', borderRadius: 1, fontWeight: 'bold' }}>
-                        Novo
+                    <Button variant="contained" disableElevation color="primary" size="small" startIcon={<Add />} onClick={() => handleOpenModal(null)} sx={{ textTransform: 'none', borderRadius: '4px', fontWeight: 600, bgcolor: '#1c7ed6', fontSize: '12px' }}>
+                        Novo Procedimento
                     </Button>
                 </Box>
-            </Paper>
+            </Box>
 
-            <Paper className="tasy-flat-panel" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <TableContainer className="tasy-workspace" sx={{ flexGrow: 1, bgcolor: '#ffffff' }}>
+            <Box className="tasy-flat-panel" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: '#fff' }}>
+                <TableContainer sx={{ flexGrow: 1 }}>
                     <Table stickyHeader size="small">
                         <TableHead>
                             <TableRow>
@@ -293,24 +285,24 @@ export default function ProcedimentosView() {
 
                                     return (
                                         <React.Fragment key={cat}>
-                                            <TableRow sx={{ bgcolor: `${CAT_COLORS[cat]}15` }}>
-                                                <TableCell colSpan={5} sx={{ py: 0.5, borderBottom: `1px solid ${CAT_COLORS[cat]}40` }}>
+                                            <TableRow sx={{ bgcolor: `${CAT_COLORS[cat]}08` }}>
+                                                <TableCell colSpan={5} sx={{ py: 0.5, borderBottom: `1px solid ${CAT_COLORS[cat]}30` }}>
                                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                             <IconButton size="small" onClick={() => toggleCategory(cat)} sx={{ color: CAT_COLORS[cat] }}>
                                                                 {collapsedCats[cat] ? <KeyboardArrowDown fontSize="small" /> : <KeyboardArrowUp fontSize="small" />}
                                                             </IconButton>
-                                                            <Typography variant="body2" fontWeight="bold" sx={{ color: CAT_COLORS[cat], textTransform: 'uppercase' }}>
+                                                            <Typography sx={{ color: CAT_COLORS[cat], textTransform: 'uppercase', fontSize: '12px', fontWeight: 700 }}>
                                                                 {CAT_LABELS[cat] || cat}
                                                             </Typography>
                                                             
-                                                            <Chip label={procsCat.length} size="small" sx={{ height: 18, fontSize: '0.65rem', bgcolor: `${CAT_COLORS[cat]}30`, color: CAT_COLORS[cat], fontWeight: 'bold' }} />
-                                                            <Chip label={`Preço: ${comValorCat}`} size="small" color="success" variant="outlined" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 'bold', ml: 1, p: 0 }} />
-                                                            <Chip label={`TUSS: ${comTussCat}`} size="small" color="warning" variant="outlined" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 'bold', p: 0 }} />
+                                                            <Chip label={procsCat.length} size="small" sx={{ height: 20, fontSize: '10px', bgcolor: `${CAT_COLORS[cat]}20`, color: CAT_COLORS[cat], fontWeight: 'bold', borderRadius: '4px' }} />
+                                                            <Chip label={`Preço: ${comValorCat}`} size="small" sx={{ height: 20, fontSize: '10px', fontWeight: 'bold', ml: 1, borderRadius: '4px', bgcolor: '#e7f5ff', color: '#1c7ed6' }} />
+                                                            <Chip label={`TUSS: ${comTussCat}`} size="small" sx={{ height: 20, fontSize: '10px', fontWeight: 'bold', borderRadius: '4px', bgcolor: '#fff4e6', color: '#e8590c' }} />
                                                         </Box>
                                                         <Button 
                                                             size="small" variant="outlined" startIcon={<AccessTime />} onClick={() => handleOpenCatModal(cat)}
-                                                            sx={{ color: CAT_COLORS[cat], borderColor: `${CAT_COLORS[cat]}80`, textTransform: 'none', height: 26, fontSize: '0.75rem', bgcolor: 'white', '&:hover': { bgcolor: `${CAT_COLORS[cat]}10` } }}
+                                                            sx={{ color: CAT_COLORS[cat], borderColor: `${CAT_COLORS[cat]}50`, textTransform: 'none', height: 26, fontSize: '11px', fontWeight: 600, bgcolor: 'white', '&:hover': { bgcolor: `${CAT_COLORS[cat]}10` } }}
                                                         >
                                                             Agenda da Categoria
                                                         </Button>
@@ -320,24 +312,24 @@ export default function ProcedimentosView() {
 
                                             {!collapsedCats[cat] && procsCat.map((proc) => (
                                                 <TableRow key={proc.id} hover sx={{ '& td': { borderBottom: '1px solid #f1f3f5' } }}>
-                                                    <TableCell sx={{ fontFamily: 'monospace', color: '#6c757d', fontSize: '0.8rem', fontWeight: 'bold', pl: 3 }}>
+                                                    <TableCell sx={{ fontFamily: 'monospace', color: '#6c757d', fontSize: '12px', fontWeight: 600, pl: 3 }}>
                                                         {proc.codigo_tuss || '-'}
                                                     </TableCell>
                                                     <TableCell>
                                                         <Chip 
                                                             label={CAT_LABELS[proc.categoria] || proc.categoria} size="small" 
-                                                            sx={{ fontSize: '0.65rem', height: 20, fontWeight: 'bold', bgcolor: `${CAT_COLORS[proc.categoria]}15`, color: CAT_COLORS[proc.categoria], border: `1px solid ${CAT_COLORS[proc.categoria]}50` }}
+                                                            sx={{ fontSize: '10px', height: 20, fontWeight: 'bold', bgcolor: `${CAT_COLORS[proc.categoria]}15`, color: CAT_COLORS[proc.categoria], borderRadius: '4px' }}
                                                         />
                                                     </TableCell>
-                                                    <TableCell sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#343a40' }}>
+                                                    <TableCell sx={{ fontSize: '12px', fontWeight: 500, color: '#343a40' }}>
                                                         {proc.descricao}
                                                     </TableCell>
-                                                    <TableCell align="right" sx={{ fontWeight: 'bold', color: proc.valor_particular ? '#2e7d32' : '#adb5bd', fontSize: '0.85rem' }}>
+                                                    <TableCell align="right" sx={{ fontWeight: 600, color: proc.valor_particular ? '#2b8a3e' : '#adb5bd', fontSize: '12px' }}>
                                                         {proc.valor_particular ? formatMoney(proc.valor_particular) : '-'}
                                                     </TableCell>
                                                     <TableCell align="center">
                                                         <Tooltip title="Editar Regras e Preços">
-                                                            <IconButton onClick={() => handleOpenModal(proc)} size="small" sx={{ color: '#1565c0' }}>
+                                                            <IconButton onClick={() => handleOpenModal(proc)} size="small" sx={{ color: '#868e96', '&:hover': { color: '#1c7ed6' } }}>
                                                                 <Edit fontSize="small" />
                                                             </IconButton>
                                                         </Tooltip>
@@ -348,88 +340,93 @@ export default function ProcedimentosView() {
                                     );
                                 })
                             ) : (
-                                <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6, color: '#868e96' }}>Nenhum procedimento encontrado.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={5} align="center" sx={{ py: 6, color: '#868e96', fontSize: '13px' }}>Nenhum procedimento encontrado.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
                 </TableContainer>
-                <Box sx={{ p: 1, borderTop: '1px solid #dee2e6', bgcolor: '#f8f9fa', textAlign: 'right' }}>
-                    <Typography variant="caption" sx={{ color: '#6c757d', fontWeight: 'bold' }}>
+                <Box sx={{ p: 1.5, borderTop: '1px solid #e9ecef', bgcolor: '#f8f9fa', textAlign: 'right' }}>
+                    <Typography sx={{ color: '#6c757d', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>
                         EXIBINDO {filteredList.length} REGISTROS
                     </Typography>
                 </Box>
-            </Paper>
+            </Box>
 
             <ProcedimentoModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={fetchProcedimentos} procedimento={procedimentoSelecionado} />
             
-            <Dialog open={catModalOpen} onClose={() => setCatModalOpen(false)} maxWidth="sm" fullWidth disableEscapeKeyDown={isSubmittingCat}>
-                <DialogTitle sx={{ bgcolor: `${CAT_COLORS[catEditing]}15`, p: 2, borderBottom: `1px solid ${CAT_COLORS[catEditing]}40` }}>
-                    <Typography variant="subtitle1" fontWeight="bold" sx={{ color: CAT_COLORS[catEditing] }}>
+            <Dialog open={catModalOpen} onClose={() => setCatModalOpen(false)} maxWidth="sm" fullWidth disableEscapeKeyDown={isSubmittingCat} PaperProps={{ className: 'tasy-flat-panel' }}>
+                <DialogTitle sx={{ bgcolor: '#f8f9fa', p: 2, borderBottom: '1px solid #e9ecef' }}>
+                    <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#495057', textTransform: 'uppercase' }}>
                         Configurar Agenda: {CAT_LABELS[catEditing] || catEditing}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography sx={{ fontSize: '12px', color: '#868e96', mt: 0.5 }}>
                         Atenção: Salvar esta regra aplicará os mesmos dias e horários para <b>todos</b> os exames desta categoria de uma só vez.
                     </Typography>
                 </DialogTitle>
-                <DialogContent sx={{ mt: 2, bgcolor: '#f1f3f5' }}>
-                    <Paper className="tasy-flat-panel" sx={{ p: 2, mb: 2 }}>
-                        <div className="tasy-section-header" style={{ margin: '-16px -16px 16px -16px' }}>Requisitos Operacionais</div>
-                        <Box display="flex" gap={2}>
-                            <TextField label="Duração Padrão (minutos)" type="number" value={catConfigAgenda.duracao_padrao} onChange={(e) => setCatConfigAgenda({...catConfigAgenda, duracao_padrao: e.target.value})} size="small" className="tasy-compact-input" sx={{ width: 200 }} />
-                            <TextField label="Equipamento Exigido" value={catConfigAgenda.equipamento_obrigatorio} onChange={(e) => setCatConfigAgenda({...catConfigAgenda, equipamento_obrigatorio: e.target.value.toUpperCase()})} size="small" className="tasy-compact-input" sx={{ flexGrow: 1 }} placeholder="Tag da Sala (Ex: SAMSUNG_V7)" />
-                        </Box>
-                    </Paper>
+                <DialogContent sx={{ mt: 2, bgcolor: '#f4f6f8', p: 3 }}>
+                    
+                    <div className="tasy-panel theme-blue">
+                        <div className="tasy-panel-body">
+                            <div className="tasy-section-header">Requisitos Operacionais</div>
+                            <Box display="flex" gap={2}>
+                                <TextField label="Duração Padrão (minutos)" type="number" value={catConfigAgenda.duracao_padrao} onChange={(e) => setCatConfigAgenda({...catConfigAgenda, duracao_padrao: e.target.value})} size="small" className="tasy-compact-input" sx={{ width: 200 }} />
+                                <TextField label="Equipamento Exigido" value={catConfigAgenda.equipamento_obrigatorio} onChange={(e) => setCatConfigAgenda({...catConfigAgenda, equipamento_obrigatorio: e.target.value.toUpperCase()})} size="small" className="tasy-compact-input" sx={{ flexGrow: 1 }} placeholder="Tag da Sala (Ex: SAMSUNG_V7)" />
+                            </Box>
+                        </div>
+                    </div>
 
-                    <Paper className="tasy-flat-panel" sx={{ p: 2 }}>
-                        <div className="tasy-section-header" style={{ margin: '-16px -16px 16px -16px' }}>Dias e Horários Autorizados</div>
-                        <Box sx={{ display: 'flex', gap: 1, mb: 2, p: 1.5, bgcolor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 1, alignItems: 'center' }}>
-                            <TextField select label="Dia da Semana" value={catNovoDia.dia_semana} onChange={(e) => setCatNovoDia({...catNovoDia, dia_semana: e.target.value})} size="small" className="tasy-compact-input" sx={{ flexGrow: 1 }}>
-                                {DIAS_SEMANA.map(dia => <MenuItem key={dia.value} value={dia.value}>{dia.label}</MenuItem>)}
-                            </TextField>
-                            <TextField label="Início" type="time" size="small" className="tasy-compact-input" value={catNovoDia.hora_inicio} onChange={(e) => setCatNovoDia({...catNovoDia, hora_inicio: e.target.value})} InputLabelProps={{ shrink: true }} sx={{ width: 100 }} />
-                            <TextField label="Fim" type="time" size="small" className="tasy-compact-input" value={catNovoDia.hora_fim} onChange={(e) => setCatNovoDia({...catNovoDia, hora_fim: e.target.value})} InputLabelProps={{ shrink: true }} sx={{ width: 100 }} />
-                            <Button onClick={handleAddCatDia} variant="outlined" color="primary" sx={{ height: 38, minWidth: 40, p: 0, borderRadius: 1 }}><AddCircle /></Button>
-                        </Box>
+                    <div className="tasy-panel theme-blue">
+                        <div className="tasy-panel-body">
+                            <div className="tasy-section-header">Dias e Horários Autorizados</div>
+                            <Box sx={{ display: 'flex', gap: 1, mb: 2, p: 1.5, bgcolor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 1, alignItems: 'center' }}>
+                                <TextField select label="Dia da Semana" value={catNovoDia.dia_semana} onChange={(e) => setCatNovoDia({...catNovoDia, dia_semana: e.target.value})} size="small" className="tasy-compact-input" sx={{ flexGrow: 1 }}>
+                                    {DIAS_SEMANA.map(dia => <MenuItem key={dia.value} value={dia.value}>{dia.label}</MenuItem>)}
+                                </TextField>
+                                <TextField label="Início" type="time" size="small" className="tasy-compact-input" value={catNovoDia.hora_inicio} onChange={(e) => setCatNovoDia({...catNovoDia, hora_inicio: e.target.value})} InputLabelProps={{ shrink: true }} sx={{ width: 100 }} />
+                                <TextField label="Fim" type="time" size="small" className="tasy-compact-input" value={catNovoDia.hora_fim} onChange={(e) => setCatNovoDia({...catNovoDia, hora_fim: e.target.value})} InputLabelProps={{ shrink: true }} sx={{ width: 100 }} />
+                                <Button onClick={handleAddCatDia} variant="contained" disableElevation sx={{ bgcolor: '#1c7ed6', height: 36, minWidth: 40, p: 0 }}><AddCircle fontSize="small" /></Button>
+                            </Box>
 
-                        <Stack spacing={1}>
-                            {catConfigAgenda.dias_funcionamento.length === 0 ? (
-                                <Typography variant="caption" color="text.secondary" align="center" sx={{ py: 2 }}>
-                                    Nenhuma regra configurada.
-                                </Typography>
-                            ) : catConfigAgenda.dias_funcionamento.map((dia) => (
-                                <Box key={dia.dia_semana} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, border: '1px solid #dee2e6', borderRadius: 1, bgcolor: 'white' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                        <Chip label={DIAS_SEMANA.find(d => d.value === dia.dia_semana)?.label} color="primary" variant="outlined" size="small" sx={{ fontWeight: 'bold', width: 110 }} />
-                                        <Typography variant="body2" sx={{ color: '#495057' }}>{dia.hora_inicio} às {dia.hora_fim}</Typography>
+                            <Stack spacing={1}>
+                                {catConfigAgenda.dias_funcionamento.length === 0 ? (
+                                    <Typography sx={{ fontSize: '12px', color: '#868e96', textAlign: 'center', py: 2 }}>
+                                        Nenhuma regra configurada.
+                                    </Typography>
+                                ) : catConfigAgenda.dias_funcionamento.map((dia) => (
+                                    <Box key={dia.dia_semana} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, border: '1px solid #dee2e6', borderRadius: 1, bgcolor: 'white' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                            <Chip label={DIAS_SEMANA.find(d => d.value === dia.dia_semana)?.label} sx={{ bgcolor: '#e7f5ff', color: '#1c7ed6', fontWeight: 600, width: 110, borderRadius: '4px', fontSize: '11px' }} />
+                                            <Typography sx={{ fontSize: '13px', color: '#495057' }}>{dia.hora_inicio} às {dia.hora_fim}</Typography>
+                                        </Box>
+                                        <IconButton size="small" sx={{ color: '#e03131' }} onClick={() => handleRemoveCatDia(dia.dia_semana)}><Delete fontSize="small" /></IconButton>
                                     </Box>
-                                    <IconButton size="small" color="error" onClick={() => handleRemoveCatDia(dia.dia_semana)}><Delete fontSize="small" /></IconButton>
-                                </Box>
-                            ))}
-                        </Stack>
-                    </Paper>
+                                ))}
+                            </Stack>
+                        </div>
+                    </div>
                 </DialogContent>
-                <DialogActions sx={{ p: 2, borderTop: '1px solid #dee2e6' }}>
-                    <Button onClick={() => setCatModalOpen(false)} disabled={isSubmittingCat} sx={{ color: '#495057' }}>Cancelar</Button>
-                    <Button variant="contained" color="primary" onClick={handleSaveCatConfig} disabled={isSubmittingCat} startIcon={isSubmittingCat ? <CircularProgress size={16} color="inherit"/> : <AccessTime />} sx={{ fontWeight: 'bold' }}>
+                <DialogActions sx={{ p: 1.5, borderTop: '1px solid #dee2e6', bgcolor: '#f8f9fa' }}>
+                    <Button onClick={() => setCatModalOpen(false)} disabled={isSubmittingCat} sx={{ color: '#868e96', fontSize: '12px', fontWeight: 600 }}>Cancelar</Button>
+                    <Button variant="contained" disableElevation onClick={handleSaveCatConfig} disabled={isSubmittingCat} startIcon={isSubmittingCat ? <CircularProgress size={16} color="inherit"/> : <AccessTime />} sx={{ fontWeight: 600, fontSize: '12px', bgcolor: '#1c7ed6' }}>
                         {isSubmittingCat ? 'Aplicando...' : 'Aplicar em Todos'}
                     </Button>
                 </DialogActions>
             </Dialog>
 
-            <Dialog open={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} maxWidth="xs" fullWidth>
-                <DialogTitle sx={{ bgcolor: '#f8f9fa', p: 2, borderBottom: '1px solid #dee2e6' }}>
-                    <Typography variant="subtitle1" fontWeight="bold">Exportar Tabela</Typography>
+            <Dialog open={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ className: 'tasy-flat-panel' }}>
+                <DialogTitle sx={{ bgcolor: '#f8f9fa', p: 2, borderBottom: '1px solid #e9ecef' }}>
+                    <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#495057', textTransform: 'uppercase' }}>Exportar Tabela</Typography>
                 </DialogTitle>
-                <DialogContent sx={{ mt: 2 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Selecione quais dados devem constar no PDF:</Typography>
+                <DialogContent sx={{ mt: 2, p: 3 }}>
+                    <Typography sx={{ fontSize: '12px', color: '#6c757d', mb: 2 }}>Selecione quais dados devem constar no PDF:</Typography>
                     <Stack spacing={1}>
-                        <FormControlLabel control={<Checkbox checked={pdfOptions.showTuss} onChange={(e) => setPdfOptions({...pdfOptions, showTuss: e.target.checked})} />} label="Incluir Código TUSS" />
-                        <FormControlLabel control={<Checkbox checked={pdfOptions.showValues} onChange={(e) => setPdfOptions({...pdfOptions, showValues: e.target.checked})} />} label="Incluir Valores Particulares" />
+                        <FormControlLabel control={<Checkbox checked={pdfOptions.showTuss} onChange={(e) => setPdfOptions({...pdfOptions, showTuss: e.target.checked})} size="small" />} label={<Typography sx={{ fontSize: '13px', color: '#495057' }}>Incluir Código TUSS</Typography>} />
+                        <FormControlLabel control={<Checkbox checked={pdfOptions.showValues} onChange={(e) => setPdfOptions({...pdfOptions, showValues: e.target.checked})} size="small" />} label={<Typography sx={{ fontSize: '13px', color: '#495057' }}>Incluir Valores Particulares</Typography>} />
                     </Stack>
                 </DialogContent>
-                <DialogActions sx={{ p: 2, borderTop: '1px solid #dee2e6' }}>
-                    <Button onClick={() => setIsPdfModalOpen(false)} color="inherit" disabled={isGerandoPdf}>Cancelar</Button>
-                    <Button onClick={handleGerarPdf} variant="contained" color="primary" startIcon={isGerandoPdf ? <CircularProgress size={16} color="inherit" /> : <PictureAsPdf />} disabled={isGerandoPdf} sx={{fontWeight:'bold'}}>
+                <DialogActions sx={{ p: 1.5, borderTop: '1px solid #e9ecef', bgcolor: '#f8f9fa' }}>
+                    <Button onClick={() => setIsPdfModalOpen(false)} sx={{ color: '#868e96', fontSize: '12px', fontWeight: 600 }} disabled={isGerandoPdf}>Cancelar</Button>
+                    <Button onClick={handleGerarPdf} variant="contained" disableElevation startIcon={isGerandoPdf ? <CircularProgress size={16} color="inherit" /> : <PictureAsPdf />} disabled={isGerandoPdf} sx={{fontWeight: 600, fontSize: '12px', bgcolor: '#e03131'}}>
                         {isGerandoPdf ? 'Gerando...' : 'Baixar PDF'}
                     </Button>
                 </DialogActions>
