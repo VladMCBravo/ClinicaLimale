@@ -15,7 +15,7 @@ import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 import ProcedimentoModal from './ProcedimentoModal';
 import { gerarPdfProcedimentos } from '../../utils/tabelaValoresPdfGenerator'; 
-import './Financeiro.css';
+import '../../atendimento.css';
 
 const CAT_COLORS = {
     'US_GERAL': '#1565c0', 'MED_FETAL': '#7b1fa2', 'ECOCARDIOGRAMA': '#c62828',
