@@ -517,11 +517,11 @@ class ReportErrorView(APIView):
         # 1. Guarda no cache para o React ler no topo do alerta vermelho instantaneamente
         cache.set('robo_ultimo_erro', f"{nome_pasta}: {erro_msg}", timeout=1800) # Expira em 30 min
 
-        # 2. Salva o registro no banco de dados para o histórico do painel
-        Exame.objects.create(
+        # 2. Salva o registro no banco de dados usando get_or_create para evitar UniqueViolation
+        Exame.objects.get_or_create(
             nome_paciente_pasta=f"{nome_pasta} | ERRO: {erro_msg}",
             data_exame=timezone.now().date(),
-            status='ERRO'
+            defaults={'status': 'ERRO'}
         )
 
         return Response({'status': 'erro_registrado'}, status=status.HTTP_201_CREATED)
