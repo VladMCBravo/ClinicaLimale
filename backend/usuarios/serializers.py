@@ -146,7 +146,8 @@ class UserMeUpdateSerializer(serializers.ModelSerializer):
             'first_name', 'last_name', 'genero', 'data_nascimento', 
             'telefone', 'logradouro', 'numero', 'complemento', 
             'bairro', 'cidade', 'uf', 'cep', 'medico_especialidades',
-            'pin_ponto', 'password' # 2. Incluímos pin_ponto e password
+            'pin_ponto', 'password', 
+            'username', 'email' # <-- ADICIONADOS AQUI PARA A ABA DE ACESSO FUNCIONAR!
         ]
 
     def update(self, instance, validated_data):
