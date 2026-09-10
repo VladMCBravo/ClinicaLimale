@@ -75,26 +75,31 @@ def transferir_vinculos(mestre, duplicata):
         rel_field_name = related_object.field.name
         
         try:
-            if not related_object.field.many_to_many:
-                kwargs_busca = {rel_field_name: duplicata}
-                registros = rel_model.objects.filter(**kwargs_busca)
-                qtd = registros.count()
-                if qtd > 0:
-                    registros.update(**{rel_field_name: mestre})
-                    print(f"   ✔️ {qtd} registro(s) de '{rel_model.__name__}' transferido(s).")
-            else:
-                kwargs_busca = {rel_field_name: duplicata}
-                registros = rel_model.objects.filter(**kwargs_busca)
-                qtd = registros.count()
-                if qtd > 0:
-                    for reg in registros:
-                        m2m_manager = getattr(reg, rel_field_name)
-                        m2m_manager.remove(duplicata)
-                        m2m_manager.add(mestre)
-                    print(f"   ✔️ {qtd} vínculo(s) múltiplo(s) de '{rel_model.__name__}' transferido(s).")
-                    
+            # 👇 O SEGREDO ESTÁ AQUI: Um bloco atômico interno (savepoint)
+            # Se der erro de chave única aqui, o Django faz rollback apenas desta etapa 
+            # e não quebra a transação principal de mesclagem.
+            with transaction.atomic():
+                if not related_object.field.many_to_many:
+                    kwargs_busca = {rel_field_name: duplicata}
+                    registros = rel_model.objects.filter(**kwargs_busca)
+                    qtd = registros.count()
+                    if qtd > 0:
+                        registros.update(**{rel_field_name: mestre})
+                        print(f"   ✔️ {qtd} registro(s) de '{rel_model.__name__}' transferido(s).")
+                else:
+                    kwargs_busca = {rel_field_name: duplicata}
+                    registros = rel_model.objects.filter(**kwargs_busca)
+                    qtd = registros.count()
+                    if qtd > 0:
+                        for reg in registros:
+                            m2m_manager = getattr(reg, rel_field_name)
+                            m2m_manager.remove(duplicata)
+                            m2m_manager.add(mestre)
+                        print(f"   ✔️ {qtd} vínculo(s) múltiplo(s) de '{rel_model.__name__}' transferido(s).")
+                        
         except Exception as e:
-            print(f"   ⚠️ Aviso ao mover dependência {rel_model.__name__}: {e}")
+            # Como deu erro, a transação interna falhou, mas a externa continua intacta!
+            print(f"   ⚠️ Ignorando dependência '{rel_model.__name__}': O mestre já possui este registro único ou houve conflito. A duplicata será descartada.")
 
 def realizar_gerenciamento():
     Paciente = apps.get_model(APP_PACIENTE, MODEL_PACIENTE)
@@ -145,7 +150,7 @@ def realizar_gerenciamento():
                     if confirmacao == 's':
                         paciente_del = Paciente.objects.get(id=id_del)
                         nome_deletado = paciente_del.nome_completo
-                        paciente_del.delete()
+                        Paciente.objects.filter(id=duplicata.id).delete()
                         print(f"✅ Cadastro ID {id_del} ('{nome_deletado}') excluído com sucesso!")
                         break # Atualiza grupo e vai pro próximo
                 except ValueError:
