@@ -104,15 +104,10 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
             
             setBioImage(dataLocal.imagem_png_b64);
             
+            // 👇 CORREÇÃO: Removemos a trava 'isCorrompido'
             const atingiuScore = dataLocal.pontos >= 45;
-            const isCorrompido = dataLocal.template_b64.startsWith('AAAAAAAAAAAA');
 
-            if (isCorrompido) {
-                setBioQualityGood(false);
-                setBioQualityText('❌ Leitor falhou (Falha de permissão USB do Windows). Reinicie o leitor.');
-                setBioTemplateTemp(null);
-            } 
-            else if (!atingiuScore) {
+            if (!atingiuScore) {
                 setBioQualityGood(false);
                 setBioQualityText(`⚠️ Apenas ${dataLocal.pontos} pontos (Mínimo exigido: 45). Limpe o sensor e tente novamente.`);
                 setBioTemplateTemp(null);
