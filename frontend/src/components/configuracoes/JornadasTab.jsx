@@ -12,7 +12,7 @@ import dayjs from 'dayjs';
 import { 
     Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon,
     KeyboardArrowDown as KeyboardArrowDownIcon, KeyboardArrowUp as KeyboardArrowUpIcon,
-    Person, Event, AccessTime, MedicalServices
+    Person, Event, AccessTime, MedicalServices, FilterAlt
 } from '@mui/icons-material';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { configuracoesService } from '../../services/configuracoesService';
@@ -33,16 +33,15 @@ const initialState = { medico: '', dia_da_semana: '', hora_inicio: null, hora_fi
 
 // COMPONENTE DE LINHA AGRUPADA (COLAPSÁVEL)
 function GrupoMedicoRow({ medicoNome, jornadasMedico, handleOpenModal, handleDelete, formatTime, parseTime }) {
-    const [open, setOpen] = useState(true); // Abre expandido por padrão
+    const [open, setOpen] = useState(false); // Mudado para false por padrão
 
     const thInnerStyle = { fontWeight: 600, color: '#868e96', fontSize: '11px', textTransform: 'uppercase', borderBottom: '1px solid #dee2e6' };
 
     return (
         <React.Fragment>
-            {/* Linha Principal do Médico */}
-            <TableRow hover sx={{ '& > *': { borderBottom: 'unset' }, bgcolor: open ? '#f8f9fa' : 'transparent', transition: 'background-color 0.2s' }}>
+            <TableRow hover onClick={() => setOpen(!open)} sx={{ cursor: 'pointer', '& > *': { borderBottom: 'unset' }, bgcolor: open ? '#f8f9fa' : 'transparent', transition: 'background-color 0.2s' }}>
                 <TableCell sx={{ width: 50, py: 1 }}>
-                    <IconButton aria-label="expand row" size="small" onClick={() => setOpen(!open)} sx={{ color: '#495057' }}>
+                    <IconButton aria-label="expand row" size="small" onClick={(e) => { e.stopPropagation(); setOpen(!open); }} sx={{ color: '#495057' }}>
                         {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
                     </IconButton>
                 </TableCell>
@@ -51,11 +50,10 @@ function GrupoMedicoRow({ medicoNome, jornadasMedico, handleOpenModal, handleDel
                     {medicoNome}
                 </TableCell>
                 <TableCell align="right" sx={{ color: '#868e96', fontSize: '13px', fontWeight: 500, py: 1, borderBottom: 'none' }}>
-                    {jornadasMedico.length} agenda(s) configurada(s)
+                    {jornadasMedico.length} agenda(s) encontrada(s)
                 </TableCell>
             </TableRow>
             
-            {/* Tabela Interna de Jornadas */}
             <TableRow>
                 <TableCell style={{ paddingBottom: 0, paddingTop: 0, border: 0 }} colSpan={3}>
                     <Collapse in={open} timeout="auto" unmountOnExit>
@@ -112,7 +110,9 @@ export default function JornadasTab() {
     const [itemParaEditar, setItemParaEditar] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState(initialState);
+    
     const [filtroMedico, setFiltroMedico] = useState('');
+    const [filtroStatus, setFiltroStatus] = useState('ativos'); // Padrão: ativos
 
     const fetchJornadas = useCallback(async () => {
         setIsLoading(true);
@@ -133,15 +133,17 @@ export default function JornadasTab() {
     useEffect(() => { fetchJornadas(); }, [fetchJornadas]);
     useEffect(() => { fetchMedicos(); }, [fetchMedicos]);
 
-    // Agrupamento de Jornadas por Médico usando useMemo
+    // Aplica o filtro de status e agrupa
     const jornadasAgrupadas = useMemo(() => {
         const grupos = {};
         jornadas.forEach(j => {
+            if (filtroStatus === 'ativos' && !j.ativo) return;
+            if (filtroStatus === 'inativos' && j.ativo) return;
+
             if (!grupos[j.medico_nome]) grupos[j.medico_nome] = [];
             grupos[j.medico_nome].push(j);
         });
         
-        // Ordena os dias da semana e horários dentro do grupo de cada médico
         Object.keys(grupos).forEach(medico => {
             grupos[medico].sort((a, b) => {
                 if (a.dia_da_semana !== b.dia_da_semana) return a.dia_da_semana - b.dia_da_semana;
@@ -150,7 +152,7 @@ export default function JornadasTab() {
         });
 
         return grupos;
-    }, [jornadas]);
+    }, [jornadas, filtroStatus]);
 
     const parseTime = (timeStr) => timeStr ? dayjs(`2000-01-01T${timeStr}`) : null;
     const formatTime = (dateObj) => dateObj ? dateObj.format('HH:mm') : null;
@@ -197,13 +199,21 @@ export default function JornadasTab() {
     return (
         <Box className="tasy-flat-panel tasy-workspace" sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#f1f3f5' }}>
             
-            {/* Header da Página */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderBottom: '1px solid #e9ecef', bgcolor: '#fff' }}>
                 <Typography sx={{ fontWeight: 600, color: '#495057', fontSize: '13px', textTransform: 'uppercase' }}>
                     Gestão de Jornadas (Agendas)
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                    <FormControl size="small" sx={{ minWidth: 250 }} className="tasy-compact-input">
+                    <FormControl size="small" sx={{ minWidth: 150 }} className="tasy-compact-input">
+                        <InputLabel>Status</InputLabel>
+                        <Select value={filtroStatus} label="Status" onChange={(e) => setFiltroStatus(e.target.value)}>
+                            <MenuItem value="ativos">Agendas Ativas</MenuItem>
+                            <MenuItem value="inativos">Agendas Inativas</MenuItem>
+                            <MenuItem value="todos">Todas as Agendas</MenuItem>
+                        </Select>
+                    </FormControl>
+
+                    <FormControl size="small" sx={{ minWidth: 200 }} className="tasy-compact-input">
                         <InputLabel>Filtrar por Médico</InputLabel>
                         <Select value={filtroMedico} label="Filtrar por Médico" onChange={(e) => setFiltroMedico(e.target.value)}>
                             <MenuItem value=""><em>Todos os Médicos</em></MenuItem>
@@ -216,7 +226,6 @@ export default function JornadasTab() {
                 </Box>
             </Box>
 
-            {/* Corpo da Tabela Agrupada */}
             <Box sx={{ flexGrow: 1, overflowY: 'auto', bgcolor: '#ffffff' }}>
                 {isLoading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
@@ -254,7 +263,6 @@ export default function JornadasTab() {
                 )}
             </Box>
 
-            {/* Modal Reorganizado (Banho de Loja) */}
             <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} fullWidth maxWidth="md" PaperProps={{ className: 'tasy-flat-panel', sx: { borderRadius: 2 } }}>
                 <DialogTitle sx={{ p: 2, bgcolor: '#f8f9fa', borderBottom: '1px solid #e9ecef', display: 'flex', alignItems: 'center', gap: 1 }}>
                     <AccessTime sx={{ color: '#1c7ed6' }} />
@@ -266,7 +274,6 @@ export default function JornadasTab() {
                 <DialogContent sx={{ bgcolor: '#fff', p: 4, overflowX: 'hidden' }}>
                     <Grid container spacing={5}>
                         
-                        {/* Coluna Esquerda: Médico e Datas */}
                         <Grid item xs={12} md={6}>
                             <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1c7ed6', mb: 2, display: 'flex', alignItems: 'center', gap: 1, textTransform: 'uppercase' }}>
                                 <Person fontSize="small" /> Vínculo Profissional
@@ -275,7 +282,10 @@ export default function JornadasTab() {
                             <FormControl fullWidth className="tasy-compact-input" size="small" sx={{ mb: 1 }}>
                                 <InputLabel>Médico Selecionado *</InputLabel>
                                 <Select value={formData.medico} label="Médico Selecionado *" onChange={(e) => setFormData({...formData, medico: e.target.value})} disabled={!!itemParaEditar}>
-                                    {medicos.map((m) => <MenuItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</MenuItem>)}
+                                    {/* 👇 MOSTRA APENAS MÉDICOS ATIVOS NO MODAL 👇 */}
+                                    {medicos.filter(m => m.is_active !== false).map((m) => (
+                                        <MenuItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</MenuItem>
+                                    ))}
                                 </Select>
                             </FormControl>
 
@@ -314,7 +324,6 @@ export default function JornadasTab() {
                             </FormControl>
                         </Grid>
 
-                        {/* Coluna Direita: Horários e Configurações */}
                         <Grid item xs={12} md={6}>
                             <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1c7ed6', mb: 2, display: 'flex', alignItems: 'center', gap: 1, textTransform: 'uppercase' }}>
                                 <AccessTime fontSize="small" /> Horários de Atendimento
