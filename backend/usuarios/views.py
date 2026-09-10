@@ -45,30 +45,40 @@ class UsuariosPagination(PageNumberPagination):
 # 👇 APLIQUE NA SUA VIEW DE USUÁRIOS 👇
 class CustomUserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
-    pagination_class = UsuariosPagination # (A classe que criamos na etapa anterior)
+    pagination_class = UsuariosPagination 
     
     def get_queryset(self):
-        queryset = CustomUser.objects.prefetch_related('especialidades').all().order_by('first_name')
+        # Tiramos o order_by fixo daqui para podermos ordená-lo dinamicamente depois
+        queryset = CustomUser.objects.prefetch_related('especialidades').all()
 
+        # 1. Filtro de Cargo (Mantido o original)
         cargo = self.request.query_params.get('cargo')
-        
-        # 👇 A MÁGICA ESTÁ AQUI: Se o React pedir 'medico', devolvemos os DOIS cargos! 👇
         if cargo == 'medico':
             queryset = queryset.filter(cargo__in=['medico', 'admin_medico'])
         elif cargo:
             queryset = queryset.filter(cargo=cargo)
 
-        apenas_ativos = self.request.query_params.get('apenas_ativos', '')
-        if apenas_ativos.lower() in ['true', '1']:
+        # 2. NOVO: Filtro de Status (Ativos, Inativos, Todos)
+        status_filtro = self.request.query_params.get('status', 'ativos')
+        if status_filtro == 'ativos':
             queryset = queryset.filter(is_active=True)
+        elif status_filtro == 'inativos':
+            queryset = queryset.filter(is_active=False)
+
+        # 3. NOVO: Ordenação vinda do clique nas setinhas do frontend
+        ordering = self.request.query_params.get('ordering', 'first_name')
+        
+        # Validar para não quebrar caso enviem uma coluna inexistente
+        colunas_validas = ['first_name', '-first_name', 'username', '-username', 'cargo', '-cargo', 'is_active', '-is_active']
+        
+        if ordering in colunas_validas:
+            queryset = queryset.order_by(ordering)
+        else:
+            queryset = queryset.order_by('first_name') # Padrão caso não envie ordenação
 
         return queryset
 
     def get_permissions(self):
-        """
-        Permissões: Qualquer um logado pode listar, mas só Admin pode modificar 
-        usuários de terceiros.
-        """
         if self.action == 'list':
             self.permission_classes = [IsAuthenticated]
         else:
