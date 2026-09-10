@@ -28,6 +28,7 @@ class Exame(models.Model):
     STATUS_CHOICES = [
         ('PENDENTE', 'Aguardando Vínculo'),
         ('DISPONIVEL', 'Disponível no Portal'),
+        ('ERRO', 'Erro de Sincronização'), # <--- Adicione para evitar quebra no Admin
     ]
 
     paciente = models.ForeignKey(Paciente, on_delete=models.SET_NULL, null=True, blank=True, related_name='exames')

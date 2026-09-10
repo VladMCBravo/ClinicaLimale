@@ -287,11 +287,12 @@ class ListarExamesPendentesView(ListAPIView):
     serializer_class = ExameSerializer
 
     def get_queryset(self):
-        # ANTES (ERRADO): Filtrava por paciente_id (retornava exames JÁ vinculados)
-        # return Exame.objects.filter(paciente_id=paciente_id)...
-        
-        # AGORA (CORRETO): Retorna apenas quem NÃO tem paciente (paciente__isnull=True)
-        return Exame.objects.filter(paciente__isnull=True).order_by('-data_exame')
+        # Filtra os exames soltos, mas exclui os registros de erro do robô
+        return Exame.objects.filter(
+            paciente__isnull=True
+        ).exclude(
+            status='ERRO'
+        ).order_by('-data_exame')
 
 class ListarExamesDoPacienteView(ListAPIView):
     """ Lista exames de um paciente específico (para o Prontuário/Laudos) """
