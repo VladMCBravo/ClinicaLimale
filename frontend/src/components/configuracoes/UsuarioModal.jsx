@@ -100,15 +100,33 @@ export default function UsuarioModal({ open, onClose, onSave, usuarioParaEditar 
             const resLocal = await fetch('http://localhost:8080/api/capturar-template');
             const dataLocal = await resLocal.json();
 
-            if (dataLocal.status !== 'sucesso') throw new Error(dataLocal.mensagem || "Falha ao ler dispositivo.");
+            if (dataLocal.status !== 'sucesso') {
+                throw new Error(dataLocal.mensagem || "Falha ao ler dispositivo.");
+            }
             
+            // Exibe a imagem retornada pela câmera do leitor
             setBioImage(dataLocal.imagem_png_b64);
-            setBioQualityGood(dataLocal.qualidade_boa);
-            setBioQualityText(`${dataLocal.pontos} pontos encontrados. ${dataLocal.mensagem}`);
             
-            if (dataLocal.qualidade_boa) {
+            // 👇 NOVAS TRAVAS DE SEGURANÇA 👇
+            const atingiuScore = dataLocal.pontos >= 45;
+            const isCorrompido = dataLocal.template_b64.startsWith('AAAAAAAAAAAA');
+
+            if (isCorrompido) {
+                setBioQualityGood(false);
+                setBioQualityText('❌ Leitor falhou (Falha de permissão USB do Windows). Reinicie o leitor.');
+                setBioTemplateTemp(null);
+            } 
+            else if (!atingiuScore) {
+                setBioQualityGood(false);
+                setBioQualityText(`⚠️ Apenas ${dataLocal.pontos} pontos (Mínimo exigido: 45). Limpe o sensor e tente novamente.`);
+                setBioTemplateTemp(null);
+            } 
+            else {
+                setBioQualityGood(true);
+                setBioQualityText(`✅ ${dataLocal.pontos} pontos encontrados. Qualidade excelente!`);
                 setBioTemplateTemp(dataLocal.template_b64);
             }
+
         } catch (error) {
             setBioQualityGood(false);
             setBioQualityText(`❌ Falha: ${error.message}`);
