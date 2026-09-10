@@ -1,15 +1,19 @@
 // src/components/configuracoes/JornadasTab.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Box, Table, TableBody, TableCell, TableContainer,
     TableHead, TableRow, CircularProgress, Button, IconButton,
     Dialog, DialogTitle, DialogContent, DialogActions, TextField,
     MenuItem, FormControl, InputLabel, Select, Switch, FormControlLabel, 
-    Grid, OutlinedInput, Checkbox, ListItemText, Typography
+    Grid, OutlinedInput, Checkbox, ListItemText, Typography, Collapse, Divider
 } from '@mui/material';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker'; 
 import dayjs from 'dayjs';
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
+import { 
+    Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon,
+    KeyboardArrowDown as KeyboardArrowDownIcon, KeyboardArrowUp as KeyboardArrowUpIcon,
+    Person, Event, AccessTime, MedicalServices
+} from '@mui/icons-material';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { configuracoesService } from '../../services/configuracoesService';
 
@@ -26,6 +30,77 @@ const semanasOpcoes = [
 ];
 
 const initialState = { medico: '', dia_da_semana: '', hora_inicio: null, hora_fim: null, intervalo_consulta: 30, ativo: true, semanas_do_mes: [] };
+
+// COMPONENTE DE LINHA AGRUPADA (COLAPSÁVEL)
+function GrupoMedicoRow({ medicoNome, jornadasMedico, handleOpenModal, handleDelete, formatTime, parseTime }) {
+    const [open, setOpen] = useState(true); // Abre expandido por padrão
+
+    const thInnerStyle = { fontWeight: 600, color: '#868e96', fontSize: '11px', textTransform: 'uppercase', borderBottom: '1px solid #dee2e6' };
+
+    return (
+        <React.Fragment>
+            {/* Linha Principal do Médico */}
+            <TableRow hover sx={{ '& > *': { borderBottom: 'unset' }, bgcolor: open ? '#f8f9fa' : 'transparent', transition: 'background-color 0.2s' }}>
+                <TableCell sx={{ width: 50, py: 1 }}>
+                    <IconButton aria-label="expand row" size="small" onClick={() => setOpen(!open)} sx={{ color: '#495057' }}>
+                        {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                    </IconButton>
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700, color: '#343a40', fontSize: '14px', display: 'flex', alignItems: 'center', gap: 1.5, py: 2, borderBottom: 'none' }}>
+                    <MedicalServices sx={{ color: '#1c7ed6', fontSize: '18px' }} />
+                    {medicoNome}
+                </TableCell>
+                <TableCell align="right" sx={{ color: '#868e96', fontSize: '13px', fontWeight: 500, py: 1, borderBottom: 'none' }}>
+                    {jornadasMedico.length} agenda(s) configurada(s)
+                </TableCell>
+            </TableRow>
+            
+            {/* Tabela Interna de Jornadas */}
+            <TableRow>
+                <TableCell style={{ paddingBottom: 0, paddingTop: 0, border: 0 }} colSpan={3}>
+                    <Collapse in={open} timeout="auto" unmountOnExit>
+                        <Box sx={{ margin: 1, ml: 6, mb: 3, pl: 2, borderLeft: '3px solid #74c0fc' }}>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell sx={thInnerStyle}>Dia da Semana</TableCell>
+                                        <TableCell sx={thInnerStyle}>Semanas</TableCell>
+                                        <TableCell sx={thInnerStyle}>Horário</TableCell>
+                                        <TableCell sx={thInnerStyle}>Intervalo</TableCell>
+                                        <TableCell sx={thInnerStyle}>Status</TableCell>
+                                        <TableCell align="right" sx={thInnerStyle}>Ações</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {jornadasMedico.map((item) => (
+                                        <TableRow key={item.id} hover>
+                                            <TableCell sx={{ fontSize: '13px', color: '#495057', fontWeight: 500 }}>{item.dia_da_semana_display}</TableCell>
+                                            <TableCell sx={{ fontSize: '12px', color: '#868e96' }}>
+                                                {!item.semanas_do_mes || item.semanas_do_mes.length === 0 ? 'Todas' : item.semanas_do_mes.join('ª, ')}
+                                            </TableCell>
+                                            <TableCell sx={{ fontSize: '13px', color: '#495057' }}>{formatTime(parseTime(item.hora_inicio))} às {formatTime(parseTime(item.hora_fim))}</TableCell>
+                                            <TableCell sx={{ fontSize: '13px', color: '#495057' }}>{item.intervalo_consulta} min</TableCell>
+                                            <TableCell sx={{ fontSize: '12px', color: item.ativo ? '#2b8a3e' : '#e03131', fontWeight: 600 }}>{item.ativo ? "Ativo" : "Inativo"}</TableCell>
+                                            <TableCell align="right">
+                                                <IconButton size="small" sx={{ color: '#868e96', '&:hover': { color: '#1c7ed6' } }} onClick={() => handleOpenModal(item)}>
+                                                    <EditIcon fontSize="small"/>
+                                                </IconButton>
+                                                <IconButton size="small" sx={{ color: '#868e96', '&:hover': { color: '#e03131' } }} onClick={() => handleDelete(item.id)}>
+                                                    <DeleteIcon fontSize="small"/>
+                                                </IconButton>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </Box>
+                    </Collapse>
+                </TableCell>
+            </TableRow>
+        </React.Fragment>
+    );
+}
+
 
 export default function JornadasTab() {
     const [jornadas, setJornadas] = useState([]);
@@ -57,6 +132,25 @@ export default function JornadasTab() {
 
     useEffect(() => { fetchJornadas(); }, [fetchJornadas]);
     useEffect(() => { fetchMedicos(); }, [fetchMedicos]);
+
+    // Agrupamento de Jornadas por Médico usando useMemo
+    const jornadasAgrupadas = useMemo(() => {
+        const grupos = {};
+        jornadas.forEach(j => {
+            if (!grupos[j.medico_nome]) grupos[j.medico_nome] = [];
+            grupos[j.medico_nome].push(j);
+        });
+        
+        // Ordena os dias da semana e horários dentro do grupo de cada médico
+        Object.keys(grupos).forEach(medico => {
+            grupos[medico].sort((a, b) => {
+                if (a.dia_da_semana !== b.dia_da_semana) return a.dia_da_semana - b.dia_da_semana;
+                return (a.hora_inicio || '').localeCompare(b.hora_inicio || '');
+            });
+        });
+
+        return grupos;
+    }, [jornadas]);
 
     const parseTime = (timeStr) => timeStr ? dayjs(`2000-01-01T${timeStr}`) : null;
     const formatTime = (dateObj) => dateObj ? dateObj.format('HH:mm') : null;
@@ -100,10 +194,10 @@ export default function JornadasTab() {
         }
     };
 
-    const thStyle = { fontWeight: 600, bgcolor: '#f8f9fa', color: '#495057', fontSize: '12px', textTransform: 'uppercase', borderBottom: '1px solid #e9ecef' };
-
     return (
         <Box className="tasy-flat-panel tasy-workspace" sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#f1f3f5' }}>
+            
+            {/* Header da Página */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderBottom: '1px solid #e9ecef', bgcolor: '#fff' }}>
                 <Typography sx={{ fontWeight: 600, color: '#495057', fontSize: '13px', textTransform: 'uppercase' }}>
                     Gestão de Jornadas (Agendas)
@@ -122,6 +216,7 @@ export default function JornadasTab() {
                 </Box>
             </Box>
 
+            {/* Corpo da Tabela Agrupada */}
             <Box sx={{ flexGrow: 1, overflowY: 'auto', bgcolor: '#ffffff' }}>
                 {isLoading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
@@ -130,110 +225,156 @@ export default function JornadasTab() {
                         <Table size="small" stickyHeader>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell sx={thStyle}>Médico</TableCell>
-                                    <TableCell sx={thStyle}>Dia da Semana</TableCell>
-                                    <TableCell sx={thStyle}>Horário</TableCell>
-                                    <TableCell sx={thStyle}>Intervalo</TableCell>
-                                    <TableCell sx={thStyle}>Status</TableCell>
-                                    <TableCell align="right" sx={thStyle}>Ações</TableCell>
+                                    <TableCell sx={{ width: 50, bgcolor: '#f8f9fa', borderBottom: '1px solid #dee2e6' }} />
+                                    <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 600, color: '#495057', fontSize: '12px', textTransform: 'uppercase', borderBottom: '1px solid #dee2e6' }}>Profissional</TableCell>
+                                    <TableCell sx={{ bgcolor: '#f8f9fa', fontWeight: 600, color: '#495057', fontSize: '12px', textTransform: 'uppercase', borderBottom: '1px solid #dee2e6' }} align="right">Resumo</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {jornadas.map((item) => (
-                                    <TableRow key={item.id} hover sx={{ '& td': { borderBottom: '1px solid #f8f9fa' } }}>
-                                        <TableCell sx={{ fontSize: '13px', fontWeight: 600, color: '#343a40' }}>{item.medico_nome}</TableCell>
-                                        <TableCell sx={{ fontSize: '12px', color: '#495057' }}>{item.dia_da_semana_display}</TableCell>
-                                        <TableCell sx={{ fontSize: '12px', color: '#495057' }}>{formatTime(parseTime(item.hora_inicio))} às {formatTime(parseTime(item.hora_fim))}</TableCell>
-                                        <TableCell sx={{ fontSize: '12px', color: '#495057' }}>{item.intervalo_consulta} min</TableCell>
-                                        <TableCell sx={{ fontSize: '12px', color: item.ativo ? '#2b8a3e' : '#e03131', fontWeight: 600 }}>{item.ativo ? "Ativo" : "Inativo"}</TableCell>
-                                        <TableCell align="right">
-                                            <IconButton size="small" sx={{ color: '#868e96', '&:hover': { color: '#1c7ed6' } }} onClick={() => handleOpenModal(item)}><EditIcon fontSize="small"/></IconButton>
-                                            <IconButton size="small" sx={{ color: '#868e96', '&:hover': { color: '#e03131' } }} onClick={() => handleDelete(item.id)}><DeleteIcon fontSize="small"/></IconButton>
-                                        </TableCell>
+                                {Object.keys(jornadasAgrupadas).length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={3} align="center" sx={{ py: 4, color: '#868e96' }}>Nenhuma jornada encontrada.</TableCell>
                                     </TableRow>
-                                ))}
+                                ) : (
+                                    Object.keys(jornadasAgrupadas).map(medicoNome => (
+                                        <GrupoMedicoRow 
+                                            key={medicoNome} 
+                                            medicoNome={medicoNome} 
+                                            jornadasMedico={jornadasAgrupadas[medicoNome]} 
+                                            handleOpenModal={handleOpenModal} 
+                                            handleDelete={handleDelete} 
+                                            formatTime={formatTime} 
+                                            parseTime={parseTime} 
+                                        />
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     </TableContainer>
                 )}
             </Box>
 
-            <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} fullWidth maxWidth="sm" PaperProps={{ className: 'tasy-flat-panel' }}>
-                <DialogTitle sx={{ p: 0, bgcolor: '#f8f9fa', borderBottom: '1px solid #e9ecef', px: 2, py: 1.5 }}>
-                    <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#495057', textTransform: 'uppercase' }}>
-                        {itemParaEditar ? 'Editar Jornada' : 'Nova Jornada'}
+            {/* Modal Reorganizado (Banho de Loja) */}
+            <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} fullWidth maxWidth="md" PaperProps={{ className: 'tasy-flat-panel', sx: { borderRadius: 2 } }}>
+                <DialogTitle sx={{ p: 2, bgcolor: '#f8f9fa', borderBottom: '1px solid #e9ecef', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AccessTime sx={{ color: '#1c7ed6' }} />
+                    <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#495057', textTransform: 'uppercase' }}>
+                        {itemParaEditar ? 'Editar Jornada de Trabalho' : 'Nova Jornada de Trabalho'}
                     </Typography>
                 </DialogTitle>
-                <DialogContent sx={{ bgcolor: '#f4f6f8', p: 3 }}>
-                    <div className="tasy-panel theme-blue">
-                        <div className="tasy-panel-body">
-                            <div className="tasy-section-header">Profissional e Data</div>
-                            <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                                <Grid item xs={12}>
-                                    <FormControl fullWidth className="tasy-compact-input" size="small">
-                                        <InputLabel>Médico *</InputLabel>
-                                        <Select value={formData.medico} label="Médico *" onChange={(e) => setFormData({...formData, medico: e.target.value})} disabled={!!itemParaEditar}>
-                                            {medicos.map((m) => <MenuItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</MenuItem>)}
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <FormControl fullWidth className="tasy-compact-input" size="small">
-                                        <InputLabel>Dia da Semana *</InputLabel>
-                                        <Select value={formData.dia_da_semana} label="Dia da Semana *" onChange={(e) => setFormData({...formData, dia_da_semana: e.target.value})}>
-                                            {diasDaSemana.map((d) => <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>)}
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <FormControl fullWidth className="tasy-compact-input" size="small">
-                                        <InputLabel>Semanas do Mês (Opcional)</InputLabel>
-                                        <Select
-                                            multiple
-                                            value={formData.semanas_do_mes}
-                                            onChange={(e) => setFormData({...formData, semanas_do_mes: e.target.value})}
-                                            input={<OutlinedInput label="Semanas do Mês (Opcional)" />}
-                                            renderValue={(selected) => selected.length === 0 ? "Todas as semanas" : selected.map(val => semanasOpcoes.find(opt => opt.value === val)?.label).join(', ')}
-                                        >
-                                            {semanasOpcoes.map((semana) => (
-                                                <MenuItem key={semana.value} value={semana.value} sx={{ py: 0, minHeight: 32 }}>
-                                                    <Checkbox size="small" checked={formData.semanas_do_mes.indexOf(semana.value) > -1} />
-                                                    <ListItemText primaryTypographyProps={{ fontSize: '13px' }} primary={semana.label} />
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                </Grid>
-                            </Grid>
-                        </div>
-                    </div>
+                
+                <DialogContent sx={{ bgcolor: '#fff', p: 4, overflowX: 'hidden' }}>
+                    <Grid container spacing={5}>
+                        
+                        {/* Coluna Esquerda: Médico e Datas */}
+                        <Grid item xs={12} md={6}>
+                            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1c7ed6', mb: 2, display: 'flex', alignItems: 'center', gap: 1, textTransform: 'uppercase' }}>
+                                <Person fontSize="small" /> Vínculo Profissional
+                            </Typography>
+                            
+                            <FormControl fullWidth className="tasy-compact-input" size="small" sx={{ mb: 1 }}>
+                                <InputLabel>Médico Selecionado *</InputLabel>
+                                <Select value={formData.medico} label="Médico Selecionado *" onChange={(e) => setFormData({...formData, medico: e.target.value})} disabled={!!itemParaEditar}>
+                                    {medicos.map((m) => <MenuItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</MenuItem>)}
+                                </Select>
+                            </FormControl>
 
-                    <div className="tasy-panel theme-blue">
-                        <div className="tasy-panel-body">
-                            <div className="tasy-section-header">Horários de Atendimento</div>
-                            <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                                <Grid item xs={6}>
-                                    <TimePicker label="Início do Expediente" value={formData.hora_inicio} onChange={(v) => setFormData({...formData, hora_inicio: v})} renderInput={(params) => <TextField {...params} fullWidth size="small" className="tasy-compact-input" />} />
+                            <Divider sx={{ my: 4 }} />
+
+                            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1c7ed6', mb: 2, display: 'flex', alignItems: 'center', gap: 1, textTransform: 'uppercase' }}>
+                                <Event fontSize="small" /> Data e Repetição
+                            </Typography>
+
+                            <FormControl fullWidth className="tasy-compact-input" size="small" sx={{ mb: 3 }}>
+                                <InputLabel>Dia da Semana *</InputLabel>
+                                <Select value={formData.dia_da_semana} label="Dia da Semana *" onChange={(e) => setFormData({...formData, dia_da_semana: e.target.value})}>
+                                    {diasDaSemana.map((d) => <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>)}
+                                </Select>
+                            </FormControl>
+
+                            <FormControl fullWidth className="tasy-compact-input" size="small">
+                                <InputLabel>Semanas do Mês (Opcional)</InputLabel>
+                                <Select
+                                    multiple
+                                    value={formData.semanas_do_mes}
+                                    onChange={(e) => setFormData({...formData, semanas_do_mes: e.target.value})}
+                                    input={<OutlinedInput label="Semanas do Mês (Opcional)" />}
+                                    renderValue={(selected) => selected.length === 0 ? "Todas as semanas do mês" : selected.map(val => semanasOpcoes.find(opt => opt.value === val)?.label).join(', ')}
+                                >
+                                    {semanasOpcoes.map((semana) => (
+                                        <MenuItem key={semana.value} value={semana.value} sx={{ py: 0, minHeight: 32 }}>
+                                            <Checkbox size="small" checked={formData.semanas_do_mes.indexOf(semana.value) > -1} />
+                                            <ListItemText primaryTypographyProps={{ fontSize: '13px' }} primary={semana.label} />
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                                <Typography variant="caption" sx={{ color: '#868e96', mt: 0.5, ml: 1 }}>
+                                    Deixe em branco para repetir toda semana.
+                                </Typography>
+                            </FormControl>
+                        </Grid>
+
+                        {/* Coluna Direita: Horários e Configurações */}
+                        <Grid item xs={12} md={6}>
+                            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1c7ed6', mb: 2, display: 'flex', alignItems: 'center', gap: 1, textTransform: 'uppercase' }}>
+                                <AccessTime fontSize="small" /> Horários de Atendimento
+                            </Typography>
+
+                            <Box sx={{ p: 3, bgcolor: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
+                                <Grid container spacing={3}>
+                                    <Grid item xs={12} sm={6}>
+                                        <TimePicker 
+                                            label="Início da Agenda" 
+                                            value={formData.hora_inicio} 
+                                            onChange={(v) => setFormData({...formData, hora_inicio: v})} 
+                                            renderInput={(params) => <TextField {...params} fullWidth size="small" className="tasy-compact-input" />} 
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TimePicker 
+                                            label="Fim da Agenda" 
+                                            value={formData.hora_fim} 
+                                            onChange={(v) => setFormData({...formData, hora_fim: v})} 
+                                            renderInput={(params) => <TextField {...params} fullWidth size="small" className="tasy-compact-input" />} 
+                                        />
+                                    </Grid>
+                                    <Grid item xs={12}>
+                                        <TextField 
+                                            label="Duração de cada Consulta (Minutos)" 
+                                            type="number" 
+                                            fullWidth 
+                                            size="small" 
+                                            className="tasy-compact-input" 
+                                            value={formData.intervalo_consulta} 
+                                            onChange={(e) => setFormData({...formData, intervalo_consulta: e.target.value})} 
+                                        />
+                                    </Grid>
                                 </Grid>
-                                <Grid item xs={6}>
-                                    <TimePicker label="Fim do Expediente" value={formData.hora_fim} onChange={(v) => setFormData({...formData, hora_fim: v})} renderInput={(params) => <TextField {...params} fullWidth size="small" className="tasy-compact-input" />} />
-                                </Grid>
-                                <Grid item xs={6}>
-                                     <TextField label="Intervalo por Consulta (min)" type="number" fullWidth size="small" className="tasy-compact-input" value={formData.intervalo_consulta} onChange={(e) => setFormData({...formData, intervalo_consulta: e.target.value})} />
-                                </Grid>
-                                <Grid item xs={6} sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <FormControlLabel 
-                                        control={<Switch size="small" checked={formData.ativo} onChange={(e) => setFormData({...formData, ativo: e.target.checked})} color="primary" />} 
-                                        label={<Typography sx={{ fontSize: '13px', color: '#495057', fontWeight: 500 }}>Agenda Ativa</Typography>} 
-                                    />
-                                </Grid>
-                            </Grid>
-                        </div>
-                    </div>
+                            </Box>
+
+                            <Box sx={{ 
+                                mt: 3, p: 2, 
+                                bgcolor: formData.ativo ? '#e7f5ff' : '#fff5f5', 
+                                borderRadius: 2, 
+                                border: `1px solid ${formData.ativo ? '#74c0fc' : '#ffc9c9'}`, 
+                                display: 'flex', alignItems: 'center' 
+                            }}>
+                                <FormControlLabel 
+                                    control={<Switch size="small" checked={formData.ativo} onChange={(e) => setFormData({...formData, ativo: e.target.checked})} color="primary" />} 
+                                    label={
+                                        <Typography sx={{ fontSize: '14px', color: formData.ativo ? '#1864ab' : '#c92a2a', fontWeight: 600 }}>
+                                            {formData.ativo ? 'Agenda Ativa (Aberta para marcações)' : 'Agenda Inativa (Bloqueada)'}
+                                        </Typography>
+                                    } 
+                                />
+                            </Box>
+                        </Grid>
+                    </Grid>
                 </DialogContent>
-                <DialogActions sx={{ p: 1.5, borderTop: '1px solid #e9ecef', bgcolor: '#f8f9fa' }}>
-                    <Button onClick={() => setIsModalOpen(false)} sx={{ color: '#868e96', fontSize: '12px', fontWeight: 600 }}>Cancelar</Button>
-                    <Button onClick={handleSave} variant="contained" disableElevation disabled={isSubmitting} sx={{ bgcolor: '#1c7ed6', fontSize: '12px', fontWeight: 600 }}>
+
+                <DialogActions sx={{ p: 2, borderTop: '1px solid #e9ecef', bgcolor: '#f8f9fa' }}>
+                    <Button onClick={() => setIsModalOpen(false)} sx={{ color: '#868e96', fontSize: '13px', fontWeight: 600, mr: 1 }}>Cancelar</Button>
+                    <Button onClick={handleSave} variant="contained" disableElevation disabled={isSubmitting} sx={{ bgcolor: '#1c7ed6', fontSize: '13px', fontWeight: 600, minWidth: 140 }}>
                         {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Salvar Jornada'}
                     </Button>
                 </DialogActions>
