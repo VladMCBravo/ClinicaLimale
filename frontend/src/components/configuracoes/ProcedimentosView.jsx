@@ -49,7 +49,9 @@ export default function ProcedimentosView() {
 
     const [order, setOrder] = useState('asc');
     const [orderBy, setOrderBy] = useState('descricao');
-    const [collapsedCats, setCollapsedCats] = useState({});
+    
+    // 👇 AQUI: Mudamos de collapsed para expanded, iniciando fechado por padrão 👇
+    const [expandedCats, setExpandedCats] = useState({});
 
     const [catModalOpen, setCatModalOpen] = useState(false);
     const [catEditing, setCatEditing] = useState(null);
@@ -127,7 +129,7 @@ export default function ProcedimentosView() {
     };
 
     const toggleCategory = (cat) => {
-        setCollapsedCats(prev => ({ ...prev, [cat]: !prev[cat] }));
+        setExpandedCats(prev => ({ ...prev, [cat]: !prev[cat] }));
     };
 
     const handleOpenModal = (procedimento = null) => {
@@ -285,12 +287,13 @@ export default function ProcedimentosView() {
 
                                     return (
                                         <React.Fragment key={cat}>
-                                            <TableRow sx={{ bgcolor: `${CAT_COLORS[cat]}08` }}>
+                                            {/* Ao clicar em qualquer lugar da linha da categoria, ela expande/contrai */}
+                                            <TableRow sx={{ bgcolor: `${CAT_COLORS[cat]}08`, cursor: 'pointer' }} onClick={() => toggleCategory(cat)}>
                                                 <TableCell colSpan={5} sx={{ py: 0.5, borderBottom: `1px solid ${CAT_COLORS[cat]}30` }}>
                                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                            <IconButton size="small" onClick={() => toggleCategory(cat)} sx={{ color: CAT_COLORS[cat] }}>
-                                                                {collapsedCats[cat] ? <KeyboardArrowDown fontSize="small" /> : <KeyboardArrowUp fontSize="small" />}
+                                                            <IconButton size="small" sx={{ color: CAT_COLORS[cat] }}>
+                                                                {expandedCats[cat] ? <KeyboardArrowUp fontSize="small" /> : <KeyboardArrowDown fontSize="small" />}
                                                             </IconButton>
                                                             <Typography sx={{ color: CAT_COLORS[cat], textTransform: 'uppercase', fontSize: '12px', fontWeight: 700 }}>
                                                                 {CAT_LABELS[cat] || cat}
@@ -301,7 +304,8 @@ export default function ProcedimentosView() {
                                                             <Chip label={`TUSS: ${comTussCat}`} size="small" sx={{ height: 20, fontSize: '10px', fontWeight: 'bold', borderRadius: '4px', bgcolor: '#fff4e6', color: '#e8590c' }} />
                                                         </Box>
                                                         <Button 
-                                                            size="small" variant="outlined" startIcon={<AccessTime />} onClick={() => handleOpenCatModal(cat)}
+                                                            size="small" variant="outlined" startIcon={<AccessTime />} 
+                                                            onClick={(e) => { e.stopPropagation(); handleOpenCatModal(cat); }} // Evita expandir ao clicar no botão
                                                             sx={{ color: CAT_COLORS[cat], borderColor: `${CAT_COLORS[cat]}50`, textTransform: 'none', height: 26, fontSize: '11px', fontWeight: 600, bgcolor: 'white', '&:hover': { bgcolor: `${CAT_COLORS[cat]}10` } }}
                                                         >
                                                             Agenda da Categoria
@@ -310,7 +314,8 @@ export default function ProcedimentosView() {
                                                 </TableCell>
                                             </TableRow>
 
-                                            {!collapsedCats[cat] && procsCat.map((proc) => (
+                                            {/* Renderiza apenas se estiver expandido */}
+                                            {expandedCats[cat] && procsCat.map((proc) => (
                                                 <TableRow key={proc.id} hover sx={{ '& td': { borderBottom: '1px solid #f1f3f5' } }}>
                                                     <TableCell sx={{ fontFamily: 'monospace', color: '#6c757d', fontSize: '12px', fontWeight: 600, pl: 3 }}>
                                                         {proc.codigo_tuss || '-'}
@@ -354,6 +359,7 @@ export default function ProcedimentosView() {
 
             <ProcedimentoModal open={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={fetchProcedimentos} procedimento={procedimentoSelecionado} />
             
+            {/* Modal de Categoria */}
             <Dialog open={catModalOpen} onClose={() => setCatModalOpen(false)} maxWidth="sm" fullWidth disableEscapeKeyDown={isSubmittingCat} PaperProps={{ className: 'tasy-flat-panel' }}>
                 <DialogTitle sx={{ bgcolor: '#f8f9fa', p: 2, borderBottom: '1px solid #e9ecef' }}>
                     <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#495057', textTransform: 'uppercase' }}>
@@ -414,6 +420,7 @@ export default function ProcedimentosView() {
             </Dialog>
 
             <Dialog open={isPdfModalOpen} onClose={() => setIsPdfModalOpen(false)} maxWidth="xs" fullWidth PaperProps={{ className: 'tasy-flat-panel' }}>
+                {/* Modal PDF mantido intacto */}
                 <DialogTitle sx={{ bgcolor: '#f8f9fa', p: 2, borderBottom: '1px solid #e9ecef' }}>
                     <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#495057', textTransform: 'uppercase' }}>Exportar Tabela</Typography>
                 </DialogTitle>

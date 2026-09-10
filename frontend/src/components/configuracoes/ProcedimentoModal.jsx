@@ -3,9 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, TextField, Button, 
     CircularProgress, Box, Typography, List, ListItem, ListItemText, 
-    IconButton, MenuItem, InputAdornment, Tabs, Tab, Chip, Stack, Tooltip
+    IconButton, MenuItem, InputAdornment, Tabs, Tab, Stack, Tooltip, Grid, Divider
 } from '@mui/material';
-import { Delete, Save, AddCircle, AccessTime, AttachMoney, Edit, Close } from '@mui/icons-material';
+import { 
+    Delete, Save, AddCircle, AccessTime, AttachMoney, Edit, Close, 
+    LocalHospital, Build
+} from '@mui/icons-material';
 import { useSnackbar } from '../../contexts/SnackbarContext';
 import { faturamentoService } from '../../services/faturamentoService';
 
@@ -22,8 +25,16 @@ const DIAS_SEMANA = [
     { value: 3, label: 'Quinta-feira' }, { value: 4, label: 'Sexta-feira' }, { value: 5, label: 'Sábado' }, { value: 6, label: 'Domingo' }
 ];
 
-function TabPanel({ children, value, index, ...other }) {
-    return <div hidden={value !== index} {...other}>{value === index && <Box sx={{ pt: 2, pb: 1 }}>{children}</Box>}</div>;
+function TabPanel({ children, value, index }) {
+    return (
+        <div role="tabpanel" hidden={value !== index} style={{ height: '100%' }}>
+            {value === index && (
+                <Box sx={{ p: 3, height: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
+                    {children}
+                </Box>
+            )}
+        </div>
+    );
 }
 
 export default function ProcedimentoModal({ open, onClose, onSave, procedimento }) {
@@ -145,167 +156,175 @@ export default function ProcedimentoModal({ open, onClose, onSave, procedimento 
     };
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" disableEscapeKeyDown={isSubmitting} PaperProps={{ className: 'tasy-flat-panel' }}>
-            <DialogTitle sx={{ p: 0, bgcolor: '#f8f9fa', borderBottom: '1px solid #e9ecef', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box sx={{ px: 2, py: 1.5 }}>
-                    <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#495057', textTransform: 'uppercase' }}>
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" disableEscapeKeyDown={isSubmitting} PaperProps={{ className: 'tasy-flat-panel', sx: { borderRadius: 2 } }}>
+            <DialogTitle sx={{ p: 2, bgcolor: '#f8f9fa', borderBottom: '1px solid #e9ecef', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocalHospital sx={{ color: '#1c7ed6' }} />
+                    <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#495057', textTransform: 'uppercase' }}>
                         {isEditing ? `Gerenciar: ${formData.descricao}` : 'Cadastrar Novo Procedimento'}
                     </Typography>
                 </Box>
-                <IconButton onClick={onClose} disabled={isSubmitting} sx={{ mr: 1, color: '#868e96' }}><Close fontSize="small" /></IconButton>
+                <IconButton onClick={onClose} disabled={isSubmitting} sx={{ color: '#868e96' }}><Close fontSize="small" /></IconButton>
             </DialogTitle>
             
-            <Box sx={{ borderBottom: '1px solid #e9ecef', bgcolor: '#ffffff', px: 2 }}>
-                <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ minHeight: 40, '& .MuiTab-root': { minHeight: 40, fontWeight: 600, fontSize: '12px', textTransform: 'none' } }}>
-                    <Tab icon={<AttachMoney fontSize="small"/>} iconPosition="start" label="Identificação & Valores" />
-                    <Tab icon={<AccessTime fontSize="small"/>} iconPosition="start" label="Automação de Agenda" />
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: '#f8f9fa', px: 2 }}>
+                <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} textColor="primary" indicatorColor="primary" sx={{ minHeight: 48 }}>
+                    <Tab icon={<AttachMoney sx={{mr:1, mb:0}}/>} iconPosition="start" label="Identificação & Valores" sx={{ minHeight: 48, fontSize: '12px', fontWeight: 600 }} />
+                    <Tab icon={<AccessTime sx={{mr:1, mb:0}}/>} iconPosition="start" label="Automação de Agenda" sx={{ minHeight: 48, fontSize: '12px', fontWeight: 600 }} />
                 </Tabs>
             </Box>
 
-            <DialogContent sx={{ p: 3, bgcolor: '#f4f6f8' }}>
+            {/* Altura fixa para evitar o modal pular de tamanho entre as abas */}
+            <DialogContent sx={{ p: 0, bgcolor: '#fff', overflow: 'hidden', height: '420px' }}>
                 
                 {/* ABA 1: DADOS E VALORES */}
                 <TabPanel value={tabValue} index={0}>
-                    <div className="tasy-panel theme-blue">
-                        <div className="tasy-panel-body">
-                            <div className="tasy-section-header">Dados Base</div>
-                            <Box display="flex" gap={1.5} flexWrap="wrap">
-                                <TextField 
-                                    label="Cód. TUSS" value={formData.codigo_tuss} onChange={(e) => setFormData({...formData, codigo_tuss: e.target.value})} 
-                                    size="small" className="tasy-compact-input" sx={{ width: 120 }} 
-                                />
-                                <TextField 
-                                    label="Descrição do Exame" value={formData.descricao} onChange={(e) => setFormData({...formData, descricao: e.target.value})} 
-                                    size="small" required className="tasy-compact-input" sx={{ flexGrow: 1, minWidth: 250 }} 
-                                />
-                                <TextField 
-                                    select label="Categoria" value={formData.categoria} onChange={(e) => setFormData({...formData, categoria: e.target.value})} 
-                                    size="small" className="tasy-compact-input" sx={{ width: 180 }}
-                                >
-                                    {CATEGORIAS.map(cat => <MenuItem key={cat.value} value={cat.value}>{cat.label}</MenuItem>)}
-                                </TextField>
-                                <TextField 
-                                    label="Valor Particular" type="number" value={formData.valor_particular} onChange={(e) => setFormData({...formData, valor_particular: e.target.value})} 
-                                    size="small" className="tasy-compact-input" InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment> }} sx={{ width: 150 }} 
-                                />
-                            </Box>
-                        </div>
-                    </div>
-
-                    {isEditing ? (
-                        <div className="tasy-panel theme-blue">
-                            <div className="tasy-panel-body">
-                                <div className="tasy-section-header" style={{ display:'flex', justifyContent:'space-between' }}>
-                                    <span>Tabela de Planos de Saúde</span>
-                                    <span style={{fontSize:'10px', fontWeight:'normal', textTransform:'none', color: '#868e96'}}>O sistema sempre usará este valor em agendamentos de convênio.</span>
-                                </div>
-                                
-                                <Box sx={{ display: 'flex', gap: 1, mb: 2, p: 1.5, bgcolor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 1 }}>
-                                    <TextField 
-                                        select label="Selecione o Convênio/Plano" value={planoSelecionadoId} onChange={(e) => setPlanoSelecionadoId(e.target.value)} 
-                                        size="small" className="tasy-compact-input" sx={{ flex: 2 }}
-                                    >
-                                        {planosDisponiveis.map(p => <MenuItem key={p.id} value={p.id}><strong>{p.convenio_nome}</strong> &nbsp;—&nbsp; {p.nome}</MenuItem>)}
+                    <Grid container spacing={3}>
+                        <Grid item xs={12}>
+                            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1c7ed6', mb: 2, textTransform: 'uppercase' }}>
+                                Dados Básicos do Exame
+                            </Typography>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={3}>
+                                    <TextField label="Cód. TUSS" value={formData.codigo_tuss} onChange={(e) => setFormData({...formData, codigo_tuss: e.target.value})} size="small" fullWidth className="tasy-compact-input" />
+                                </Grid>
+                                <Grid item xs={12} sm={9}>
+                                    <TextField label="Descrição do Exame *" value={formData.descricao} onChange={(e) => setFormData({...formData, descricao: e.target.value})} size="small" required fullWidth className="tasy-compact-input" />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField select label="Categoria do Painel" value={formData.categoria} onChange={(e) => setFormData({...formData, categoria: e.target.value})} size="small" fullWidth className="tasy-compact-input">
+                                        {CATEGORIAS.map(cat => <MenuItem key={cat.value} value={cat.value}>{cat.label}</MenuItem>)}
                                     </TextField>
-                                    <TextField 
-                                        label="Valor Repasse (R$)" type="number" value={valorConvenio} onChange={(e) => setValorConvenio(e.target.value)} 
-                                        size="small" className="tasy-compact-input" sx={{ width: 140 }} 
-                                    />
-                                    <Button 
-                                        onClick={handleAddPrecoConvenio} variant="contained" color="success" disableElevation disabled={isSubmitting} 
-                                        sx={{ fontWeight: 600, fontSize: '12px', textTransform: 'none', px: 2, borderRadius: '4px' }}
-                                    >
-                                        Salvar/Atualizar
-                                    </Button>
-                                </Box>
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField label="Valor Base (Particular)" type="number" value={formData.valor_particular} onChange={(e) => setFormData({...formData, valor_particular: e.target.value})} size="small" fullWidth className="tasy-compact-input" InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment> }} />
+                                </Grid>
+                            </Grid>
+                        </Grid>
 
-                                <List dense sx={{ border: '1px solid #dee2e6', borderRadius: 1, maxHeight: 180, overflow: 'auto', p: 0, bgcolor: 'white' }}>
-                                    {valoresConvenio.length === 0 ? (
-                                        <ListItem><ListItemText secondary={<Typography sx={{ fontSize: '12px', color: '#868e96' }}>Nenhum valor de convênio cadastrado.</Typography>} /></ListItem>
-                                    ) : valoresConvenio.map(item => (
-                                        <ListItem key={item.id} divider sx={{ '&:hover': { bgcolor: '#f8f9fa' } }}>
-                                            <ListItemText 
-                                                primary={<Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#343a40' }}>{item.plano_convenio?.convenio_nome} - {item.plano_convenio?.nome}</Typography>} 
-                                            />
-                                            <Typography sx={{ fontSize: '13px', color: '#2b8a3e', fontWeight: 600, mr: 2 }}>
-                                                R$ {item.valor}
-                                            </Typography>
-                                            <Tooltip title="Alterar Valor">
-                                                <IconButton size="small" onClick={() => handleEditPreco(item)} sx={{ color: '#1c7ed6' }}>
-                                                    <Edit fontSize="small" />
-                                                </IconButton>
-                                            </Tooltip>
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            </div>
-                        </div>
-                    ) : (
-                        <Typography sx={{ fontSize: '12px', color: '#868e96', display: 'block', textAlign: 'center', mt: 4 }}>
-                            A tabela de convênios será liberada após você salvar o exame pela primeira vez.
-                        </Typography>
-                    )}
+                        <Grid item xs={12}>
+                            <Divider sx={{ mb: 3 }} />
+                            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1c7ed6', mb: 2, textTransform: 'uppercase' }}>
+                                Tabela de Repasse (Planos de Saúde)
+                            </Typography>
+                            
+                            {isEditing ? (
+                                <Box>
+                                    <Grid container spacing={1} sx={{ p: 2, bgcolor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 2, mb: 2, alignItems: 'center' }}>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField select label="Selecione o Plano" value={planoSelecionadoId} onChange={(e) => setPlanoSelecionadoId(e.target.value)} size="small" fullWidth className="tasy-compact-input">
+                                                {planosDisponiveis.map(p => <MenuItem key={p.id} value={p.id}><strong>{p.convenio_nome}</strong> &nbsp;—&nbsp; {p.nome}</MenuItem>)}
+                                            </TextField>
+                                        </Grid>
+                                        <Grid item xs={12} sm={3}>
+                                            <TextField label="Valor (R$)" type="number" value={valorConvenio} onChange={(e) => setValorConvenio(e.target.value)} size="small" fullWidth className="tasy-compact-input" />
+                                        </Grid>
+                                        <Grid item xs={12} sm={3}>
+                                            <Button onClick={handleAddPrecoConvenio} variant="contained" color="success" disableElevation disabled={isSubmitting} fullWidth sx={{ fontWeight: 600, fontSize: '12px', height: 36, borderRadius: '4px' }}>
+                                                Atualizar
+                                            </Button>
+                                        </Grid>
+                                    </Grid>
+
+                                    <List dense sx={{ border: '1px solid #e9ecef', borderRadius: 2, maxHeight: 120, overflow: 'auto', p: 0, bgcolor: '#fff' }}>
+                                        {valoresConvenio.length === 0 ? (
+                                            <ListItem><ListItemText secondary={<Typography sx={{ fontSize: '12px', color: '#868e96', textAlign: 'center', py: 2 }}>Nenhum valor de convênio cadastrado.</Typography>} /></ListItem>
+                                        ) : valoresConvenio.map(item => (
+                                            <ListItem key={item.id} divider sx={{ '&:hover': { bgcolor: '#f8f9fa' } }}>
+                                                <ListItemText primary={<Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#343a40' }}>{item.plano_convenio?.convenio_nome} - {item.plano_convenio?.nome}</Typography>} />
+                                                <Typography sx={{ fontSize: '13px', color: '#2b8a3e', fontWeight: 600, mr: 2 }}>
+                                                    R$ {item.valor}
+                                                </Typography>
+                                                <Tooltip title="Alterar Valor">
+                                                    <IconButton size="small" onClick={() => handleEditPreco(item)} sx={{ color: '#1c7ed6' }}>
+                                                        <Edit fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                </Box>
+                            ) : (
+                                <Box sx={{ p: 3, border: '1px dashed #ced4da', borderRadius: 2, bgcolor: '#f8f9fa', textAlign: 'center' }}>
+                                    <Typography sx={{ fontSize: '12px', color: '#868e96' }}>
+                                        Salve o procedimento pela primeira vez para liberar a inserção de preços de convênios.
+                                    </Typography>
+                                </Box>
+                            )}
+                        </Grid>
+                    </Grid>
                 </TabPanel>
 
                 {/* ABA 2: REGRAS DE AGENDA */}
                 <TabPanel value={tabValue} index={1}>
-                    <div className="tasy-panel theme-blue">
-                        <div className="tasy-panel-body">
-                            <div className="tasy-section-header">Requisitos Operacionais</div>
-                            <Box display="flex" gap={2}>
-                                <TextField 
-                                    label="Duração Padrão (minutos)" type="number" value={configAgenda.duracao_padrao} onChange={(e) => setConfigAgenda({...configAgenda, duracao_padrao: e.target.value})} 
-                                    size="small" className="tasy-compact-input" sx={{ width: 200 }} 
-                                />
-                                <TextField 
-                                    label="Equipamento Exigido (Tag da Sala)" value={configAgenda.equipamento_obrigatorio} onChange={(e) => setConfigAgenda({...configAgenda, equipamento_obrigatorio: e.target.value.toUpperCase()})} 
-                                    size="small" className="tasy-compact-input" sx={{ flexGrow: 1 }} placeholder="Ex: SAMSUNG_V7 (Deixe em branco se livre)"
-                                />
-                            </Box>
-                        </div>
-                    </div>
+                    <Grid container spacing={3}>
+                        <Grid item xs={12}>
+                            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1c7ed6', mb: 2, display: 'flex', alignItems: 'center', gap: 1, textTransform: 'uppercase' }}>
+                                <Build fontSize="small" /> Requisitos Operacionais
+                            </Typography>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={5}>
+                                    <TextField label="Duração Padrão (Minutos)" type="number" value={configAgenda.duracao_padrao} onChange={(e) => setConfigAgenda({...configAgenda, duracao_padrao: e.target.value})} size="small" fullWidth className="tasy-compact-input" />
+                                </Grid>
+                                <Grid item xs={12} sm={7}>
+                                    <TextField label="Equipamento Exigido (Tag da Sala)" value={configAgenda.equipamento_obrigatorio} onChange={(e) => setConfigAgenda({...configAgenda, equipamento_obrigatorio: e.target.value.toUpperCase()})} size="small" fullWidth className="tasy-compact-input" placeholder="Ex: SAMSUNG_V7 (Deixe em branco se livre)" />
+                                </Grid>
+                            </Grid>
+                        </Grid>
 
-                    <div className="tasy-panel theme-blue">
-                        <div className="tasy-panel-body">
-                            <div className="tasy-section-header" style={{ display:'flex', justifyContent:'space-between' }}>
-                                <span>Dias e Horários Autorizados</span>
-                                <span style={{fontSize:'10px', fontWeight:'normal', textTransform:'none', color: '#868e96'}}>O chatbot só ofertará vagas que caiam nestes dias/horários.</span>
-                            </div>
-                            <Box sx={{ display: 'flex', gap: 1, mb: 2, p: 1.5, bgcolor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 1, alignItems: 'center' }}>
-                                <TextField 
-                                    select label="Dia da Semana" value={novoDia.dia_semana} onChange={(e) => setNovoDia({...novoDia, dia_semana: e.target.value})} 
-                                    size="small" className="tasy-compact-input" sx={{ flexGrow: 1 }}
-                                >
-                                    {DIAS_SEMANA.map(dia => <MenuItem key={dia.value} value={dia.value}>{dia.label}</MenuItem>)}
-                                </TextField>
-                                <TextField label="Início" type="time" size="small" className="tasy-compact-input" value={novoDia.hora_inicio} onChange={(e) => setNovoDia({...novoDia, hora_inicio: e.target.value})} InputLabelProps={{ shrink: true }} sx={{ width: 120 }} />
-                                <TextField label="Fim" type="time" size="small" className="tasy-compact-input" value={novoDia.hora_fim} onChange={(e) => setNovoDia({...novoDia, hora_fim: e.target.value})} InputLabelProps={{ shrink: true }} sx={{ width: 120 }} />
-                                <Button onClick={handleAddDia} variant="contained" disableElevation sx={{ bgcolor: '#1c7ed6', height: 36, minWidth: 40, p: 0 }}><AddCircle fontSize="small" /></Button>
-                            </Box>
+                        <Grid item xs={12}>
+                            <Divider sx={{ mb: 3 }} />
+                            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1c7ed6', mb: 0.5, display: 'flex', alignItems: 'center', gap: 1, textTransform: 'uppercase' }}>
+                                <AccessTime fontSize="small" /> Dias e Horários Autorizados
+                            </Typography>
+                            <Typography sx={{ fontSize: '12px', color: '#868e96', mb: 2 }}>
+                                O paciente/chatbot só poderá encontrar vagas para este exame caso a agenda caia nestes períodos.
+                            </Typography>
+                            
+                            <Grid container spacing={1} sx={{ p: 2, bgcolor: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: 2, mb: 2, alignItems: 'center' }}>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField select label="Dia da Semana" value={novoDia.dia_semana} onChange={(e) => setNovoDia({...novoDia, dia_semana: e.target.value})} size="small" fullWidth className="tasy-compact-input">
+                                        {DIAS_SEMANA.map(dia => <MenuItem key={dia.value} value={dia.value}>{dia.label}</MenuItem>)}
+                                    </TextField>
+                                </Grid>
+                                <Grid item xs={12} sm={3}>
+                                    <TextField label="Horário Inicial" type="time" size="small" fullWidth className="tasy-compact-input" value={novoDia.hora_inicio} onChange={(e) => setNovoDia({...novoDia, hora_inicio: e.target.value})} InputLabelProps={{ shrink: true }} />
+                                </Grid>
+                                <Grid item xs={12} sm={3}>
+                                    <TextField label="Horário Final" type="time" size="small" fullWidth className="tasy-compact-input" value={novoDia.hora_fim} onChange={(e) => setNovoDia({...novoDia, hora_fim: e.target.value})} InputLabelProps={{ shrink: true }} />
+                                </Grid>
+                                <Grid item xs={12} sm={2}>
+                                    <Button onClick={handleAddDia} variant="contained" disableElevation fullWidth sx={{ bgcolor: '#1c7ed6', height: 36, p: 0 }}><AddCircle fontSize="small" /></Button>
+                                </Grid>
+                            </Grid>
 
-                            <Stack spacing={1}>
+                            <Stack spacing={1} sx={{ maxHeight: 140, overflow: 'auto', p: 0.5 }}>
                                 {configAgenda.dias_funcionamento.length === 0 ? (
-                                    <Typography sx={{ fontSize: '12px', color: '#868e96', textAlign: 'center', py: 2 }}>
-                                        Nenhuma regra configurada. Este exame NÃO será ofertado automaticamente.
+                                    <Typography sx={{ fontSize: '12px', color: '#adb5bd', textAlign: 'center', py: 2, fontStyle: 'italic' }}>
+                                        Nenhuma regra configurada. Este exame NÃO será ofertado automaticamente pelo robô.
                                     </Typography>
                                 ) : configAgenda.dias_funcionamento.map((dia) => (
-                                    <Box key={dia.dia_semana} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, border: '1px solid #dee2e6', borderRadius: 1, bgcolor: 'white' }}>
+                                    <Box key={dia.dia_semana} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, border: '1px solid #dee2e6', borderRadius: 2, bgcolor: '#fff' }}>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                            <Chip label={DIAS_SEMANA.find(d => d.value === dia.dia_semana)?.label} sx={{ bgcolor: '#e7f5ff', color: '#1c7ed6', fontWeight: 600, width: 110, borderRadius: '4px', fontSize: '11px' }} />
+                                            <Typography sx={{ bgcolor: '#e7f5ff', color: '#1c7ed6', fontWeight: 600, width: 100, textAlign: 'center', borderRadius: 1, py: 0.5, fontSize: '11px' }}>
+                                                {DIAS_SEMANA.find(d => d.value === dia.dia_semana)?.label}
+                                            </Typography>
                                             <Typography sx={{ fontSize: '13px', color: '#495057' }}>
-                                                Permitido entre <strong>{dia.hora_inicio}</strong> e <strong>{dia.hora_fim}</strong>
+                                                Permitido agendar entre <strong>{dia.hora_inicio}</strong> e <strong>{dia.hora_fim}</strong>
                                             </Typography>
                                         </Box>
-                                        <IconButton size="small" sx={{ color: '#e03131' }} onClick={() => handleRemoveDia(dia.dia_semana)}><Delete fontSize="small" /></IconButton>
+                                        <IconButton size="small" sx={{ color: '#e03131', '&:hover': { bgcolor: '#ffe3e3' } }} onClick={() => handleRemoveDia(dia.dia_semana)}>
+                                            <Delete fontSize="small" />
+                                        </IconButton>
                                     </Box>
                                 ))}
                             </Stack>
-                        </div>
-                    </div>
+                        </Grid>
+                    </Grid>
                 </TabPanel>
             </DialogContent>
             
-            <DialogActions sx={{ justifyContent: 'space-between', p: 1.5, bgcolor: '#f8f9fa', borderTop: '1px solid #e9ecef' }}>
+            <DialogActions sx={{ justifyContent: 'space-between', p: 2, bgcolor: '#f8f9fa', borderTop: '1px solid #e9ecef' }}>
                 <Box>
                     {isEditing && (
                         <Button color="error" onClick={handleDelete} disabled={isSubmitting} sx={{ fontWeight: 600, fontSize: '12px', textTransform: 'none' }}>

@@ -48,33 +48,34 @@ class CustomUserViewSet(viewsets.ModelViewSet):
     pagination_class = UsuariosPagination 
     
     def get_queryset(self):
-        # Tiramos o order_by fixo daqui para podermos ordená-lo dinamicamente depois
-        queryset = CustomUser.objects.prefetch_related('especialidades').all()
+        # 👇 AQUI: Bloqueamos os robôs de automação direto no banco de dados
+        queryset = CustomUser.objects.prefetch_related('especialidades').exclude(
+            username__in=['__tmp_verify_user', 'robo_orthanc']
+        )
 
-        # 1. Filtro de Cargo (Mantido o original)
+        # 1. Filtro de Cargo 
         cargo = self.request.query_params.get('cargo')
         if cargo == 'medico':
             queryset = queryset.filter(cargo__in=['medico', 'admin_medico'])
         elif cargo:
             queryset = queryset.filter(cargo=cargo)
 
-        # 2. NOVO: Filtro de Status (Ativos, Inativos, Todos)
+        # 2. Filtro de Status (Ativos, Inativos, Todos)
         status_filtro = self.request.query_params.get('status', 'ativos')
         if status_filtro == 'ativos':
             queryset = queryset.filter(is_active=True)
         elif status_filtro == 'inativos':
             queryset = queryset.filter(is_active=False)
 
-        # 3. NOVO: Ordenação vinda do clique nas setinhas do frontend
+        # 3. Ordenação vinda do clique nas setinhas do frontend
         ordering = self.request.query_params.get('ordering', 'first_name')
         
-        # Validar para não quebrar caso enviem uma coluna inexistente
         colunas_validas = ['first_name', '-first_name', 'username', '-username', 'cargo', '-cargo', 'is_active', '-is_active']
         
         if ordering in colunas_validas:
             queryset = queryset.order_by(ordering)
         else:
-            queryset = queryset.order_by('first_name') # Padrão caso não envie ordenação
+            queryset = queryset.order_by('first_name') 
 
         return queryset
 
