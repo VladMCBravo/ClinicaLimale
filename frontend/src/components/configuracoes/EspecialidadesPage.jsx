@@ -16,9 +16,9 @@ import {
 } from '@mui/icons-material';
 
 import { useSnackbar } from '../../contexts/SnackbarContext';
-import { configuracoesService } from '../services/configuracoesService';
+import { configuracoesService } from '../../services/configuracoesService';
 import { faturamentoService } from '../../services//faturamentoService';
-import { gerarPdfEspecialidades } from '../utils/tabelaValoresPdfGenerator'; 
+import { gerarPdfEspecialidades } from '../../utils/tabelaValoresPdfGenerator'; 
 
 // Importante: verifique se o caminho do css está correto de acordo com a pasta atual
 import '../../atendimento.css'; 
