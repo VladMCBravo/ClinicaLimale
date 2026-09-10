@@ -137,12 +137,21 @@ class UserMeView(APIView):
             'id': user.id,
             'username': user.username,
             'nome_completo': user.get_full_name(),
-            'first_name': user.first_name, # <-- Adicionado para o form do frontend
-            'last_name': user.last_name,   # <-- Adicionado para o form do frontend
-            'telefone': user.telefone,     # <-- Adicionado para o form do frontend
+            'first_name': user.first_name, 
+            'last_name': user.last_name,   
+            'telefone': user.telefone,     
             'cargo': user.cargo,
             'crm': user.crm,
-            'tem_certificado_valido': tem_certificado # <--- O FRONTEND ESPERA ISSO
+            'tem_certificado_valido': tem_certificado,
+            
+            # 👇 CAMPOS DE ENDEREÇO ADICIONADOS AQUI 👇
+            'cep': user.cep,
+            'logradouro': user.logradouro,
+            'numero': user.numero,
+            'complemento': user.complemento,
+            'bairro': user.bairro,
+            'cidade': user.cidade,
+            'uf': user.uf
         }
         return Response(data)
     
