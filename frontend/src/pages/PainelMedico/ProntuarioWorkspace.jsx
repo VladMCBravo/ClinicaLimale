@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { 
     Box, Typography, List, ListItem, ListItemButton, ListItemText, 
-    CircularProgress, IconButton, Tooltip, Divider, Tabs, Tab, Chip // <-- Adicionado Chip
+    CircularProgress, IconButton, Tooltip, Divider, Tabs, Tab, Chip
 } from '@mui/material';
 
 import CloseIcon from '@mui/icons-material/Close';
@@ -14,12 +14,19 @@ import ImageIcon from '@mui/icons-material/Image';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import VideocamIcon from '@mui/icons-material/Videocam';
 
-import apiClient from '../../api/axiosConfig'; // Ajuste o caminho se necessário
+// --- ÍCONES E LÓGICA DA AGENDA ---
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
+import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn';
+import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
+import { calcularStatusSemaforo } from '../../utils/semaforoAgendamento';
+
+import apiClient from '../../api/axiosConfig'; 
 import { formatarHoraTZ } from '../../utils/format';
 
 // --- Importação Tardia (Lazy) das Ferramentas e Formulários ---
 const AtendimentoPediatria = lazy(() => import('../../components/prontuario/AtendimentoPediatria'));
-const AtendimentoNeonatologia = lazy(() => import('../../components/prontuario/AtendimentoNeonatologia')); // <-- ADICIONE ESTA LINHA
+const AtendimentoNeonatologia = lazy(() => import('../../components/prontuario/AtendimentoNeonatologia'));
 const AtendimentoClinicaGeral = lazy(() => import('../../components/prontuario/AtendimentoClinicaGeral'));
 const AtendimentoCardiologia = lazy(() => import('../../components/prontuario/AtendimentoCardiologia'));
 const AtendimentoObstetricia = lazy(() => import('../../components/prontuario/AtendimentoObstetricia'));
@@ -33,18 +40,26 @@ const TelemedicinaTab = lazy(() => import('../../components/prontuario/Telemedic
 
 export default function ProntuarioWorkspace() {
     // --- ESTADOS GLOBAIS DA TELA ---
-    const [pacienteAtivo, setPacienteAtivo] = useState(null); // Dados do Banner
-    const [agendamentoAtivo, setAgendamentoAtivo] = useState(null); // Contexto da consulta
+    const [pacienteAtivo, setPacienteAtivo] = useState(null); 
+    const [agendamentoAtivo, setAgendamentoAtivo] = useState(null); 
     
     // Controle das Colunas
-    const [abaEsquerda, setAbaEsquerda] = useState(0); // 0 = Consultas (Agenda), 1 = Meus Pacientes
+    const [abaEsquerda, setAbaEsquerda] = useState(0); 
     const [listaEsquerda, setListaEsquerda] = useState([]);
     const [isLoadingLista, setIsLoadingLista] = useState(false);
     
     const [conteudoCentral, setConteudoCentral] = useState({ tipo: 'VAZIO' }); 
     const [ferramentaDireita, setFerramentaDireita] = useState(null);
 
-    // NOVA FUNÇÃO: Formata a data de AAAA-MM-DD para DD/MM/AAAA
+    // Relógio para o cronômetro do semáforo da agenda
+    const [now, setNow] = useState(new Date());
+
+    useEffect(() => {
+        const interval = setInterval(() => setNow(new Date()), 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Formata a data de AAAA-MM-DD para DD/MM/AAAA
     const formatarData = (dataBase) => {
         if (!dataBase) return 'N/A';
         if (dataBase.includes('-')) {
@@ -62,7 +77,6 @@ export default function ProntuarioWorkspace() {
     const carregarListaEsquerda = async () => {
         setIsLoadingLista(true);
         try {
-            // Usa as rotas que definimos no backend
             const endpoint = abaEsquerda === 0 
                 ? '/prontuario/workspace/minhas-consultas/' 
                 : '/prontuario/workspace/meus-pacientes/';
@@ -71,7 +85,6 @@ export default function ProntuarioWorkspace() {
             setListaEsquerda(response.data);
         } catch (error) {
             console.error("Erro ao carregar lista lateral", error);
-            // Dados Mockados de emergência para você testar o visual imediatamente:
             if (abaEsquerda === 0) {
                 setListaEsquerda([
                     { id: 101, paciente_id: 1, paciente_nome: 'Maria Silva Teste', horario: '14:00', especialidade: 'Clínica Geral' },
@@ -88,7 +101,6 @@ export default function ProntuarioWorkspace() {
         }
     };
 
-    // NOVA FUNÇÃO: Busca apenas o banner
     const carregarBanner = async (pacId) => {
         try {
             const resBanner = await apiClient.get(`/prontuario/workspace/banner/${pacId}/`);
@@ -99,14 +111,13 @@ export default function ProntuarioWorkspace() {
     };
 
     // --- AÇÕES DO USUÁRIO ---
-    const selecionarPaciente = (itemLista) => { // Remova o async
+    const selecionarPaciente = (itemLista) => {
         const pacId = abaEsquerda === 0 ? itemLista.paciente_id : itemLista.id;
         const agendamento = abaEsquerda === 0 ? itemLista : null;
         
         setAgendamentoAtivo(agendamento);
         setFerramentaDireita(null);
 
-        // Chama sem travar a thread visual
         carregarBanner(pacId); 
 
         if (agendamento) {
@@ -136,9 +147,7 @@ export default function ProntuarioWorkspace() {
             const props = { 
                 pacienteId: pacienteAtivo.id, 
                 agendamentoId: agendamentoAtivo?.id,
-                // O GATILHO MÁGICO AQUI:
                 onEvolucaoSalva: () => {
-                    console.log('Evolução Salva! Atualizando a barra superior...');
                     carregarBanner(pacienteAtivo.id); 
                 } 
             };
@@ -163,11 +172,10 @@ export default function ProntuarioWorkspace() {
         }
     };
 
-    // --- O LAYOUT PRINCIPAL (O ESQUELETO TASY) ---
     return (
         <Box sx={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#ffffff', overflow: 'hidden' }}>
             
-            {/* 1. PATIENT BANNER (Topo) */}
+            {/* PATIENT BANNER (Topo) */}
             <Box sx={{ 
                 height: '45px', bgcolor: '#2c3338', color: '#f8f9fa', px: 2, 
                 display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
@@ -195,11 +203,11 @@ export default function ProntuarioWorkspace() {
                 )}
             </Box>
 
-            {/* 2. ÁREA DE TRABALHO (As 3 Colunas) */}
+            {/* ÁREA DE TRABALHO */}
             <Box sx={{ flexGrow: 1, display: 'flex', overflow: 'hidden' }}>
                 
                 {/* COLUNA ESQUERDA (Navegação Mestre) */}
-                <Box sx={{ width: '280px', borderRight: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', flexShrink: 0, bgcolor: '#fafafa' }}>
+                <Box sx={{ width: '290px', borderRight: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', flexShrink: 0, bgcolor: '#fafafa' }}>
                     <Tabs value={abaEsquerda} onChange={(e, val) => setAbaEsquerda(val)} variant="fullWidth" sx={{ minHeight: '36px' }}>
                         <Tab label="Consultas" sx={{ minHeight: '36px', py: 0, fontSize: '0.8rem' }} />
                         <Tab label="Pacientes" sx={{ minHeight: '36px', py: 0, fontSize: '0.8rem' }} />
@@ -207,84 +215,145 @@ export default function ProntuarioWorkspace() {
                     <Divider />
                     <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
                         {isLoadingLista ? <CircularProgress size={24} sx={{ m: 2, display: 'block' }} /> : (
-                            <List dense disablePadding>
+                            <List dense disablePadding sx={{ px: 1, py: 0.5 }}>
                                 {listaEsquerda.map((item, index) => {
-                                    const isRetorno = abaEsquerda === 0 && (item.tipo_visita === 'Retorno' || item.primeira_consulta === false);
-                                    
-                                    // --- NOVA LÓGICA DE STATUS ---
-                                    const isCancelado = abaEsquerda === 0 && (item.status === 'Cancelado' || item.status === 'Não Compareceu');
-                                    let statusColor = 'transparent';
-                                    let statusText = item.status;
-                                    
                                     if (abaEsquerda === 0) {
-                                        if (item.status === 'Confirmado') statusColor = '#2e7d32';
-                                        else if (item.status === 'Agendado') statusColor = '#1976d2';
-                                        else if (item.status === 'Aguardando Pagamento') statusColor = '#ed6c02';
-                                        else if (item.status === 'Cancelado') statusColor = '#d32f2f';
-                                        else if (item.status === 'Não Compareceu') statusColor = '#9e9e9e';
-                                        else if (item.status === 'Realizado') statusColor = '#757575';
-                                    }
+                                        // ==========================================
+                                        // CARDS ESTILO AGENDA (Semáforo)
+                                        // ==========================================
+                                        const isCancelado = item.status === 'Cancelado' || item.status === 'Não Compareceu';
+                                        const isDevendo = item.status_pagamento === 'Pendente';
+                                        const isEncaixe = item.is_encaixe && !isCancelado;
+                                        
+                                        const semaforo = calcularStatusSemaforo(item, now);
+                                        const isSelected = pacienteAtivo?.id === item.paciente_id;
+                                        
+                                        const borderColor = isSelected ? '#1976d2' : semaforo.cor.border;
+                                        const indicatorColor = isSelected ? '#1976d2' : semaforo.cor.indicator;
 
-                                    return (
-                                        <ListItem key={index} disablePadding divider sx={{ bgcolor: isCancelado ? '#f9f9f9' : '#fff', '&:hover': { bgcolor: '#f8fbff' } }}>
-                                            <ListItemButton 
-                                                onClick={() => selecionarPaciente(item)} 
-                                                selected={pacienteAtivo?.id === (abaEsquerda === 0 ? item.paciente_id : item.id)}
-                                                sx={{ 
-                                                    // Borda colorida com o status (ou azul se estiver selecionado)
-                                                    borderLeft: pacienteAtivo?.id === (abaEsquerda === 0 ? item.paciente_id : item.id) 
-                                                        ? `4px solid ${statusColor !== 'transparent' ? statusColor : '#1c7ed6'}` 
-                                                        : `4px solid ${statusColor}`,
-                                                    pl: 1.5, py: 1,
-                                                    opacity: isCancelado ? 0.6 : 1 // Fica meio transparente se cancelado
-                                                }}
-                                            >
-                                                <Box sx={{ width: '100%' }}>
-                                                    {/* Primeira Linha: Nome */}
-                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
-                                                        {/* Se cancelado, o nome fica riscado */}
-                                                        <Typography variant="body2" sx={{ fontWeight: 600, color: isCancelado ? '#999' : '#1C2E4A', lineHeight: 1.2, pr: 1, textDecoration: isCancelado ? 'line-through' : 'none' }}>
-                                                            {abaEsquerda === 0 ? item.paciente_nome : item.nome_completo}
-                                                        </Typography>
-                                                        {abaEsquerda === 0 && (
-                                                            <Chip 
-                                                                label={isRetorno ? "Retorno" : "1ª Vez"} 
-                                                                size="small" 
-                                                                sx={{ height: 16, fontSize: '0.55rem', fontWeight: 600, bgcolor: isRetorno ? '#e3f2fd' : '#fff8e1', color: isRetorno ? '#1565c0' : '#f57f17', flexShrink: 0 }} 
-                                                            />
-                                                        )}
-                                                    </Box>
-
-                                                    {/* Segunda Linha: Hora/Data e Procedimento */}
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
-                                                            <Typography variant="caption" sx={{ color: '#495057', fontWeight: 500, flexShrink: 0 }}>
-                                                                {abaEsquerda === 0 
-                                                                    ? `${item.data_hora_inicio ? formatarHoraTZ(item.data_hora_inicio) : item.horario}` 
-                                                                    : `Última: ${item.ultima_consulta}`}
+                                        return (
+                                            <ListItem key={index} disablePadding sx={{ mb: 0.8 }}>
+                                                <ListItemButton 
+                                                    onClick={() => selecionarPaciente(item)} 
+                                                    selected={isSelected}
+                                                    sx={{ 
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'stretch',
+                                                        py: 0.6, px: 1, borderRadius: 1.5,
+                                                        bgcolor: isSelected ? '#f0f7ff' : semaforo.cor.bg,
+                                                        border: `1px solid ${borderColor}`,
+                                                        borderLeft: `4px solid ${indicatorColor}`,
+                                                        opacity: isCancelado ? 0.6 : 1,
+                                                        transition: 'all 0.3s ease',
+                                                        '&:hover': { filter: 'brightness(0.97)' }
+                                                    }}
+                                                >
+                                                    {/* LINHA 1: Horário, ID, Nome e Cronômetro/Status */}
+                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 0.5, mb: 0.25, width: '100%' }}>
+                                                        <Box sx={{ display: 'flex', gap: 0.6, alignItems: 'center', overflow: 'hidden', minWidth: 0, flexGrow: 1 }}>
+                                                            <Typography sx={{ fontWeight: 800, fontSize: '0.72rem', color: semaforo.cor.text, flexShrink: 0 }}>
+                                                                {item.data_hora_inicio ? formatarHoraTZ(item.data_hora_inicio) : item.horario}
                                                             </Typography>
-                                                            
-                                                            {abaEsquerda === 0 && (
-                                                                <>
-                                                                    <Typography variant="caption" sx={{ color: '#adb5bd', flexShrink: 0 }}>•</Typography>
-                                                                    <Typography variant="caption" sx={{ color: '#6c757d', noWrap: true, textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                                                                        {item.procedimento_descricao || item.especialidade || 'Consulta'}
-                                                                    </Typography>
-                                                                </>
-                                                            )}
+
+                                                            <Box component="span" sx={{
+                                                                bgcolor: semaforo.cor.text, color: semaforo.cor.bg,
+                                                                px: 0.5, py: 0.1, borderRadius: '4px', fontSize: '0.55rem',
+                                                                fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', flexShrink: 0
+                                                            }}>
+                                                                ID: {item.paciente_id || item.id}
+                                                            </Box>
+
+                                                            <Tooltip title={item.paciente_nome || ''}>
+                                                                <Typography noWrap sx={{ fontWeight: 700, fontSize: '0.72rem', color: semaforo.cor.text, minWidth: 0, textDecoration: isCancelado ? 'line-through' : 'none' }}>
+                                                                    {item.paciente_nome}
+                                                                </Typography>
+                                                            </Tooltip>
                                                         </Box>
 
-                                                        {/* Badge em texto do Status da Consulta */}
-                                                        {abaEsquerda === 0 && statusText && (
-                                                            <Typography variant="caption" sx={{ fontSize: '0.55rem', textTransform: 'uppercase', fontWeight: 800, color: statusColor, flexShrink: 0, ml: 1 }}>
-                                                                {statusText}
-                                                            </Typography>
-                                                        )}
+                                                        {/* CRONÔMETRO + STATUS */}
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, flexShrink: 0, ml: 0.5, maxWidth: '46%' }}>
+                                                            {semaforo.timer && (
+                                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, bgcolor: 'rgba(255,255,255,0.5)', px: 0.5, py: 0.05, borderRadius: 1, flexShrink: 0 }}>
+                                                                    <AccessTimeIcon sx={{ fontSize: 10, color: semaforo.cor.text }} />
+                                                                    <Typography sx={{ fontSize: '0.62rem', fontWeight: 800, color: semaforo.cor.text, whiteSpace: 'nowrap' }}>
+                                                                        {semaforo.timer}
+                                                                    </Typography>
+                                                                </Box>
+                                                            )}
+                                                            <Tooltip title={semaforo.label}>
+                                                                <Typography noWrap sx={{ fontSize: '0.6rem', fontWeight: 600, color: semaforo.cor.text, opacity: 0.9, minWidth: 0 }}>
+                                                                    {semaforo.label}
+                                                                </Typography>
+                                                            </Tooltip>
+                                                        </Box>
                                                     </Box>
-                                                </Box>
-                                            </ListItemButton>
-                                        </ListItem>
-                                    );
+
+                                                    {/* LINHA 2: Procedimento e Tags */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.5, width: '100%' }}>
+                                                        <Tooltip title={item.procedimento_descricao || item.especialidade || 'Consulta'}>
+                                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, overflow: 'hidden', minWidth: 0, flexGrow: 1 }}>
+                                                                <MedicalInformationIcon sx={{ fontSize: 11, color: semaforo.cor.indicator, flexShrink: 0 }} />
+                                                                <Typography noWrap sx={{ fontSize: '0.6rem', color: semaforo.cor.text, opacity: 0.9, minWidth: 0 }}>
+                                                                    {item.procedimento_descricao || item.especialidade || 'Consulta'}
+                                                                </Typography>
+                                                            </Box>
+                                                        </Tooltip>
+
+                                                        <Box sx={{ display: 'flex', gap: 0.4, alignItems: 'center', flexShrink: 0 }}>
+                                                            {item.primeira_consulta ? (
+                                                                <Chip label="1ª Vez" size="small" sx={{ height: '12px', fontSize: '0.5rem', bgcolor: '#fff8e1', color: '#f57f17', border: '1px solid #ffe082', '& .MuiChip-label': { px: 0.4 } }} />
+                                                            ) : (
+                                                                <Tooltip title="Retorno"><AssignmentReturnIcon sx={{ color: semaforo.cor.indicator, fontSize: 12 }} /></Tooltip>
+                                                            )}
+
+                                                            {isEncaixe && (
+                                                                <Chip label="⚡ Encaixe" size="small" sx={{ height: '12px', fontSize: '0.5rem', bgcolor: '#fff3e0', color: '#e65100', border: '1px solid #ffcc80', fontWeight: 'bold', '& .MuiChip-label': { px: 0.4 }, ml: 0.4 }} />
+                                                            )}
+
+                                                            {isDevendo && !isCancelado && (
+                                                                <Tooltip title="Pagamento Pendente"><MonetizationOnIcon sx={{ color: '#d32f2f', fontSize: 13 }} /></Tooltip>
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+                                                </ListItemButton>
+                                            </ListItem>
+                                        );
+                                    } else {
+                                        // ==========================================
+                                        // CARDS DA ABA "PACIENTES" (Simplificado)
+                                        // ==========================================
+                                        const isSelectedPac = pacienteAtivo?.id === item.id;
+                                        return (
+                                            <ListItem key={index} disablePadding sx={{ mb: 0.8 }}>
+                                                <ListItemButton 
+                                                    onClick={() => selecionarPaciente(item)} 
+                                                    selected={isSelectedPac}
+                                                    sx={{ 
+                                                        borderRadius: 1.5,
+                                                        border: `1px solid ${isSelectedPac ? '#1976d2' : '#e0e0e0'}`,
+                                                        borderLeft: `4px solid ${isSelectedPac ? '#1976d2' : 'transparent'}`,
+                                                        bgcolor: isSelectedPac ? '#f0f7ff' : '#fff', 
+                                                        pl: 1.5, py: 1,
+                                                        '&:hover': { bgcolor: '#f8fbff' }
+                                                    }}
+                                                >
+                                                    <Box sx={{ width: '100%' }}>
+                                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                                                            <Typography variant="body2" sx={{ fontWeight: 600, color: '#1C2E4A', lineHeight: 1.2, pr: 1 }}>
+                                                                {item.nome_completo}
+                                                            </Typography>
+                                                        </Box>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                            <Typography variant="caption" sx={{ color: '#495057', fontWeight: 500 }}>
+                                                                Última: {item.ultima_consulta}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </ListItemButton>
+                                            </ListItem>
+                                        );
+                                    }
                                 })}
                             </List>
                         )}
@@ -300,7 +369,6 @@ export default function ProntuarioWorkspace() {
                 {ferramentaDireita && (
                     <Box sx={{ width: '400px', borderLeft: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', flexShrink: 0, bgcolor: '#fafafa' }}>
                         
-                        {/* 🌟 MUDANÇA AQUI: Omitimos o cabeçalho se a aba for PRESCRIÇÕES */}
                         {ferramentaDireita !== 'PRESCRIÇÕES' && (
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, borderBottom: '1px solid #e0e0e0' }}>
                                 <Typography variant="subtitle2" fontWeight="bold" color="primary" sx={{ textTransform: 'uppercase' }}>
@@ -310,7 +378,6 @@ export default function ProntuarioWorkspace() {
                             </Box>
                         )}
                         
-                        {/* Remove o padding interno de "PRESCRIÇÕES" para a tab colar no teto */}
                         <Box sx={{ flexGrow: 1, overflowY: 'auto', p: ferramentaDireita === 'PRESCRIÇÕES' ? 0 : 2 }}>
                             <Suspense fallback={<CircularProgress sx={{ m: 'auto', display: 'block' }} />}>
                                 {ferramentaDireita === 'PRESCRIÇÕES' && (
@@ -335,7 +402,7 @@ export default function ProntuarioWorkspace() {
                     </Box>
                 )}
 
-                {/* BARRA DE ÍCONES LATERAL (Extrema Direita) */}
+                {/* BARRA DE ÍCONES LATERAL */}
                 <Box sx={{ width: '48px', borderLeft: '1px solid #e0e0e0', bgcolor: '#f8f9fa', display: 'flex', flexDirection: 'column', alignItems: 'center', py: 1, gap: 1, flexShrink: 0 }}>
                     <Tooltip title="Prescrições" placement="left"><IconButton size="small" color={ferramentaDireita === 'PRESCRIÇÕES' ? 'primary' : 'default'} onClick={() => toggleFerramenta('PRESCRIÇÕES')}><LocalPharmacyIcon fontSize="small" /></IconButton></Tooltip>
                     <Tooltip title="Atestados/Relatórios" placement="left"><IconButton size="small" color={ferramentaDireita === 'ATESTADOS' ? 'primary' : 'default'} onClick={() => toggleFerramenta('ATESTADOS')}><DescriptionIcon fontSize="small" /></IconButton></Tooltip>
