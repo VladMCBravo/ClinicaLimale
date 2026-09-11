@@ -232,7 +232,7 @@ class ModeloLaudoAdmin(admin.ModelAdmin):
 class LaudoAdmin(admin.ModelAdmin):
     inlines = [ImagemLaudoInline]
     # Auditoria Total de Laudos
-    list_display = ('id', 'titulo_exame', 'paciente', 'medico', 'status', 'codigo_acesso', 'data_criacao')
+    list_display = ('id', 'titulo_exame', 'paciente', 'medico', 'status', 'codigo_acesso', 'senha_acesso', 'data_criacao')
     search_fields = ('paciente__nome_completo', 'codigo_acesso', 'titulo_exame', 'medico__first_name')
     list_filter = ('status', 'tipo_exame', 'medico', 'data_criacao')
     readonly_fields = ('data_criacao', 'data_atualizacao', 'codigo_acesso', 'senha_acesso')
