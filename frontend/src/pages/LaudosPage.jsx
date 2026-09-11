@@ -427,7 +427,19 @@ const LaudosPage = () => {
         const laudoProcessandoId = response.data.id;
         setLaudoId(laudoProcessandoId);
 
+        let tentativas = 0;
+        const MAX_TENTATIVAS = 30; // 30 tentativas x 3s = 90 segundos de limite
+
         const checkStatus = async () => {
+            tentativas++;
+            
+            // Se passar de 90 segundos tentando, aborta o spinner para o médico não ficar preso
+            if (tentativas > MAX_TENTATIVAS) {
+                setIsPolling(false);
+                alert("⚠️ O processamento demorou muito para responder (possível instabilidade na rede). Verifique na aba Resultados se o PDF foi gerado corretamente.");
+                return;
+            }
+
             try {
                 const res = await apiClient.get(`/prontuario/laudos/${laudoProcessandoId}/status/`);
                 if (res.data.status === 'FINALIZADO') {
@@ -457,15 +469,23 @@ const LaudosPage = () => {
                 } else if (res.data.status === 'ERRO') {
                     setIsPolling(false); alert("⚠️ Falha na Assinatura Digital!\nOcorreu um erro de comunicação ao aplicar o seu certificado no PDF. O laudo NÃO foi finalizado e continua como rascunho.");
                 } else setTimeout(checkStatus, 3000);
-            } catch(e) { setTimeout(checkStatus, 3000); }
+            } catch(e) { 
+                // Se der erro de rede (Ex: o servidor reiniciou), tenta de novo sem travar
+                setTimeout(checkStatus, 3000); 
+            }
         };
+
+        // 👇 AS LINHAS QUE FALTARAM COMEÇAM AQUI 👇
+        
+        // 1. Inicia a primeira checagem de status
         setTimeout(checkStatus, 3000);
 
     } catch (e) {
+        // 2. Fecha o 'try' principal da requisição assíncrona
         setIsPolling(false);
         alert(`⚠️ Atenção: ${e.response?.data?.detail || (Array.isArray(e.response?.data) ? e.response.data[0] : null) || "Erro ao enviar o laudo para processamento."}`);
     }
-  };
+  }; // <-- Fecha a função handleFinalizacaoAssincrona
 
   const getMensagemCompartilhamento = (canal) => {
       const cod = credenciais?.codigo || "---"; const pass = credenciais?.senha || "---"; const link = credenciais?.link || "https://clinica-limale.vercel.app/resultados";

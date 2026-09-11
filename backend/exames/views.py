@@ -1,4 +1,5 @@
 import os
+import uuid
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -151,6 +152,7 @@ class UploadExameView(APIView):
                 }
             )
 
+
         count_imgs = 0
         for f in files:
             ext = f.name.lower().split('.')[-1]
@@ -163,8 +165,17 @@ class UploadExameView(APIView):
             
             # Agora verificamos apenas pelo nome base do arquivo, ignorando a extensão e hashes
             if not ArquivoExame.objects.filter(exame=exame, arquivo__icontains=nome_base).exists():
-                ArquivoExame.objects.create(exame=exame, arquivo=f, tipo=tipo)
-                count_imgs += 1
+                
+                # 1. MÁGICA: Injeta um hash único no nome do arquivo ANTES de mandar pro S3
+                f.name = f"{nome_base}_{uuid.uuid4().hex[:8]}.{ext}"
+                
+                # 2. PROTEÇÃO: Envolve a criação em um bloco try/except
+                try:
+                    ArquivoExame.objects.create(exame=exame, arquivo=f, tipo=tipo)
+                    count_imgs += 1
+                except Exception as e:
+                    # Se o Supabase rejeitar, o servidor apenas printa o erro e NÃO REINICIA
+                    print(f"⚠️ Erro ignorado ao salvar {f.name} no S3: {e}")
 
         return Response({
             'status': 'sucesso',

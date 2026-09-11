@@ -24,6 +24,7 @@ const LaudosPreviewModal = ({
     const [dataExameModal, setDataExameModal] = useState(new Date().toISOString().split('T')[0]);
     const imagensBaseRef = useRef(0);
     const [senhaMedico, setSenhaMedico] = useState(''); // <-- NOVO ESTADO
+    const [salvando, setSalvando] = useState(false);
 
     useEffect(() => {
         if (open) {
@@ -306,9 +307,13 @@ const LaudosPreviewModal = ({
                     </Button>
                 
                 <Button 
+                    disabled={salvando}
                     onClick={() => {
                         if (!senhaMedico) return alert("A senha do médico é obrigatória para assinar o laudo.");
-                        onFinalizar(textoEditado, imagens, dataExameModal, senhaMedico); // <-- SENHA INCLUÍDA
+                        setSalvando(true);
+                        onFinalizar(textoEditado, imagens, dataExameModal, senhaMedico); 
+                        // Destrava o botão após alguns segundos (caso precise tentar novamente)
+                        setTimeout(() => setSalvando(false), 5000); 
                     }} 
                     variant="contained" 
                     size="large"
