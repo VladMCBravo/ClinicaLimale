@@ -1,23 +1,23 @@
 // src/pages/LoginPage.jsx - VERSÃO REATORADA E SIMPLIFICADA
 
 import { useState } from 'react';
-import { Box, Button, Paper, TextField, Typography } from '@mui/material';
+import { Box, Button, Paper, TextField, Typography, Divider } from '@mui/material'; // <-- Adicionado o Divider
+import { useNavigate } from 'react-router-dom'; // <-- Adicionado o useNavigate
 import logoImage from '../assets/logo.png';
-import { useAuth } from '../hooks/useAuth'; // Importamos o hook
+import { useAuth } from '../hooks/useAuth'; 
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   
-  // Usamos a função de login diretamente do nosso hook
   const { login } = useAuth();
+  const navigate = useNavigate(); // <-- Inicializando o hook de navegação
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    // A lógica complexa foi abstraída para dentro do hook
     const success = await login(username, password);
 
     if (!success) {
@@ -66,9 +66,28 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                 />
                 {error && <Typography color="error" align="center" sx={{ mt: 2 }}>{error}</Typography>}
+                
                 <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }}>
                     Entrar
                 </Button>
+
+                {/* 👇 NOVA ÁREA PARA OS PACIENTES 👇 */}
+                <Divider sx={{ my: 2, color: 'text.secondary', fontSize: '0.875rem' }}>
+                    OU
+                </Divider>
+
+                <Button 
+                    variant="outlined" 
+                    color="primary"
+                    fullWidth 
+                    size="large"
+                    onClick={() => navigate('/resultados')}
+                    sx={{ fontWeight: 'bold' }}
+                >
+                    Sou Paciente - Acessar Resultados
+                </Button>
+                {/* 👆 FIM DA NOVA ÁREA 👆 */}
+                
             </Box>
         </Paper>
     </Box>
